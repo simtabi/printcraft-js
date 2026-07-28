@@ -1,0 +1,41 @@
+// Reusable pieces the demo's components are built from.
+
+@use 'tokens' as *;
+
+/// One corner tick of a crop mark. `$v` is top|bottom, `$h` is left|right.
+@mixin crop-tick($v, $h) {
+  content: '';
+  position: absolute;
+  #{$v}: -1px;
+  #{$h}: -1px;
+  width: $crop-size;
+  height: $crop-size;
+  pointer-events: none;
+  border-#{$v}: $crop-weight solid $ink;
+  border-#{$h}: $crop-weight solid $ink;
+}
+
+/// A focus ring that does not depend on the browser default, which several
+/// hide entirely once a custom outline is set anywhere on the element.
+@mixin focus-ring($color: process('m')) {
+  &:focus-visible {
+    outline: $focus-ring solid $color;
+    outline-offset: 2px;
+  }
+}
+
+/// The monospaced label voice used for job numbers and metadata.
+@mixin label-type($size: 11px) {
+  font-family: $font-mono;
+  font-size: $size;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: $ink-soft;
+}
+
+/// The centred column every band of the page shares.
+@mixin sheet-column {
+  max-width: $sheet-width;
+  margin-inline: auto;
+  padding-inline: 1.5rem;
+}

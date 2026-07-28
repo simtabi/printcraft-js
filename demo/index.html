@@ -3,335 +3,170 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Printcraft demo: data-driven client-side printing. Print regions, redact, auto-blank PII, crop marks, draw-to-print.">
+<meta name="theme-color" content="#17181b">
 <title>Printcraft — demo &amp; test sheet</title>
+<!-- PRINTCRAFT:ICON -->
+<link rel="icon" href="../dist/assets/favicon/favicon.ico" sizes="any">
+<link rel="icon" href="../dist/assets/favicon/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="../dist/assets/favicon/apple-touch-icon.png">
+<link rel="manifest" href="../dist/assets/favicon/site.webmanifest">
+<!-- /PRINTCRAFT:ICON -->
 <!-- PRINTCRAFT:CSS -->
-<link rel="stylesheet" href="../dist/demo.css">
+<link rel="stylesheet" href="../dist/assets/css/demo.css">
 <!-- /PRINTCRAFT:CSS -->
 </head>
-<body class="bg-paperdim text-ink font-sans antialiased">
+<body class="pc-page">
 
-<header class="bg-white border-b border-rule">
-  <div class="flex h-2" aria-hidden="true">
-    <i class="flex-1 bg-process-c"></i><i class="flex-1 bg-process-m"></i>
-    <i class="flex-1 bg-process-y"></i><i class="flex-1 bg-process-k"></i>
-  </div>
-  <div class="max-w-4xl mx-auto px-6 pt-10 pb-8">
-    <div class="font-mono text-xs tracking-widest uppercase text-inksoft">Job ticket · vanilla js · zero dependencies</div>
-    <h1 class="text-4xl font-bold tracking-tight mt-2 mb-2">Printcraft <sup class="font-mono text-sm text-process-m">1.2</sup></h1>
-    <p class="text-inksoft max-w-prose">Pick a job below and hit run. Each button prints the sample sheet
-    at the bottom of this page through a different pipeline. Ctrl+P / Cmd+P is remapped to a clean print
-    of the sample.</p>
+<header class="pc-masthead">
+  <div class="pc-rule" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+  <div class="pc-band pt-10 pb-8">
+    <p class="pc-masthead__eyebrow">Job ticket · vanilla js · zero dependencies</p>
+    <h1 class="pc-masthead__title">Printcraft <sup>1.2</sup></h1>
+    <p class="pc-masthead__lede">Pick a job below and hit run. Each button prints the sample sheet
+    at the bottom of this page through a different pipeline. Ctrl+P / Cmd+P is remapped to a clean
+    print of the sample.</p>
   </div>
 </header>
 
 <main>
-  <div class="max-w-4xl mx-auto px-6 py-8">
+  <div class="pc-band py-8">
 
-    <div class="grid gap-4 sm:grid-cols-2" id="tickets"></div>
+    <div class="pc-ticket-grid" id="tickets"></div>
 
-    <section class="mt-12 bg-white border border-rule p-6" id="report">
-      <h2 class="text-2xl font-bold mt-0 mb-2">Quarterly production report</h2>
-      <p class="mb-3">This block is the print target for every demo.
-        <span class="inline-block bg-process-m text-white font-mono text-[11px] px-2 py-0.5 align-middle">.no-print elements vanish</span></p>
+    <section class="pc-sheet mt-12" id="report">
+      <h2>Quarterly production report</h2>
+      <p>This block is the print target for every demo.
+        <span class="pc-chip">.no-print elements vanish</span></p>
 
-      <p class="no-print mb-3">You should never see this sentence on paper (excluded via
-        <code class="font-mono text-xs bg-paperdim px-1 py-0.5 rounded">excludeSelectorList</code>).</p>
+      <p class="no-print">You should never see this sentence on paper (excluded via
+        <code class="pc-code">excludeSelectorList</code>).</p>
 
-      <div class="hidden-note mb-3 border border-dashed border-amber-300 bg-amber-50 px-3 py-2" style="display:none">
-        Surprise! This note is <code class="font-mono text-xs">display:none</code> on screen and only
+      <div class="pc-hidden-note hidden-note">
+        Surprise! This note is <code class="pc-code">display:none</code> on screen and only
         appears with <em>revealHiddenElements</em>.
       </div>
 
-      <h3 class="text-lg font-semibold mt-5 mb-1">Reference links</h3>
-      <p class="links mb-3">
-        Read the <a class="text-process-c underline" href="/docs/spec">internal spec</a>, the
-        <a class="text-process-c underline" href="https://developer.mozilla.org/en-US/docs/Web/CSS/@page">MDN @page docs</a>, and the
-        <a class="text-process-c underline" href="https://example.org/whitepaper">external whitepaper</a>.
+      <h3>Reference links</h3>
+      <p class="links">
+        Read the <a class="pc-link" href="/docs/spec">internal spec</a>, the
+        <a class="pc-link" href="https://developer.mozilla.org/en-US/docs/Web/CSS/@page">MDN @page docs</a>, and the
+        <a class="pc-link" href="https://example.org/whitepaper">external whitepaper</a>.
       </p>
 
-      <h3 class="text-lg font-semibold mt-5 mb-1">Run log (scrollable on screen, expandable on paper)</h3>
-      <div class="scrollbox max-h-32 overflow-y-auto border border-rule">
-        <table class="w-full border-collapse text-sm">
+      <h3>Run log (scrollable on screen, expandable on paper)</h3>
+      <div class="pc-scrollbox scrollbox">
+        <table class="pc-table">
           <thead><tr>
-            <th class="border border-rule px-2.5 py-1.5 text-left">Run</th>
-            <th class="border border-rule px-2.5 py-1.5 text-left">Sheets</th>
-            <th class="border border-rule px-2.5 py-1.5 text-left">Waste %</th>
+            <th scope="col">Run</th>
+            <th scope="col">Sheets</th>
+            <th scope="col">Waste %</th>
           </tr></thead>
           <tbody id="runlog"></tbody>
         </table>
       </div>
 
-      <h3 class="text-lg font-semibold mt-5 mb-1">Live chart (canvas)</h3>
-      <canvas id="chart" width="600" height="140" class="max-w-full"></canvas>
+      <h3>Live chart (canvas)</h3>
+      <canvas id="chart" class="pc-chart" width="600" height="140"
+              aria-label="Sample production chart"></canvas>
 
-      <h3 class="text-lg font-semibold mt-5 mb-1">Order form (state survives to paper)</h3>
-      <div class="flex flex-wrap gap-4 items-center">
-        <label>Customer <input type="text" id="cust" class="border border-rule px-2 py-1 ml-1" value=""></label>
-        <label><input type="checkbox" id="rush" class="mr-1"> Rush job</label>
+      <h3>Order form (state survives to paper)</h3>
+      <div class="pc-form">
+        <label>Customer <input type="text" id="cust" value=""></label>
+        <label><input type="checkbox" id="rush"> Rush job</label>
         <label>Stock
-          <select id="stock" class="border border-rule px-2 py-1 ml-1">
+          <select id="stock">
             <option>80gsm</option><option>120gsm</option><option>300gsm</option>
           </select>
         </label>
       </div>
     </section>
 
-
-    <section class="mt-8 bg-white border border-rule p-6" id="memo">
-      <h2 class="text-2xl font-bold mt-0 mb-1">Field memo <span class="font-mono text-xs align-middle bg-ink text-white px-2 py-0.5 ml-2">SAMPLE PII · ALL FAKE</span></h2>
-      <p class="text-inksoft text-sm mb-4">This block exists so the redaction and privacy jobs have something
+    <section class="pc-sheet" id="memo">
+      <h2>Field memo <span class="pc-chip pc-chip--ink">Sample PII · all fake</span></h2>
+      <p class="pc-prose">This block exists so the redaction and privacy jobs have something
       juicy to censor. Every identifier below is invented.</p>
-      <p class="mb-2">Officer <span class="codename font-semibold">R. VELVET</span> met the contact
-      (<span class="codename font-semibold">NIGHTJAR</span>) at the drop point. Reach the desk at
+      <p>Officer <span class="codename"><strong>R. VELVET</strong></span> met the contact
+      (<span class="codename"><strong>NIGHTJAR</strong></span>) at the drop point. Reach the desk at
       case-handler@agency-example.gov or +1 (202) 555-0173. Reimbursement went to card
       4111 1111 1111 1111, payroll ref SSN 078-05-1120.</p>
-      <p class="routing mb-2">Routing: safehouse 12B, Krausenstr. 9, rear entrance code 4471.</p>
+      <p class="routing">Routing: safehouse 12B, Krausenstr. 9, rear entrance code 4471.</p>
       <p data-printcraft-note="verify with records before release">Contact confirmed the shipment
       arrives Thursday. Recommend continued surveillance.</p>
     </section>
 
-    <section class="mt-8 bg-white border border-rule p-6">
-      <h2 class="text-2xl font-bold mt-0 mb-2">Declarative triggers (no js written)</h2>
-      <p class="text-inksoft mb-4">These buttons carry their whole job in data attributes. The library's
+    <section class="pc-sheet">
+      <h2>Declarative triggers (no js written)</h2>
+      <p class="pc-prose">These buttons carry their whole job in data attributes. The library's
       delegated listener picks them up at boot, so they work for content added later too.</p>
-      <div class="flex flex-wrap gap-2">
-        <button class="run" data-printcraft="#report"
+      <div class="pc-controls">
+        <button type="button" class="pc-run" data-printcraft="#report"
                 data-printcraft-job-name="declarative-basic">data-printcraft="#report"</button>
-        <button class="run" data-printcraft="#report"
+        <button type="button" class="pc-run" data-printcraft="#report"
                 data-printcraft-watermark-text="DRAFT"
                 data-printcraft-footer-text="Declared in html"
                 data-printcraft-exclude-selector-list=".no-print, .links">with attr options</button>
-        <button class="run" data-printcraft
+        <button type="button" class="pc-run" data-printcraft
                 data-printcraft-options='{"target":"#report","headerText":"From JSON blob","setPrintSize":"A4 landscape"}'>with json blob</button>
       </div>
-      <p class="text-inksoft mt-4">Content can self-describe too: mark elements with
-      <code class="font-mono text-xs bg-paperdim px-1 py-0.5 rounded">data-printcraft-exclude</code>,
-      <code class="font-mono text-xs bg-paperdim px-1 py-0.5 rounded">data-printcraft-break-before</code>,
-      <code class="font-mono text-xs bg-paperdim px-1 py-0.5 rounded">data-printcraft-avoid-break</code>, or
-      <code class="font-mono text-xs bg-paperdim px-1 py-0.5 rounded">data-printcraft-reveal</code>
+      <p class="pc-prose mt-4">Content can self-describe too: mark elements with
+      <code class="pc-code">data-printcraft-exclude</code>,
+      <code class="pc-code">data-printcraft-break-before</code>,
+      <code class="pc-code">data-printcraft-avoid-break</code>, or
+      <code class="pc-code">data-printcraft-reveal</code>
       and every job honors them.</p>
     </section>
 
-    <section class="mt-8 bg-white border border-rule p-6">
-      <h2 class="text-2xl font-bold mt-0 mb-2">Interaction layer</h2>
-      <div class="flex flex-wrap gap-2 mb-4">
-        <button class="run" id="btn-menu">Enable right-click menu</button>
-        <button class="run" id="btn-pick">Pick sections…</button>
-        <button class="run" id="btn-draw">Draw print area…</button>
+    <section class="pc-sheet">
+      <h2>Interaction layer</h2>
+      <div class="pc-controls mb-4">
+        <button type="button" class="pc-run" id="btn-menu" aria-pressed="false">Enable right-click menu</button>
+        <button type="button" class="pc-run" id="btn-pick">Pick sections…</button>
+        <button type="button" class="pc-run" id="btn-draw">Draw print area…</button>
       </div>
-      <p class="text-inksoft">The context menu (Tabler icons, opt-in) offers print page/element, pick,
+      <p class="pc-prose">The context menu (Tabler icons, opt-in) offers print page/element, pick,
       draw, redaction toggle, notes, and the inspector on whatever you right-clicked. The picker
       multi-selects sections with hover highlight; Enter prints, Esc cancels. Draw drags a rectangle
       and prints exactly that region of the page via a clipped clone. Redactions and notes are stored
-      as <code class="font-mono text-xs bg-paperdim px-1 py-0.5 rounded">data-printcraft-*</code>
+      as <code class="pc-code">data-printcraft-*</code>
       attributes, so every later job honors them.</p>
     </section>
 
-    <section class="mt-8 bg-white border border-rule p-6">
-      <h2 class="text-2xl font-bold mt-0 mb-2">Devtools</h2>
-      <div class="flex flex-wrap gap-2 mb-4">
-        <button class="run" id="btn-inspect">Open inspector</button>
-        <button class="run" id="btn-debug">Toggle debug logging</button>
-        <button class="run" id="btn-report">devtools.report()</button>
+    <section class="pc-sheet">
+      <h2>Devtools</h2>
+      <div class="pc-controls mb-4">
+        <button type="button" class="pc-run" id="btn-inspect">Open inspector</button>
+        <button type="button" class="pc-run" id="btn-debug" aria-pressed="false">Toggle debug logging</button>
+        <button type="button" class="pc-run" id="btn-report">devtools.report()</button>
       </div>
-      <p class="text-inksoft">The inspector shows the assembled print document in an overlay before any
+      <p class="pc-prose">The inspector shows the assembled print document in an overlay before any
       dialog. Debug logging prints per-stage timings for every job.
-      <code class="font-mono text-xs bg-paperdim px-1 py-0.5 rounded">Printcraft.devtools.jobs</code> keeps
+      <code class="pc-code">Printcraft.devtools.jobs</code> keeps
       the last 20 job records. You can also enable debug with
-      <code class="font-mono text-xs bg-paperdim px-1 py-0.5 rounded">?printcraft-debug</code> in the url or
-      <code class="font-mono text-xs bg-paperdim px-1 py-0.5 rounded">localStorage.setItem('printcraft:debug','1')</code>.</p>
+      <code class="pc-code">?printcraft-debug</code> in the url or
+      <code class="pc-code">localStorage.setItem('printcraft:debug','1')</code>.</p>
     </section>
 
   </div>
 </main>
 
-<footer class="border-t border-rule mt-4">
-  <div class="flex h-2" aria-hidden="true">
-    <i class="flex-1 bg-process-c"></i><i class="flex-1 bg-process-m"></i>
-    <i class="flex-1 bg-process-y"></i><i class="flex-1 bg-process-k"></i>
-  </div>
-  <div class="max-w-4xl mx-auto px-6 py-5 font-mono text-xs text-inksoft">
-    Printcraft 1.0 · MIT · open devtools to watch the promise lifecycle
-  </div>
+<footer class="pc-colophon">
+  <div class="pc-rule" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+  <p class="pc-colophon__line">Printcraft 1.2 · MIT · open devtools to watch the promise lifecycle</p>
 </footer>
 
-<!-- page-wide defaults, picked up automatically at boot -->
-<script type="application/json" data-printcraft-config>
-  { "documentTitle": "Printcraft demo", "stripDarkMode": true }
-</script>
+<!-- page-wide defaults. the repo demo fetches them via the script tag's
+     data-config; the standalone build swaps in an inline json block, since a
+     file:// page cannot fetch a sibling file. -->
+<!-- PRINTCRAFT:CONFIG -->
+<!-- /PRINTCRAFT:CONFIG -->
 
 <!-- PRINTCRAFT:LIB -->
-<script src="../dist/printcraft.umd.js"></script>
+<script src="../dist/printcraft.umd.js" data-config="../dist/assets/data/printcraft.config.json"></script>
 <!-- /PRINTCRAFT:LIB -->
 
-<script>
-  // visible failure instead of silent broken buttons if the library didn't load
-  if (typeof Printcraft === 'undefined') {
-    var warn = document.createElement('div');
-    warn.setAttribute('style',
-      'position:fixed;top:0;left:0;right:0;z-index:99999;background:#b91c1c;color:#fff;' +
-      'font:14px/1.5 monospace;padding:12px 16px;');
-    warn.textContent = 'This is the repo demo: it loads ../dist/printcraft.umd.js and ../dist/demo.css, so it ' +
-      'needs `npm run build` first and must be served from the repo root (npm run demo). ' +
-      'For a single file that works offline from anywhere, open dist/demo-standalone.html.';
-    document.body.appendChild(warn);
-  }
-</script>
-
-<script>
-(function () {
-  if (typeof Printcraft === 'undefined') return;
-
-  // style the run buttons once, tailwind classes applied from js to keep markup lean
-  var RUN = 'font-mono text-[13px] font-semibold tracking-wide bg-ink text-white px-3.5 py-2 rounded-sm ' +
-            'cursor-pointer hover:bg-black focus-visible:outline focus-visible:outline-2 ' +
-            'focus-visible:outline-process-m focus-visible:outline-offset-2';
-  document.querySelectorAll('button.run').forEach(function (b) {
-    b.className = 'run ' + RUN;
-  });
-
-  // fill sample data
-  var tbody = document.getElementById('runlog');
-  for (var i = 1; i <= 25; i++) {
-    var tr = document.createElement('tr');
-    tr.innerHTML = '<td class="border border-rule px-2.5 py-1.5">#' + (1000 + i) +
-      '</td><td class="border border-rule px-2.5 py-1.5">' + (i * 137) +
-      '</td><td class="border border-rule px-2.5 py-1.5">' + (Math.round(Math.random() * 40) / 10) + '</td>';
-    tbody.appendChild(tr);
-  }
-  var ctx = document.getElementById('chart').getContext('2d');
-  if (ctx) {
-    ctx.fillStyle = '#f2f2ef'; ctx.fillRect(0, 0, 600, 140);
-    var colors = ['#009fe3', '#e5007d', '#ffd500', '#17181b'];
-    for (var b = 0; b < 24; b++) {
-      ctx.fillStyle = colors[b % 4];
-      var h = 20 + Math.random() * 100;
-      ctx.fillRect(10 + b * 24, 140 - h, 16, h);
-    }
-  }
-  document.getElementById('cust').value = 'Aldus Manutius';
-
-  // demo definitions: label, blurb, options
-  var demos = [
-    ['Print the region', 'Just the report block, nothing else on the page.',
-      { target: '#report' }],
-    ['Callbacks + promise', 'Logs before/after and resolves a promise when the dialog closes.',
-      { target: '#report', beforePrintCb: function(){ console.log('before print'); },
-        afterPrintCb: function(){ console.log('after print'); } }],
-    ['Expose link URLs (all)', 'Appends every href to its link text.',
-      { target: '#report', exposeLinkUrls: 'all' }],
-    ['Expose links, custom template', 'External links only, arrow template.',
-      { target: '#report', exposeLinkUrls: 'external', linkTextTemplate: '{title} \u2192 {url}' }],
-    ['Keep source CSS', 'Ships this page\u2019s stylesheets along for the ride.',
-      { target: '#report', keepSourceCSS: true }],
-    ['Exclude a region', 'Drops everything matching .links and .no-print.',
-      { target: '#report', excludeSelectorList: ['.links', '.no-print'] }],
-    ['Image watermark', 'Centered, repeated on every page, 20% opacity.',
-      { target: '#report', watermarkImageURL: 'https://upload.wikimedia.org/wikipedia/commons/4/4f/SVG_Logo.svg', watermarkOpacity: 0.2 }],
-    ['Text watermark', 'No image needed: DRAFT at -30\u00b0 via generated svg.',
-      { target: '#report', watermarkText: 'DRAFT', watermarkOpacity: 0.15 }],
-    ['Header + footer, every page', 'Taglines repeated per page via the table technique.',
-      { target: '#report', headerText: 'ACME PRINTWORKS \u2014 CONFIDENTIAL', footerText: 'Generated by Printcraft', headerFooterMode: 'repeat' }],
-    ['Reveal hidden elements', 'The yellow display:none note shows up on paper.',
-      { target: '#report', revealHiddenElements: true }],
-    ['Strip images', 'Images become bordered placeholders at their rendered size.',
-      { target: '#report', removeImages: true }],
-    ['Strip inline styles', 'All style="" attributes removed from the clone.',
-      { target: '#report', removeInlineStyles: true }],
-    ['Canvas capture', 'The live chart is snapshotted to a png before printing.',
-      { target: '#report', printCanvas: true }],
-    ['Forced page size', 'A5 landscape with 10mm margins via @page.',
-      { target: '#report', setPrintSize: 'A5 landscape', pageMargin: '10mm' }],
-    ['Expand scrollables', 'The run log table unrolls fully instead of clipping.',
-      { target: '#report', extendScrollableAreas: true }],
-    ['Inject custom style', 'Headings go magenta on paper only.',
-      { target: '#report', injectCustomStyle: 'h2,h3{color:#e5007d} table{font-size:11px}' }],
-    ['Custom transforms', 'Uppercases every h3 and stamps a suffix, chained.',
-      { target: '#report', transforms: [
-          { selector: 'h3', fn: function (el) { el.textContent = el.textContent.toUpperCase(); return el; } },
-          { selector: 'h2', fn: function (el) { el.textContent += ' \u2014 PROOF'; return el; } }
-        ] }],
-    ['Popup window mode', 'Same job, but in a new window instead of an iframe.',
-      { target: '#report', printInIframe: false }],
-    ['Redact sections', 'Declassified-file bars over codenames and the routing line, text destroyed.',
-      { target: '#memo', redactSelectorList: ['.codename', '.routing'] }],
-    ['Privacy auto-redact', 'Emails, phones, SSNs, and card numbers blanked by pattern scan.',
-      { target: '#memo', privacy: true }],
-    ['Printer marks', 'Corner crop marks and a 3mm bleed inset on every page.',
-      { target: '#report', printerMarks: true }],
-    ['Annotations', 'Note chips from options and data-printcraft-note attributes.',
-      { target: '#memo', annotations: [{ selector: '.codename', text: 'confirm clearance' }] }],
-    ['Fluent chain', 'job().redact().privacy().marks().watermark().print() — one chain.',
-      function () {
-        return Printcraft.job('#memo')
-          .name('fluent memo')
-          .redact('.routing').privacy(true)
-          .marks(true).watermark('DECLASSIFIED', 0.12)
-          .footer('released under demo act §4')
-          .print();
-      }]
-  ];
-
-  var grid = document.getElementById('tickets');
-  demos.forEach(function (d, i) {
-    var card = document.createElement('article');
-    card.className = 'ticket bg-white border border-rule rounded-sm p-4 transition-transform hover:-translate-y-0.5 motion-reduce:transform-none';
-    card.innerHTML =
-      '<span class="crop" aria-hidden="true"></span>' +
-      '<div class="font-mono text-[11px] tracking-widest text-inksoft">JOB ' + String(i + 1).padStart(2, '0') + '</div>' +
-      '<h3 class="text-base font-semibold mt-1 mb-1"></h3>' +
-      '<p class="text-sm text-inksoft mb-3"></p>' +
-      '<button class="' + RUN + '">Run job</button>';
-    card.querySelector('h3').textContent = d[0];
-    card.querySelector('p').textContent = d[1];
-    card.querySelector('button').addEventListener('click', function () {
-      console.log('job', i + 1, 'started');
-      var run = typeof d[2] === 'function' ? d[2]() : Printcraft.print(d[2]);
-      run
-        .then(function (job) { console.log('job', i + 1, job.status, 'in', job.duration + 'ms'); })
-        .catch(function (e) { console.error('job', i + 1, 'failed:', e); });
-    });
-    grid.appendChild(card);
-  });
-
-  // ctrl+p / cmd+p prints the clean report instead of the whole page
-  Printcraft.bindHotkey({ target: '#report', excludeSelectorList: ['.no-print'], footerText: 'Printed via hotkey' });
-
-  // interaction layer controls
-  var menuOff = null;
-  document.getElementById('btn-menu').addEventListener('click', function () {
-    if (menuOff) { menuOff(); menuOff = null; this.textContent = 'Enable right-click menu'; return; }
-    menuOff = Printcraft.ui.contextMenu({ base: {} });
-    this.textContent = 'Disable right-click menu';
-  });
-  document.getElementById('btn-pick').addEventListener('click', function () {
-    Printcraft.ui.pickSections().then(function (r) { console.log('picker:', r); });
-  });
-  document.getElementById('btn-draw').addEventListener('click', function () {
-    Printcraft.ui.drawArea().then(function (r) { console.log('draw:', r); });
-  });
-
-  // devtools controls
-  document.getElementById('btn-inspect').addEventListener('click', function () {
-    Printcraft.inspect({ target: '#report', watermarkText: 'PREVIEW', footerText: 'inspector mode' });
-  });
-  document.getElementById('btn-debug').addEventListener('click', function () {
-    var on = !Printcraft.debug();
-    Printcraft.debug(on);
-    console.log('[printcraft] debug', on ? 'on' : 'off');
-  });
-  document.getElementById('btn-report').addEventListener('click', function () {
-    Printcraft.devtools.report();
-  });
-
-  // global event bus: watch the whole lifecycle in the console
-  ['job:start', 'job:beforeprint', 'job:done', 'job:cancel', 'job:error', 'config:loaded', 'trigger']
-    .forEach(function (name) {
-      Printcraft.on(name, function (p) {
-        if (Printcraft.debug()) console.log('[bus]', name, p.job ? '#' + p.job.id : '', p);
-      });
-    });
-})();
-</script>
+<!-- PRINTCRAFT:DEMO -->
+<script src="../dist/assets/js/demo.js"></script>
+<!-- /PRINTCRAFT:DEMO -->
 </body>
 </html>

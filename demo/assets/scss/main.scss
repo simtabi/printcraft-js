@@ -1,0 +1,16 @@
+// The demo's own stylesheet.
+//
+// Compiled by `npm run build:css`, which runs Sass over this file and the
+// Tailwind CLI over assets/css/tailwind.css, then concatenates both into
+// dist/assets/css/demo.css. Sass owns the components; Tailwind owns the layout
+// utilities and the design tokens the markup reaches for.
+//
+// Sass output comes second in the concatenation, so these unlayered component
+// rules win over Tailwind's layered utilities on equal specificity. That is
+// deliberate: a component class is a decision, a utility is a default.
+
+@use 'tokens';
+@use 'mixins';
+@use 'controls';
+@use 'sheet';
+@use 'tickets';

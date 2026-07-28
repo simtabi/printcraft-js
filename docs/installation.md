@@ -58,18 +58,22 @@ Two attributes on the script tag control that:
 | `dist/printcraft.mjs`       | ESM bundle, for `import`                               |
 | `dist/printcraft.umd.js`    | UMD bundle, for a script tag or `require()`            |
 | `dist/types/*.d.ts`         | TypeScript declarations, including `PrintcraftOptions` |
-| `dist/demo.css`             | The compiled demo stylesheet                           |
+| `dist/assets/`              | Compiled demo assets: css, js, favicon, img, data      |
 | `dist/demo-standalone.html` | The whole demo as one self-contained file              |
 
 Both bundles ship source maps.
 
 ## Trying it without installing anything
 
-`dist/demo-standalone.html` has the library and its stylesheet inlined. Open it
-from `file://` with no server and no network — every job in it runs offline.
+The hosted demo is at **<https://simtabi.github.io/printcraft-js/>** — nothing to
+install.
+
+`dist/demo-standalone.html` is the same page as a single file, with the library,
+the stylesheet, the demo script and even the favicon inlined. Open it from
+`file://` with no server and no network; every job in it runs offline.
 
 The repo demo at `demo/index.html` loads `../dist/` instead, so it needs
-`npm run build` and `npm run demo` to serve the repo root.
+`npm run build` and `npm run demo` to serve the repo root. See [Demo](demo.md).
 
 ---
 

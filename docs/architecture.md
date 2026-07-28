@@ -57,6 +57,27 @@ src/
 └── ui/               the opt-in interaction layer
 ```
 
+The demo and the build scripts sit alongside it:
+
+```
+demo/
+├── index.html        markup only — no inline script, no inline style
+└── assets/
+    ├── scss/         the component layer (tokens, mixins, components)
+    ├── css/          the Tailwind v4 entry
+    ├── js/demo.js    every behaviour on the page
+    ├── img/          the sample watermark
+    ├── favicon/      .ico, .svg, apple-touch, 192/512 PNGs, manifest
+    └── data/         the demo's printcraft.config.json
+
+tools/
+├── build.mjs         the standalone single-file demo
+├── build-assets.mjs  sass + tailwind + static assets
+├── build-types.mjs   tsc, plus the .d.mts and .d.cts entry shims
+├── build-site.mjs    the GitHub Pages site
+└── make-favicons.mjs the raster favicon set
+```
+
 The dependency direction is one-way: `support/` knows nothing about printing,
 `options/` and `privacy/` depend only on `support/`, `pipeline/` composes all of
 them, and `index.ts` is the only file that assembles a public API.
@@ -112,13 +133,36 @@ split above could happen without touching a single test.
 
 ## The demo build
 
-The demo is not a Tailwind CDN page. `demo/tailwind.css` is compiled by the
-Tailwind v4 CLI into `dist/demo.css`, and `tools/build.mjs` inlines both that
-stylesheet and the UMD bundle into `dist/demo-standalone.html`, between
-`<!-- PRINTCRAFT:CSS -->` and `<!-- PRINTCRAFT:LIB -->` markers. The result is a
-single file with zero external requests that works from `file://` offline. The
-generator refuses to inline any asset containing a literal `</script>`, and
-refuses to emit a page that still references an external URL.
+The demo is not a Tailwind CDN page, and its markup carries no inline script or
+style. Two compilers feed one stylesheet:
+
+```
+demo/assets/css/tailwind.css   ──tailwindcss──┐
+                                               ├──► dist/assets/css/demo.css
+demo/assets/scss/main.scss     ──sass─────────┘
+```
+
+Sass owns the component layer — tokens, mixins, nesting — and Tailwind owns the
+utilities and the design tokens the markup reaches for. They are compiled
+separately because `@import "tailwindcss"` cannot be fed through Sass, which
+resolves bare imports as Sass files. Sass output is concatenated **second**, so
+its unlayered component rules win over Tailwind's layered utilities.
+
+`tools/build-assets.mjs` runs both, then copies the favicon set, the sample
+watermark and the demo config into `dist/assets/`, mirroring the source layout
+under `demo/assets/`.
+
+`tools/build.mjs` then produces `dist/demo-standalone.html` by replacing each
+marker pair in the demo markup with an inlined equivalent — stylesheet, library,
+demo script, favicon as a `data:` URI, and the page defaults as an inline JSON
+block, since a `file://` page cannot fetch a sibling file. The result is a single
+file with zero external requests. The generator refuses to inline any asset
+containing a literal `</script>`, and refuses to emit a page that still
+references a file.
+
+`tools/build-site.mjs` assembles `_site/` for GitHub Pages from the _non_-inlined
+demo, so the hosted page exercises the ordinary separate-files path and the
+standalone is offered next to it as a download. See [Demo](demo.md).
 
 ## Bundle size
 

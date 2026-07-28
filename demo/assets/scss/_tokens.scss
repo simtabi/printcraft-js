@@ -1,0 +1,41 @@
+// The demo's design tokens, in one place.
+//
+// These mirror the custom properties Tailwind emits from `@theme` in
+// assets/css/tailwind.css, so a colour is defined once conceptually and is
+// reachable from both layers: `$ink` here, `text-ink` there.
+
+@use 'sass:map';
+
+// print-shop palette: ink on white with process (CMYK) accents
+$ink: #17181b;
+$ink-soft: #55575e;
+$rule: #d8d8d3;
+$paper: #fff;
+$paper-dim: #f2f2ef;
+
+$process: (
+  'c': #009fe3,
+  'm': #e5007d,
+  'y': #ffd500,
+  'k': #17181b
+);
+
+/// One process ink by channel. Errors at compile time on a typo, which a bare
+/// map lookup would silently resolve to null.
+@function process($channel) {
+  @if not map.has-key($process, $channel) {
+    @error 'unknown process channel "#{$channel}" — expected one of #{map.keys($process)}';
+  }
+  @return map.get($process, $channel);
+}
+
+$font-mono: ui-monospace, 'SF Mono', 'Cascadia Mono', Consolas, Menlo, monospace;
+$font-sans: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+
+// the corner tick that gives every ticket its print-shop look
+$crop-size: 10px;
+$crop-weight: 2px;
+
+$radius: 2px;
+$focus-ring: 2px;
+$sheet-width: 56rem;

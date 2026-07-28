@@ -30,6 +30,9 @@ Printcraft.print({
 The image is awaited along with the rest of the page's assets before the dialog
 opens, so it cannot come out blank.
 
+A `data:` URI works too, and is what the demo uses — it keeps the standalone build
+free of network requests. See [Demo](../demo.md).
+
 `watermarkImageURL` takes precedence when both are set.
 
 ## First page only

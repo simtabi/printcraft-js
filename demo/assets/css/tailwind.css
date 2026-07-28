@@ -1,0 +1,29 @@
+/* Tailwind v4 entry for the demo.
+   Compiled by `npm run build:css` and concatenated with the Sass output into
+   dist/assets/css/demo.css. There is no CDN involved anywhere. */
+
+@import 'tailwindcss';
+
+/* v4 scans relative to this file, so every source that can contain a class name
+   has to be named explicitly. */
+@source '../../index.html';
+@source '../js/demo.js';
+
+/* print-shop palette: ink on white with process (CMYK) accents.
+   Kept in step with assets/scss/_tokens.scss, which holds the same values for
+   the component layer. */
+@theme {
+  --color-ink: #17181b;
+  --color-inksoft: #55575e;
+  --color-rule: #d8d8d3;
+  --color-paper: #fff;
+  --color-paperdim: #f2f2ef;
+
+  --color-process-c: #009fe3;
+  --color-process-m: #e5007d;
+  --color-process-y: #ffd500;
+  --color-process-k: #17181b;
+
+  --font-mono: ui-monospace, 'SF Mono', 'Cascadia Mono', Consolas, Menlo, monospace;
+  --font-sans: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+}

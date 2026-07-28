@@ -1,0 +1,66 @@
+// Buttons and the process-ink rules that bracket the page.
+
+@use 'tokens' as *;
+@use 'mixins' as *;
+
+.pc-run {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-family: $font-mono;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: $paper;
+  background: $ink;
+  border: 0;
+  border-radius: $radius;
+  padding: 0.5rem 0.875rem;
+  cursor: pointer;
+  transition: background-color 120ms ease;
+
+  &:hover {
+    background: #000;
+  }
+
+  &:active {
+    transform: translateY(1px);
+  }
+
+  @include focus-ring;
+
+  &[aria-pressed='true'] {
+    background: process('m');
+  }
+}
+
+/// A row of controls that wraps rather than overflowing on a narrow screen.
+.pc-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+/// The four-ink rule at the top and bottom of the page: cyan, magenta, yellow,
+/// key, in press order.
+.pc-rule {
+  display: flex;
+  height: 0.5rem;
+
+  i {
+    flex: 1;
+  }
+
+  i:nth-child(1) {
+    background: process('c');
+  }
+  i:nth-child(2) {
+    background: process('m');
+  }
+  i:nth-child(3) {
+    background: process('y');
+  }
+  i:nth-child(4) {
+    background: process('k');
+  }
+}

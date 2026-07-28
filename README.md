@@ -9,6 +9,8 @@
 
 Runs in any browser with `afterprint` and `document.fonts` — Chrome, Edge, Firefox and Safari, current and two back. TypeScript source, zero runtime dependencies, ESM + UMD builds.
 
+**[Try the demo](https://simtabi.github.io/printcraft-js/)** — twenty-three print jobs, the interaction layer, and the inspector, with nothing to install.
+
 ## Install
 
 ```bash
@@ -35,6 +37,7 @@ Full documentation: **<https://opensource.simtabi.com/documentation/simtabi/prin
 ### Guides
 
 - [Installation](docs/installation.md) — package, script tag, and build output
+- [Demo](docs/demo.md) — where to run it, and how its assets are built
 - [Getting started](docs/getting-started.md) — your first job, in each of the three surfaces
 - [Surfaces](docs/surfaces.md) — imperative, declarative, and JSON config
 - [Configuration](docs/configuration.md) — page defaults, config files, content annotations

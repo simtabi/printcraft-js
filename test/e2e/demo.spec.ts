@@ -36,7 +36,7 @@ async function closeInspector(page: Page): Promise<void> {
 
 test.beforeEach(async ({ page }) => {
   await page.goto(DEMO);
-  await expect(page.locator('#tickets .ticket').first()).toBeVisible();
+  await expect(page.locator('#tickets .pc-ticket').first()).toBeVisible();
 });
 
 test('the demo loads with no external requests and no failure banner', async ({ page }) => {
@@ -45,13 +45,27 @@ test('the demo loads with no external requests and no failure banner', async ({ 
     if (!r.url().startsWith('http://localhost')) external.push(r.url());
   });
   await page.reload();
-  await expect(page.locator('#tickets .ticket').first()).toBeVisible();
+  await expect(page.locator('#tickets .pc-ticket').first()).toBeVisible();
 
   expect(external, 'nothing is fetched off-origin').toEqual([]);
   await expect(page.getByText(/failed to load/)).toHaveCount(0);
-  // the compiled stylesheet actually applied: the CMYK header rule is painted
-  const bar = page.locator('header i').first();
-  await expect(bar).toHaveCSS('background-color', 'rgb(0, 159, 227)');
+  // the compiled stylesheet actually applied: tailwind's theme token paints the
+  // process rule, and the sass component layer paints the run buttons
+  await expect(page.locator('.pc-rule i').first()).toHaveCSS(
+    'background-color',
+    'rgb(0, 159, 227)'
+  );
+  await expect(page.locator('button.pc-run').first()).toHaveCSS(
+    'background-color',
+    'rgb(23, 24, 27)'
+  );
+
+  // and the sass crop-mark mixin rendered its corner ticks
+  const tick = await page
+    .locator('.pc-ticket')
+    .first()
+    .evaluate((el) => getComputedStyle(el, '::before').borderTopWidth);
+  expect(tick).toBe('2px');
 });
 
 test('redaction reaches the print document as unrecoverable bars', async ({ page }) => {

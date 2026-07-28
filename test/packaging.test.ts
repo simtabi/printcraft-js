@@ -78,12 +78,33 @@ test('the standalone demo boots offline and runs a print job', async () => {
   const doc = d.window.document;
   const win = d.window as unknown as Window & { Printcraft?: typeof Printcraft };
 
+  // the demo script defers its work to DOMContentLoaded, so nothing is rendered
+  // at the moment the JSDOM constructor returns
+  await new Promise<void>((resolve) => {
+    if (doc.readyState !== 'loading') resolve();
+    else doc.addEventListener('DOMContentLoaded', () => resolve(), { once: true });
+  });
+
   expect(win.Printcraft, 'the inlined library defined the global').toBeTruthy();
-  expect(doc.body.textContent, 'no load-failure banner').not.toMatch(/failed to load/);
-  expect(doc.querySelectorAll('#tickets .ticket').length, 'job tickets rendered').toBeGreaterThan(
-    0
+  // assert on the banner element, not on body text: textContent includes the
+  // source of every inlined script, which discusses the failure case in a comment
+  expect(doc.querySelectorAll('.pc-load-error').length, 'no load-failure banner').toBe(0);
+  expect(
+    doc.querySelectorAll('#tickets .pc-ticket').length,
+    'job tickets rendered'
+  ).toBeGreaterThan(0);
+  // a data: URI is not a fetch, so the favicon link is allowed to remain a link
+  const fetched = [...doc.querySelectorAll('script[src], link[href]')].filter((el) => {
+    const url = el.getAttribute('src') || el.getAttribute('href') || '';
+    return !url.startsWith('data:');
+  });
+  expect(
+    fetched.map((el) => el.outerHTML),
+    'nothing to fetch'
+  ).toEqual([]);
+  expect(doc.querySelector('link[rel="icon"]')?.getAttribute('href'), 'favicon inlined').toMatch(
+    /^data:image\/svg\+xml/
   );
-  expect(doc.querySelectorAll('script[src], link[href]').length, 'nothing to fetch').toBe(0);
 
   // and a real job completes end to end inside that single file
   const frames: HTMLIFrameElement[] = [];
@@ -124,9 +145,52 @@ test('the standalone demo boots offline and runs a print job', async () => {
 
 /* the demo source ------------------------------------------------------ */
 
-test('the repo demo links the compiled stylesheet rather than a cdn', () => {
+test('the demo markup carries no inline script or style', () => {
   const html = read('demo/index.html');
-  expect(html).not.toMatch(/cdn\.tailwindcss\.com/);
-  expect(html).toMatch(/<!-- PRINTCRAFT:CSS -->/);
-  expect(html).toMatch(/<!-- PRINTCRAFT:LIB -->/);
+
+  expect(html, 'no tailwind play cdn').not.toMatch(/cdn\.tailwindcss\.com/);
+  // an inline <style> block, or a <script> with a body rather than a src
+  expect(html, 'no <style> block').not.toMatch(/<style[\s>]/i);
+  expect(html, 'no style attribute').not.toMatch(/\sstyle=["']/i);
+  expect(html, 'no inline script body').not.toMatch(/<script(?![^>]*\ssrc=)[^>]*>[\s\S]*?\S/i);
+
+  for (const marker of ['ICON', 'CSS', 'CONFIG', 'LIB', 'DEMO']) {
+    expect(html, `${marker} markers`).toMatch(new RegExp(`<!-- PRINTCRAFT:${marker} -->`));
+  }
+});
+
+test('every asset the demo references is produced by the build', () => {
+  const html = read('demo/index.html');
+  const refs = [...html.matchAll(/(?:src|href)="(\.\.\/dist\/[^"]+)"/g)].map((m) => m[1]!);
+
+  expect(refs.length, 'the demo references built assets').toBeGreaterThan(0);
+  for (const ref of refs) {
+    expect(existsSync(at(ref.replace('../', ''))), ref).toBe(true);
+  }
+});
+
+test('the favicon set is complete and real', () => {
+  const png = Buffer.from([0x89, 0x50, 0x4e, 0x47]);
+  expect(readFileSync(at('dist/assets/favicon/icon-192.png')).subarray(0, 4)).toEqual(png);
+  expect(readFileSync(at('dist/assets/favicon/apple-touch-icon.png')).subarray(0, 4)).toEqual(png);
+
+  // ICO header: reserved 0, type 1 (icon), then the image count
+  const ico = readFileSync(at('dist/assets/favicon/favicon.ico'));
+  expect(ico.readUInt16LE(0)).toBe(0);
+  expect(ico.readUInt16LE(2)).toBe(1);
+  expect(ico.readUInt16LE(4), 'three sizes packed').toBe(3);
+
+  const manifest = JSON.parse(read('dist/assets/favicon/site.webmanifest')) as {
+    icons: { src: string }[];
+  };
+  for (const icon of manifest.icons) {
+    expect(existsSync(at('dist/assets/favicon/' + icon.src)), icon.src).toBe(true);
+  }
+});
+
+test('the compiled stylesheet carries both the utility and component layers', () => {
+  const css = read('dist/assets/css/demo.css');
+  expect(css, 'tailwind theme tokens').toMatch(/--color-process-c/);
+  expect(css, 'sass components').toMatch(/\.pc-ticket/);
+  expect(css, 'sass mixin output').toMatch(/\.pc-run/);
 });

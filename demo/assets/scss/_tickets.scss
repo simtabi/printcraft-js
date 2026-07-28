@@ -1,0 +1,71 @@
+// The job-ticket cards, and the crop marks that give them their look.
+//
+// The corner ticks are the one thing utilities cannot express cleanly: four
+// pseudo-elements, each with two borders, offset a hair outside the box.
+
+@use 'tokens' as *;
+@use 'mixins' as *;
+
+.pc-ticket-grid {
+  display: grid;
+  gap: 1rem;
+
+  @media (min-width: 640px) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.pc-ticket {
+  position: relative;
+  background: $paper;
+  border: 1px solid $rule;
+  border-radius: $radius;
+  padding: 1rem;
+  transition: transform 120ms ease;
+
+  &:hover {
+    transform: translateY(-2px);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    transition: none;
+
+    &:hover {
+      transform: none;
+    }
+  }
+
+  // two of the four ticks hang off the card, two off an empty span inside it,
+  // because one element only has two pseudo-elements to give
+  &::before {
+    @include crop-tick(top, left);
+  }
+
+  &::after {
+    @include crop-tick(top, right);
+  }
+
+  .pc-crop::before {
+    @include crop-tick(bottom, left);
+  }
+
+  .pc-crop::after {
+    @include crop-tick(bottom, right);
+  }
+
+  &__number {
+    @include label-type;
+  }
+
+  &__title {
+    font-size: 1rem;
+    font-weight: 600;
+    margin: 0.25rem 0;
+  }
+
+  &__blurb {
+    font-size: 0.875rem;
+    color: $ink-soft;
+    margin: 0 0 0.75rem;
+  }
+}

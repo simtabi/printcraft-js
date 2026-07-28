@@ -54,8 +54,15 @@ package.
 src/  dist/  README.md  CHANGELOG.md  LICENSE
 ```
 
-`npm pack --dry-run` is the check. Tests, the demo, configs and `docs/` are not
-shipped — the docs are hosted.
+`npm pack --dry-run` is the check. Tests, the demo sources, configs and `docs/`
+are not shipped — the docs are hosted, and so is the demo.
+
+## The demo deploy
+
+`.github/workflows/pages.yml` publishes <https://simtabi.github.io/printcraft-js/>
+on every push to `main`. It is independent of the release tag: the demo tracks
+`main` so a fix is visible immediately, while the package only moves when a
+version is cut.
 
 ## First-release setup
 

@@ -22,3 +22,6 @@ pnpm-lock.yaml
 .idea/
 .vscode/
 *.swp
+
+# github pages output
+_site/

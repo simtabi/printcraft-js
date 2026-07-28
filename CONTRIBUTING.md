@@ -46,7 +46,22 @@ src/
 ├── privacy/          redaction, the PII scan, and the clone sanitizer
 ├── production/       printer marks
 └── ui/               the opt-in interaction layer
+
+demo/
+├── index.html        markup only — no inline script, no inline style
+└── assets/           scss/ css/ js/ img/ favicon/ data/
+
+tools/
+├── build.mjs         the standalone single-file demo
+├── build-assets.mjs  sass + tailwind + static assets
+├── build-types.mjs   tsc, plus the .d.mts and .d.cts entry shims
+├── build-site.mjs    the GitHub Pages site
+└── make-favicons.mjs the raster favicon set
 ```
+
+The demo's markup carries **no inline script or style** — a packaging test fails
+the build if any creeps back in. Behaviour goes in `demo/assets/js/demo.js`,
+styling in `demo/assets/scss/`. See [docs/demo.md](docs/demo.md).
 
 Every job — imperative, fluent, declarative, or triggered from the UI — converges
 on `normalizeOptions()` and then runs the same ordered stages in
