@@ -9,16 +9,26 @@
     "browser": true,
     "es2022": true
   },
-  "ignorePatterns": ["dist/**", "coverage/**", "test-results/**", "playwright-report/**"],
+  "ignorePatterns": [
+    "dist/**",
+    "coverage/**",
+    "test-results/**",
+    "playwright-report/**"
+  ],
   "rules": {
     "no-console": "off",
     "typescript/no-explicit-any": "off",
     "no-underscore-dangle": "off",
-    "unicorn/consistent-function-scoping": "off"
+    "unicorn/consistent-function-scoping": "off",
+    "no-alert": "error"
   },
   "overrides": [
     {
-      "files": ["test/**", "tools/**", "*.config.ts"],
+      "files": [
+        "test/**",
+        "tools/**",
+        "*.config.ts"
+      ],
       "env": {
         "node": true
       }

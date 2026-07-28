@@ -2,8 +2,17 @@
 // it, and every mode funnels back into an ordinary printcraft job.
 
 export { icon } from './icons';
-export { computeRect, toggleRedact, annotate } from './annotations';
-export { buildMenuItems, contextMenu, type ContextMenuOptions } from './menu';
+export { computeRect, toggleRedact, annotate, askForNote, noteOn } from './annotations';
+export {
+  buildMenuItems,
+  contextMenu,
+  openContextMenuAt,
+  type ContextMenuOptions,
+  type ContextMenuEntry,
+  type MenuContext
+} from './menu';
+
+export * from './kit';
 export { pickSections, type PickResult } from './picker';
 export { drawArea, type DrawResult } from './draw';
 export type { UiDeps } from './shared';

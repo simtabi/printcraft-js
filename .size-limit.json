@@ -2,11 +2,11 @@
   {
     "name": "umd bundle (script tag)",
     "path": "dist/printcraft.umd.js",
-    "limit": "17 kB"
+    "limit": "25 kB"
   },
   {
     "name": "esm bundle (import)",
     "path": "dist/printcraft.mjs",
-    "limit": "19 kB"
+    "limit": "27 kB"
   }
 ]

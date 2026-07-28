@@ -1,210 +1,198 @@
-// the right-click context menu: the entry point to every other ui mode.
+// The right-click menu: the way into every other mode.
+//
+// The menu itself is the kit's now, so this file is the item catalogue and the
+// listener that opens it. Adding an entry means adding an object, and a host can
+// extend or replace the whole set.
 
-import { NS } from '../support';
-import { icon } from './icons';
-import { annotate, toggleRedact } from './annotations';
+import { askForNote, toggleRedact } from './annotations';
 import { drawArea } from './draw';
 import { pickSections } from './picker';
-import { defaultEnv, el, FONT, Z, type UiDeps } from './shared';
+import { openMenu, toast, type MenuEntry, type MenuHandle } from './kit';
+import { defaultEnv, type UiDeps } from './shared';
 import type { Env, PrintcraftOptions } from '../types';
 
-interface MenuItem {
-  id: string;
-  label: string;
-  icon: string;
-  run: (ctx: { target: Element; env: Env; base: PrintcraftOptions }) => void;
+/** what a menu item is handed when it runs */
+export interface MenuContext {
+  target: Element;
+  env: Env;
+  base: PrintcraftOptions;
+  deps: UiDeps;
 }
 
-export function buildMenuItems(deps: UiDeps): MenuItem[] {
+export type ContextMenuEntry = MenuEntry<MenuContext>;
+
+/**
+ * The stock entries, grouped. Exported so a host can start from these and add,
+ * remove or reorder rather than rebuild the lot.
+ */
+export function buildMenuItems(deps: UiDeps): ContextMenuEntry[] {
   return [
-    {
-      id: 'print-page',
-      label: 'Print page',
-      icon: 'printer',
-      run: ({ env, base }) => {
-        void deps.print({ ...base, target: 'body' }, env);
-      }
-    },
+    { group: 'Print' },
     {
       id: 'print-element',
       label: 'Print this element',
       icon: 'click',
-      run: ({ target, env, base }) => {
-        void deps.print({ ...base, target }, env);
-      }
+      hint: 'Just what you right-clicked',
+      run: ({ target, env, base }) => void deps.print({ ...base, target }, env)
     },
+    {
+      id: 'print-page',
+      label: 'Print the page',
+      icon: 'printer',
+      run: ({ env, base }) => void deps.print({ ...base, target: 'body' }, env)
+    },
+    { separator: true },
+
+    { group: 'Choose what prints' },
     {
       id: 'pick',
       label: 'Pick sections…',
       icon: 'marquee',
-      run: ({ env, base }) => {
-        void pickSections(deps, base, env);
-      }
+      hint: 'Click several, then print them together',
+      run: ({ env, base }) => void pickSections(deps, base, env)
     },
     {
       id: 'draw',
-      label: 'Draw print area…',
+      label: 'Draw a print area…',
       icon: 'crop',
-      run: ({ env, base }) => {
-        void drawArea(deps, base, env);
-      }
+      hint: 'Drag a rectangle over the page',
+      run: ({ env, base }) => void drawArea(deps, base, env)
     },
+    { separator: true },
+
+    { group: 'Mark up' },
     {
       id: 'redact',
       label: 'Toggle redaction',
       icon: 'redact',
-      run: ({ target }) => {
+      hint: 'Blacks it out destructively',
+      run: ({ target, env }) => {
         const on = toggleRedact(target);
         deps.emit('ui:redact', { element: target, redacted: on });
+        toast(
+          {
+            message: on ? 'Marked for redaction' : 'Redaction removed',
+            action: {
+              label: 'Undo',
+              onSelect: () => {
+                toggleRedact(target);
+                deps.emit('ui:redact', { element: target, redacted: !on });
+              }
+            }
+          },
+          env
+        );
       }
     },
     {
       id: 'note',
-      label: 'Add note…',
+      label: 'Add a note…',
       icon: 'note',
-      run: ({ target }) => {
-        const text = annotate(target);
-        if (text != null) deps.emit('ui:annotate', { element: target, text });
+      run: ({ target, env }) => {
+        void askForNote(target, env).then((text) => {
+          if (text == null) return;
+          deps.emit('ui:annotate', { element: target, text });
+          toast({ message: text ? 'Note attached' : 'Note removed' }, env);
+        });
       }
     },
+    { separator: true },
+
     {
       id: 'inspect',
-      label: 'Inspect print',
+      label: 'Preview the print',
       icon: 'inspect',
-      run: ({ target, env, base }) => {
-        void deps.inspect({ ...base, target }, env);
-      }
+      hint: 'Opens the assembled document, no dialog',
+      run: ({ target, env, base }) => void deps.inspect({ ...base, target }, env)
     }
   ];
 }
 
 export interface ContextMenuOptions {
-  /** options merged into every job the menu triggers. */
+  /** merged into every job the menu starts */
   base?: PrintcraftOptions;
-  /** subset of item ids, in the order they should appear. */
+  /** item ids to keep, in the order you want them */
   items?: string[];
+  /** entries appended after the stock ones */
+  extra?: ContextMenuEntry[];
+  /** replace the catalogue outright */
+  entries?: ContextMenuEntry[];
+  /** return false to leave the native menu alone for this target */
+  shouldOpen?: (target: Element) => boolean;
 }
 
-/** installs the right-click menu. the returned function removes it again. */
+type ContextMenuItem = Extract<ContextMenuEntry, { id: string }>;
+
+const isItem = (e: ContextMenuEntry): e is ContextMenuItem => 'id' in e;
+
+/** Installs the right-click menu. The returned function removes it again. */
 export function contextMenu(deps: UiDeps, cfg?: ContextMenuOptions, env?: Env): () => void {
   const scope = env || defaultEnv();
   const doc = scope.document;
   const base = cfg?.base || {};
 
-  let all = buildMenuItems(deps);
+  let entries = cfg?.entries || buildMenuItems(deps);
   if (cfg?.items) {
-    const byId = new Map(all.map((i) => [i.id, i]));
-    all = cfg.items.map((id) => byId.get(id)).filter((i): i is MenuItem => !!i);
-  }
-
-  let menu: HTMLElement | null = null;
-  let lastTarget: Element | null = null;
-
-  function close(): void {
-    if (menu && menu.parentNode) menu.parentNode.removeChild(menu);
-    menu = null;
-  }
-
-  function open(x: number, y: number, target: Element): void {
-    close();
-    lastTarget = target;
-
-    const node = el(
-      doc,
-      'div',
-      'position:fixed;z-index:' +
-        Z +
-        ';min-width:210px;background:#fff;color:#17181b;' +
-        'border:1px solid #d8d8d3;border-radius:6px;box-shadow:0 8px 24px rgba(0,0,0,.18);' +
-        'padding:4px;' +
-        FONT
+    const byId = new Map<string, ContextMenuItem>(
+      entries.filter(isItem).map((e) => [e.id, e] as const)
     );
-    node.setAttribute('role', 'menu');
-    node.setAttribute('data-pc-menu', '');
+    entries = cfg.items
+      .map((id) => byId.get(id))
+      .filter((e): e is ContextMenuItem => e !== undefined);
+  }
+  if (cfg?.extra?.length) entries = entries.concat(cfg.extra);
 
-    all.forEach((item) => {
-      const row = el(
-        doc,
-        'button',
-        'display:flex;align-items:center;gap:9px;width:100%;text-align:left;background:none;' +
-          'border:0;border-radius:4px;padding:7px 9px;cursor:pointer;color:inherit;' +
-          FONT
-      ) as HTMLButtonElement;
-      row.type = 'button';
-      row.setAttribute('role', 'menuitem');
-      row.setAttribute('data-pc-item', item.id);
-      row.innerHTML =
-        '<span style="display:inline-flex;color:#55575e">' +
-        icon(item.icon) +
-        '</span><span></span>';
+  let open: MenuHandle | null = null;
 
-      const labelSpan = row.lastChild as HTMLElement | null;
-      if (labelSpan) labelSpan.textContent = item.label;
+  function onContext(ev: Event): void {
+    const target = ev.target as Element | null;
+    // never take over the menu on the kit's own surfaces
+    if (!target || (typeof target.closest === 'function' && target.closest('[data-pc-ui]'))) return;
+    if (cfg?.shouldOpen && !cfg.shouldOpen(target)) return;
 
-      row.addEventListener('mouseenter', () => {
-        row.style.background = '#f2f2ef';
-      });
-      row.addEventListener('mouseleave', () => {
-        row.style.background = 'none';
-      });
-      row.addEventListener('click', () => {
-        close();
-        try {
-          if (lastTarget) item.run({ target: lastTarget, env: scope, base });
-        } catch (e) {
-          try {
-            console.error('[' + NS + ']', e);
-          } catch {
-            /* noop */
-          }
+    ev.preventDefault();
+    open?.close();
+
+    const me = ev as MouseEvent;
+    open = openMenu<MenuContext>(
+      {
+        entries,
+        context: { target, env: scope, base, deps },
+        anchor: { x: me.clientX, y: me.clientY },
+        label: 'Printcraft actions',
+        onClose: () => {
+          open = null;
         }
-      });
-      node.appendChild(row);
-    });
-
-    doc.body.appendChild(node);
-    menu = node;
-
-    // keep the menu inside the viewport
-    const vw = scope.window.innerWidth || 1024;
-    const vh = scope.window.innerHeight || 768;
-    const mw = node.offsetWidth || 220;
-    const mh = node.offsetHeight || all.length * 34;
-    node.style.left = Math.max(0, Math.min(x, vw - mw - 8)) + 'px';
-    node.style.top = Math.max(0, Math.min(y, vh - mh - 8)) + 'px';
-  }
-
-  function onContext(e: Event): void {
-    const t = e.target as Element | null;
-    // leave the native menu alone on printcraft's own ui
-    if (!t || (typeof t.closest === 'function' && t.closest('[data-pc-ui]'))) return;
-    e.preventDefault();
-    const me = e as MouseEvent;
-    open(me.clientX, me.clientY, t);
-    deps.emit('ui:menu', { target: t });
-  }
-
-  function onDismiss(e: Event): void {
-    if (!menu) return;
-    const t = e.target as Element | null;
-    if (t && typeof t.closest === 'function' && t.closest('[data-pc-menu]')) return;
-    close();
-  }
-
-  function onKey(e: Event): void {
-    if ((e as KeyboardEvent).key === 'Escape') close();
+      },
+      scope
+    );
+    deps.emit('ui:menu', { target, entries: entries.filter(isItem).map((e) => e.id) });
   }
 
   doc.addEventListener('contextmenu', onContext);
-  doc.addEventListener('click', onDismiss, true);
-  doc.addEventListener('scroll', close, true);
-  doc.addEventListener('keydown', onKey, true);
 
   return function disable(): void {
-    close();
+    open?.close();
+    open = null;
     doc.removeEventListener('contextmenu', onContext);
-    doc.removeEventListener('click', onDismiss, true);
-    doc.removeEventListener('scroll', close, true);
-    doc.removeEventListener('keydown', onKey, true);
   };
+}
+
+/** Opens the same menu at a point, without waiting for a right-click. */
+export function openContextMenuAt(
+  deps: UiDeps,
+  at: { x: number; y: number; target: Element },
+  cfg?: ContextMenuOptions,
+  env?: Env
+): MenuHandle {
+  const scope = env || defaultEnv();
+  return openMenu<MenuContext>(
+    {
+      entries: cfg?.entries || buildMenuItems(deps),
+      context: { target: at.target, env: scope, base: cfg?.base || {}, deps },
+      anchor: { x: at.x, y: at.y },
+      label: 'Printcraft actions'
+    },
+    scope
+  );
 }

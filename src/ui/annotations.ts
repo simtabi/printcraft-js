@@ -2,7 +2,8 @@
 // persist, so every later job from any surface honors them.
 
 import { NS } from '../support';
-import type { ClipRect } from '../types';
+import { promptFor } from './kit';
+import type { ClipRect, Env } from '../types';
 
 /** pure: a page-coordinate rectangle from two pointer points plus the scroll offset. */
 export function computeRect(
@@ -32,24 +33,54 @@ export function toggleRedact(target: Element): boolean {
   return true;
 }
 
-/** attaches a note. omit `text` to prompt for it; an empty string clears it. */
-export function annotate(target: Element, text?: string | null): string | null {
-  const attr = 'data-' + NS + '-note';
-  let value = text;
+const NOTE_ATTR = 'data-' + NS + '-note';
 
-  if (value == null) {
-    try {
-      const view = target.ownerDocument?.defaultView;
-      value = view ? view.prompt('Note for this element:', target.getAttribute(attr) || '') : null;
-    } catch {
-      value = null;
-    }
-  }
-  if (value == null) return null;
-  if (value === '') {
-    target.removeAttribute(attr);
+/**
+ * Attaches a note. Pass the text to set it, an empty string to clear it.
+ *
+ * Synchronous, and never asks the user anything: `askForNote` is the version
+ * that opens a dialog. Splitting the two keeps this callable from a transform,
+ * a test, or a keyboard shortcut without dragging the UI layer along.
+ */
+export function annotate(target: Element, text: string | null): string | null {
+  if (text == null) return null;
+  if (text === '') {
+    target.removeAttribute(NOTE_ATTR);
     return '';
   }
-  target.setAttribute(attr, value);
-  return value;
+  target.setAttribute(NOTE_ATTR, text);
+  return text;
+}
+
+export function noteOn(target: Element): string {
+  return target.getAttribute(NOTE_ATTR) || '';
+}
+
+/**
+ * Asks for a note and attaches it. Resolves with the new text, or null if the
+ * dialog was dismissed.
+ *
+ * This used to be `window.prompt`, which blocks the event loop, cannot be
+ * themed, and is silently ignored inside a cross-origin frame.
+ */
+export async function askForNote(target: Element, env?: Env): Promise<string | null> {
+  const scope = env || {
+    document: target.ownerDocument as Document,
+    window: target.ownerDocument?.defaultView as Window & typeof globalThis
+  };
+
+  const text = await promptFor(
+    {
+      title: 'Note for this element',
+      label: 'Note',
+      value: noteOn(target),
+      hint: 'Printed as a chip beside the element. Clear it to remove the note.',
+      placeholder: 'verify with legal before release',
+      multiline: true
+    },
+    scope
+  );
+
+  if (text == null) return null;
+  return annotate(target, text);
 }

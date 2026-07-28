@@ -2,8 +2,8 @@
 // stamp the selection for redaction.
 
 import { NS } from '../support';
-import { icon } from './icons';
-import { defaultEnv, el, FONT, Z, type UiDeps } from './shared';
+import { openToolbar, type ToolbarHandle } from './kit';
+import { defaultEnv, el, Z, type UiDeps } from './shared';
 import type { Env, InspectController, JobRecord, PrintcraftOptions } from '../types';
 
 export interface PickResult {
@@ -36,49 +36,16 @@ export function pickSections(
     );
     doc.body.appendChild(hover);
 
-    const bar = el(
-      doc,
-      'div',
-      'position:fixed;left:50%;bottom:18px;transform:translateX(-50%);z-index:' +
-        Z +
-        ';' +
-        'display:flex;gap:8px;align-items:center;background:#17181b;color:#fff;padding:9px 12px;' +
-        'border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,.3);' +
-        FONT
-    );
-    bar.innerHTML =
-      '<span data-pc-count>Click sections to select · 0 selected</span>' +
-      '<button data-pc-act="print" type="button"></button>' +
-      '<button data-pc-act="redact" type="button"></button>' +
-      '<button data-pc-act="cancel" type="button"></button>';
-
-    const btnStyle =
-      'display:inline-flex;align-items:center;gap:6px;background:#fff;color:#17181b;' +
-      'border:0;border-radius:5px;padding:6px 10px;cursor:pointer;' +
-      FONT;
-
-    const actionButton = (act: string): HTMLElement | null =>
-      bar.querySelector<HTMLElement>('[data-pc-act="' + act + '"]');
-
-    const setBtn = (act: string, ic: string, label: string): void => {
-      const b = actionButton(act);
-      if (!b) return;
-      b.setAttribute('style', btnStyle);
-      b.innerHTML = '<span style="display:inline-flex">' + icon(ic) + '</span><span></span>';
-      const labelSpan = b.lastChild as HTMLElement | null;
-      if (labelSpan) labelSpan.textContent = label;
-    };
-    setBtn('print', 'printer', 'Print');
-    setBtn('redact', 'redact', 'Redact');
-    setBtn('cancel', 'close', 'Cancel');
-    doc.body.appendChild(bar);
+    let bar: ToolbarHandle;
 
     function count(): void {
-      const c = bar.querySelector<HTMLElement>('[data-pc-count]');
-      if (!c) return;
-      c.textContent = selected.length
-        ? selected.length + ' selected · Enter prints, Esc cancels'
-        : 'Click sections to select · 0 selected';
+      bar.setStatus(
+        selected.length
+          ? selected.length + ' selected · Enter prints, Esc cancels'
+          : 'Click sections to select'
+      );
+      bar.setDisabled('print', selected.length === 0);
+      bar.setDisabled('redact', selected.length === 0);
     }
 
     function boxFor(target: Element): HTMLElement {
@@ -150,9 +117,8 @@ export function pickSections(
       doc.removeEventListener('mousemove', onMove, true);
       doc.removeEventListener('click', onClick, true);
       doc.removeEventListener('keydown', onKey, true);
-      [hover, bar].forEach((n) => {
-        if (n.parentNode) n.parentNode.removeChild(n);
-      });
+      if (hover.parentNode) hover.parentNode.removeChild(hover);
+      bar.close();
       outlines.forEach((b) => {
         if (b.parentNode) b.parentNode.removeChild(b);
       });
@@ -185,9 +151,38 @@ export function pickSections(
       }
     }
 
-    actionButton('print')?.addEventListener('click', () => finish('print'));
-    actionButton('redact')?.addEventListener('click', () => finish('redact'));
-    actionButton('cancel')?.addEventListener('click', () => finish('cancel'));
+    bar = openToolbar(
+      {
+        label: 'Section picker',
+        status: 'Click sections to select',
+        actions: [
+          {
+            id: 'print',
+            label: 'Print',
+            icon: 'printer',
+            tone: 'primary',
+            disabled: true,
+            onSelect: () => finish('print')
+          },
+          {
+            id: 'redact',
+            label: 'Redact',
+            icon: 'redact',
+            disabled: true,
+            onSelect: () => finish('redact')
+          },
+          {
+            id: 'cancel',
+            label: 'Cancel',
+            icon: 'close',
+            tone: 'ghost',
+            onSelect: () => finish('cancel')
+          }
+        ]
+      },
+      scope
+    );
+
     doc.addEventListener('mousemove', onMove, true);
     doc.addEventListener('click', onClick, true);
     doc.addEventListener('keydown', onKey, true);

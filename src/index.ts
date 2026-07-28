@@ -503,8 +503,19 @@ class Printcraft {
     },
     toggleRedact: ui.toggleRedact,
     annotate: ui.annotate,
+    askForNote: ui.askForNote,
     computeRect: ui.computeRect,
-    icon
+    icon,
+
+    // the component kit, so a host can build its own surfaces in the same style
+    modal: ui.modal,
+    confirm: ui.confirm,
+    notify: ui.notify,
+    prompt: ui.promptFor,
+    toast: ui.toast,
+    menu: ui.openMenu,
+    toolbar: ui.openToolbar,
+    theme: { set: ui.setTheme, get: ui.getTheme, defaults: ui.DEFAULT_THEME }
   };
 
   /** browser boot: declarative triggers, inline config, linked config file. */
