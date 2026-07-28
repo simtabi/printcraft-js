@@ -70,6 +70,7 @@ export const DEFAULTS: ResolvedOptions = {
   printerMarks: null,
   annotations: [],
   clipRect: null,
+  clipSourceWidth: null,
 
   debug: null
 };

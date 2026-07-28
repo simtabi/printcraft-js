@@ -76,13 +76,22 @@ const watermark =
   'data:image/svg+xml;utf8,' +
   encodeURIComponent(readFileSync(join(src, 'img', 'watermark.svg'), 'utf8').trim());
 
-const js = readFileSync(join(src, 'js', 'demo.js'), 'utf8').replace(
-  /'__WATERMARK_DATA_URI__'/g,
-  JSON.stringify(watermark)
-);
+/**
+ * The demo config, inlined so a file:// page behaves the same as a served one.
+ * It cannot fetch its own siblings, and silently running without the page
+ * defaults is worse than not offering them at all.
+ */
+const demoConfig = readFileSync(join(src, 'data', 'printcraft.config.json'), 'utf8');
+JSON.parse(demoConfig); // fail here rather than in the browser
 
-if (js.includes('__WATERMARK_DATA_URI__')) {
-  throw new Error('the watermark placeholder was not substituted');
+const js = readFileSync(join(src, 'js', 'demo.js'), 'utf8')
+  .replace(/'__WATERMARK_DATA_URI__'/g, JSON.stringify(watermark))
+  .replace(/'__DEMO_CONFIG__'/g, demoConfig.trim());
+
+for (const placeholder of ['__WATERMARK_DATA_URI__', '__DEMO_CONFIG__']) {
+  if (js.includes(placeholder)) {
+    throw new Error(`the ${placeholder} placeholder was not substituted`);
+  }
 }
 
 const jsPath = join(out, 'js', 'demo.js');

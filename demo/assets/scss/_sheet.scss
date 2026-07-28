@@ -170,6 +170,38 @@
   max-width: 100%;
 }
 
+/// Shown when the page is opened from disk, where fetches cannot work.
+.pc-load-note {
+  position: fixed;
+  inset: auto 1rem 1rem;
+  z-index: 99998;
+  max-width: 44rem;
+  margin-inline: auto;
+  background: $ink;
+  color: $paper;
+  font-family: $font-mono;
+  font-size: 12px;
+  line-height: 1.55;
+  padding: 0.75rem 2.25rem 0.75rem 1rem;
+  border-radius: $radius;
+  box-shadow: 0 8px 24px rgb(0 0 0 / 30%);
+
+  &__close {
+    position: absolute;
+    top: 0.35rem;
+    right: 0.5rem;
+    background: none;
+    border: 0;
+    color: inherit;
+    font-size: 18px;
+    line-height: 1;
+    cursor: pointer;
+    padding: 0.25rem;
+
+    @include focus-ring($paper);
+  }
+}
+
 /// The banner shown when the library failed to load. Only the repo demo can
 /// ever reach this state; the standalone build has everything inlined.
 .pc-load-error {

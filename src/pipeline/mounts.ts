@@ -3,13 +3,51 @@
 // each one settles exactly once and always hands back a teardown.
 
 import { raise } from '../support';
+import { resolveSheet, type SheetSize } from '../production/sheets';
 import type { Mount, ResolvedOptions } from '../types';
 
 /** how long any mount may take to become usable before the job gives up. */
 const MOUNT_TIMEOUT = 15000;
 
+/**
+ * The width a job's frame must lay out at.
+ *
+ * Normally the sheet. For a clip job it is the width the region was measured
+ * against, because the clone has to reproduce the layout the user drew on, and
+ * media queries inside the frame answer to the frame, not to an element.
+ */
+export function frameWidthFor(options: ResolvedOptions | undefined, sheet: SheetSize): number {
+  const source = options?.clipSourceWidth;
+  if (options?.clipRect && typeof source === 'number' && source > 0) {
+    return Math.max(sheet.width, Math.round(source));
+  }
+  return sheet.width;
+}
+
+/**
+ * Off to the side rather than zero-sized.
+ *
+ * A frame with no width gives its document a zero-width layout viewport, so
+ * every media query resolves at its narrowest and the content reflows into
+ * something the page never looked like. Parking it off-screen at the real sheet
+ * width keeps the layout honest while staying invisible. `visibility: hidden` is
+ * gone for the same reason: it suppresses layout work we depend on.
+ */
+function offscreenFrameStyle(width: number, height: number): string {
+  return (
+    'position:fixed;left:-10000px;top:0;border:0;' +
+    'width:' +
+    width +
+    'px;height:' +
+    height +
+    'px;'
+  );
+}
+
 /** a mount that owns a node in the host document and removes it on teardown. */
 class HostedMount implements Mount {
+  private readonly cleanups: Array<() => void> = [];
+
   constructor(
     readonly window: Window,
     readonly document: Document,
@@ -17,7 +55,19 @@ class HostedMount implements Mount {
     readonly overlay?: HTMLElement
   ) {}
 
+  /** registers work to undo when this mount goes away, such as host listeners. */
+  onTeardown(fn: () => void): void {
+    this.cleanups.push(fn);
+  }
+
   teardown(): void {
+    for (const fn of this.cleanups.splice(0)) {
+      try {
+        fn();
+      } catch {
+        /* a failing cleanup must not block the rest */
+      }
+    }
     if (this.host.parentNode) this.host.parentNode.removeChild(this.host);
   }
 }
@@ -83,15 +133,15 @@ function frameReady(
   });
 }
 
-/** the default: an off-screen, aria-hidden iframe in the host document. */
-export function mountIframe(srcDoc: Document): Promise<Mount> {
+/** the default: an aria-hidden iframe parked off-screen at the sheet size. */
+export function mountIframe(srcDoc: Document, options?: ResolvedOptions): Promise<Mount> {
+  const sheet = resolveSheet(options?.setPrintSize);
+  const width = frameWidthFor(options, sheet);
   const iframe = srcDoc.createElement('iframe');
   iframe.setAttribute('aria-hidden', 'true');
   iframe.setAttribute('data-pc-frame', '');
-  iframe.setAttribute(
-    'style',
-    'position:fixed;right:0;bottom:0;width:0;height:0;border:0;visibility:hidden;'
-  );
+  iframe.setAttribute('data-pc-sheet', sheet.label);
+  iframe.setAttribute('style', offscreenFrameStyle(width, sheet.height));
   iframe.src = 'about:blank';
   (srcDoc.body || srcDoc.documentElement).appendChild(iframe);
 
@@ -164,7 +214,9 @@ export function mountWindow(srcWin: Window, options: ResolvedOptions): Promise<M
  * the inspector: the same assembled document rendered into a visible overlay with
  * Print / Log HTML / Close, so print styles can be iterated on without paper.
  */
-export function mountOverlay(srcDoc: Document): Promise<Mount> {
+export function mountOverlay(srcDoc: Document, options?: ResolvedOptions): Promise<Mount> {
+  const sheet = resolveSheet(options?.setPrintSize);
+
   const host = srcDoc.createElement('div');
   host.setAttribute('data-pc-inspector', '');
   host.setAttribute(
@@ -181,7 +233,8 @@ export function mountOverlay(srcDoc: Document): Promise<Mount> {
   );
 
   const label = srcDoc.createElement('span');
-  label.textContent = 'printcraft inspector — assembled print document';
+  label.textContent =
+    'printcraft inspector — ' + sheet.label + ' (' + sheet.width + '×' + sheet.height + 'px)';
   label.setAttribute('style', 'flex:1');
   bar.appendChild(label);
 
@@ -200,20 +253,67 @@ export function mountOverlay(srcDoc: Document): Promise<Mount> {
   const htmlBtn = mkBtn('Log HTML');
   const closeBtn = mkBtn('Close');
 
+  // a stage the sheet floats on, so the preview reads as paper rather than as a
+  // panel that happens to contain html
+  const stage = srcDoc.createElement('div');
+  stage.setAttribute(
+    'style',
+    'flex:1;overflow:auto;background:#3f4046;border-radius:0 0 4px 4px;' +
+      'display:flex;justify-content:center;align-items:flex-start;padding:24px;box-sizing:border-box;'
+  );
+
+  const sheetBox = srcDoc.createElement('div');
+  sheetBox.setAttribute(
+    'style',
+    'width:' +
+      sheet.width +
+      'px;height:' +
+      sheet.height +
+      'px;flex:none;' +
+      'transform-origin:top center;box-shadow:0 6px 28px rgba(0,0,0,.45);background:#fff;'
+  );
+
   const iframe = srcDoc.createElement('iframe');
   iframe.setAttribute('title', 'printcraft print preview');
-  iframe.setAttribute(
-    'style',
-    'flex:1;width:100%;border:0;background:#fff;border-radius:0 0 4px 4px;'
-  );
+  // the frame is the sheet, at sheet pixels. anything else and the preview shows
+  // a layout the paper will never have
+  iframe.setAttribute('style', 'width:100%;height:100%;border:0;background:#fff;display:block;');
   iframe.src = 'about:blank';
 
+  sheetBox.appendChild(iframe);
+  stage.appendChild(sheetBox);
   host.appendChild(bar);
-  host.appendChild(iframe);
+  host.appendChild(stage);
   (srcDoc.body || srcDoc.documentElement).appendChild(host);
+
+  /** shrink the sheet to fit the stage, never enlarging past 1:1 */
+  const fit = (): void => {
+    const available = stage.clientWidth - 48;
+    if (available <= 0) return;
+    const scale = Math.min(1, available / sheet.width);
+    sheetBox.style.transform = 'scale(' + scale + ')';
+    // a scaled box keeps its unscaled footprint, so claw the difference back
+    sheetBox.style.marginBottom = -(sheet.height * (1 - scale)) + 'px';
+    label.textContent =
+      'printcraft inspector — ' +
+      sheet.label +
+      ' (' +
+      sheet.width +
+      '×' +
+      sheet.height +
+      'px, ' +
+      Math.round(scale * 100) +
+      '%)';
+  };
 
   return frameReady(iframe, 'the inspector frame').then(({ win, doc }) => {
     const mount = new HostedMount(win, doc, host, host);
+    fit();
+
+    const onResize = (): void => fit();
+    const view = srcDoc.defaultView;
+    view?.addEventListener('resize', onResize);
+    mount.onTeardown(() => view?.removeEventListener('resize', onResize));
     printBtn.addEventListener('click', () => {
       try {
         win.focus();

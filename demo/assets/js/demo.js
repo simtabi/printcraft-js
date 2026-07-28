@@ -8,6 +8,61 @@
 (function () {
   'use strict';
 
+  /* opened straight from disk ---------------------------------------------- */
+
+  var FROM_DISK = location.protocol === 'file:';
+
+  /**
+   * The same defaults the linked config file carries, substituted at build time
+   * from assets/data/printcraft.config.json so the two cannot drift.
+   */
+  var CONFIG_FALLBACK = '__DEMO_CONFIG__';
+
+  /**
+   * A file:// page has an opaque origin, so it cannot fetch its own siblings.
+   * Two things here depend on a fetch: the linked config and the web manifest.
+   * Rather than let the page quietly behave differently, apply the same defaults
+   * inline and drop the manifest link.
+   */
+  function handleFileProtocol() {
+    var manifest = document.querySelector('link[rel="manifest"]');
+    if (manifest && manifest.parentNode) manifest.parentNode.removeChild(manifest);
+
+    var applied = false;
+    try {
+      if (CONFIG_FALLBACK && typeof CONFIG_FALLBACK === 'object') {
+        Printcraft.applyConfig(CONFIG_FALLBACK);
+        applied = true;
+      }
+    } catch (e) {
+      console.warn('[demo] could not apply the fallback config', e);
+    }
+
+    var note = document.createElement('div');
+    note.className = 'pc-load-note';
+    note.setAttribute('role', 'status');
+    note.textContent = applied
+      ? 'Opened from disk. A file:// page cannot fetch its own files, so the page ' +
+        'defaults were applied inline instead of being loaded from ' +
+        'printcraft.config.json, and the web manifest was skipped. Every job behaves ' +
+        'the same as when served. `npm run demo` serves it properly.'
+      : 'Opened from disk. A file:// page cannot fetch its own files, so the defaults ' +
+        'in printcraft.config.json did not load: jobs will ignore the page margin, the ' +
+        'excluded .no-print elements and the document title. `npm run demo` serves it properly.';
+
+    var close = document.createElement('button');
+    close.type = 'button';
+    close.className = 'pc-load-note__close';
+    close.setAttribute('aria-label', 'Dismiss');
+    close.textContent = '\u00d7';
+    close.addEventListener('click', function () {
+      note.remove();
+    });
+
+    note.appendChild(close);
+    document.body.appendChild(note);
+  }
+
   /* the library failed to load -------------------------------------------- */
 
   if (typeof Printcraft === 'undefined') {
@@ -402,6 +457,7 @@
   /* boot ------------------------------------------------------------------- */
 
   function init() {
+    if (FROM_DISK) handleFileProtocol();
     fillRunLog();
     drawChart();
     renderTickets();

@@ -3,6 +3,7 @@
 // and applied to the clone later.
 
 import { DATA_ID, FORBIDDEN_TAGS, isElement, raise, selfAndMatches, toArray } from '../support';
+import { resolveSheet } from '../production/sheets';
 import type {
   ClipRect,
   ElementMeta,
@@ -220,24 +221,69 @@ export function buildClipClone(
     }
   );
 
+  // The rectangle was drawn against the page as it looked on screen. Reproduce
+  // that layout rather than the paper's: relaying out at the sheet width moves
+  // everything, and the region then frames whatever happens to land there.
+  const sourceWidth = clipSourceWidth(srcDoc, rect);
+
+  // Fit the region to the sheet, never enlarging it. A 1200px-wide selection has
+  // to come down to 794px of A4; a 300px one is already fine.
+  const sheet = resolveSheet(options.setPrintSize);
+  const scale = Math.min(1, sheet.width / rect.width);
+
   const viewport = srcDoc.createElement('div');
   viewport.className = 'pc-clip-viewport';
   viewport.setAttribute(
     'style',
-    'position:relative;overflow:hidden;width:' + rect.width + 'px;height:' + rect.height + 'px;'
+    'position:relative;overflow:hidden;' +
+      'width:' +
+      round(rect.width * scale) +
+      'px;' +
+      'height:' +
+      round(rect.height * scale) +
+      'px;'
+  );
+
+  // the stage carries the scale so the viewport keeps a truthful printed size
+  const stage = srcDoc.createElement('div');
+  stage.className = 'pc-clip-stage';
+  stage.setAttribute(
+    'style',
+    'position:absolute;left:0;top:0;transform-origin:top left;' +
+      'width:' +
+      rect.width +
+      'px;height:' +
+      rect.height +
+      'px;' +
+      (scale === 1 ? '' : 'transform:scale(' + round(scale, 4) + ');')
   );
 
   const inner = srcDoc.createElement('div');
   inner.className = 'pc-clip-inner';
-  const innerWidth = srcDoc.documentElement
-    ? srcDoc.documentElement.scrollWidth
-    : rect.width + rect.x;
   inner.setAttribute(
     'style',
-    'position:absolute;left:' + -rect.x + 'px;top:' + -rect.y + 'px;width:' + innerWidth + 'px;'
+    'position:absolute;left:' + -rect.x + 'px;top:' + -rect.y + 'px;width:' + sourceWidth + 'px;'
   );
 
   while (bodyClone.firstChild) inner.appendChild(bodyClone.firstChild);
-  viewport.appendChild(inner);
+  stage.appendChild(inner);
+  viewport.appendChild(stage);
   return viewport;
+}
+
+/** the layout width the rectangle's coordinates were measured against */
+export function clipSourceWidth(srcDoc: Document, rect?: ClipRect): number {
+  const view = srcDoc.defaultView;
+  const width =
+    view?.innerWidth ||
+    srcDoc.documentElement?.clientWidth ||
+    srcDoc.documentElement?.scrollWidth ||
+    0;
+  if (width > 0) return width;
+  return rect ? rect.x + rect.width : 0;
+}
+
+function round(n: number, places = 0): number {
+  const f = Math.pow(10, places);
+  return Math.round(n * f) / f;
 }

@@ -41,7 +41,8 @@ export {
   snapshotFormState,
   cloneTargets,
   applyShadowFlatten,
-  buildClipClone
+  buildClipClone,
+  clipSourceWidth
 } from './pipeline/measure';
 
 export {
@@ -71,6 +72,9 @@ export {
   waitForAssets,
   waitForDialogClose
 } from './pipeline/mounts';
+
+export { resolveSheet, toPx, DEFAULT_SHEET } from './production/sheets';
+export type { SheetSize } from './production/sheets';
 
 export { devtools } from './pipeline/devtools';
 

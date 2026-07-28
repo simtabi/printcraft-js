@@ -83,12 +83,36 @@ function applyConfig(obj: PrintcraftOptions): PrintcraftOptions {
 }
 
 /** fetches a json config file and merges it into the defaults. */
+/**
+ * `file://` pages cannot fetch their siblings: the origin is `null` and every
+ * browser refuses. Worth naming, because the raw failure is a bare
+ * "TypeError: Failed to fetch" that tells you nothing about what to do.
+ */
+function unfetchableFromFile(url: string, env?: Env): boolean {
+  const from = env?.window?.location?.protocol;
+  const to = /^([a-z][a-z0-9+.-]*):/i.exec(url)?.[1]?.toLowerCase();
+  return (from === 'file:' && !to) || to === 'file';
+}
+
 function loadConfig(
   url: string,
-  fetchImpl?: (input: string) => Promise<{ ok: boolean; status: number; json(): Promise<unknown> }>
+  fetchImpl?: (input: string) => Promise<{ ok: boolean; status: number; json(): Promise<unknown> }>,
+  env?: Env
 ): Promise<PrintcraftOptions> {
   const f = fetchImpl || (typeof fetch !== 'undefined' ? fetch : null);
   if (!f) return Promise.reject(new Error('Printcraft: fetch is not available for loadConfig'));
+
+  if (!fetchImpl && unfetchableFromFile(url, env || defaultEnv())) {
+    return Promise.reject(
+      new Error(
+        'Printcraft: cannot load "' +
+          url +
+          '" from a file:// page, because its origin is null and the browser blocks the request. ' +
+          'Serve the page over http, or move the defaults into an inline ' +
+          '<script type="application/json" data-printcraft-config> block.'
+      )
+    );
+  }
 
   return Promise.resolve(f(url as string & Request))
     .then((res) => {
@@ -511,10 +535,21 @@ class Printcraft {
           /* noop */
         }
       }
-      if (configUrl) {
-        loadConfig(configUrl).catch((e: unknown) => {
+      const scope: Env = { document: doc, window: win as Window & typeof globalThis };
+
+      // A page opened from disk can never fetch its own files. Nothing the author
+      // writes changes that, so booting stays quiet about it and says so on the
+      // bus instead. An explicit loadConfig() call still rejects with the full
+      // explanation, because there someone asked.
+      if (configUrl && unfetchableFromFile(configUrl, scope)) {
+        bus.emit('config:skipped', {
+          source: configUrl,
+          reason: 'a file:// page cannot fetch its own files'
+        });
+      } else if (configUrl) {
+        loadConfig(configUrl, undefined, scope).catch((e: unknown) => {
           try {
-            console.error('[' + NS + '] config load failed:', e);
+            console.error('[' + NS + '] ' + (e instanceof Error ? e.message : String(e)));
           } catch {
             /* noop */
           }
@@ -553,6 +588,9 @@ class Printcraft {
     assemblePrintDocument: core.assemblePrintDocument,
     buildClipClone: core.buildClipClone,
     escapeHtml: core.escapeHtml,
+    // page geometry
+    resolveSheet: core.resolveSheet,
+    toPx: core.toPx,
     // mounts + waits
     mountIframe: core.mountIframe,
     mountWindow: core.mountWindow,

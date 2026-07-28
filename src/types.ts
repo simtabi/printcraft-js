@@ -71,6 +71,7 @@ export type PrintcraftEvent =
   | 'trigger'
   | 'hotkey'
   | 'config:loaded'
+  | 'config:skipped'
   | 'ui:menu'
   | 'ui:pick'
   | 'ui:draw'
@@ -104,6 +105,13 @@ export interface PrintcraftOptions {
   target?: PrintTarget;
   html?: string | null;
   clipRect?: ClipRect | null;
+  /**
+   * The layout width `clipRect` was measured against. Captured from the live
+   * window when a job runs, so the clipped clone reproduces the layout the
+   * region was drawn on rather than the paper's. Set it yourself only when
+   * replaying a rectangle captured somewhere else.
+   */
+  clipSourceWidth?: number | null;
   documentTitle?: string | null;
   jobName?: string | null;
   printInIframe?: boolean;
@@ -173,6 +181,7 @@ export interface ResolvedOptions extends PrintcraftOptions {
   target: PrintTarget;
   html: string | null;
   clipRect: ClipRect | null;
+  clipSourceWidth: number | null;
   documentTitle: string | null;
   jobName: string | null;
   printInIframe: boolean;

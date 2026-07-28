@@ -15,6 +15,7 @@ import {
 import {
   applyShadowFlatten,
   buildClipClone,
+  clipSourceWidth,
   cloneTargets,
   measureLiveTree,
   resolveTargets
@@ -170,6 +171,11 @@ export class Job {
     const { options, env } = this;
 
     if (options.clipRect && !options.target && options.html == null) {
+      // the rectangle's coordinates only mean something against the layout they
+      // were taken from, so record that width before anything is mounted
+      if (!options.clipSourceWidth) {
+        options.clipSourceWidth = clipSourceWidth(env.document, options.clipRect);
+      }
       this.record.targetCount = 1;
       return [buildClipClone(env.document, options.clipRect, options)];
     }
@@ -224,8 +230,11 @@ export class Job {
   }
 
   private mount(): Promise<Mount> {
-    if (this.mode === 'inspect') return mountOverlay(this.env.document);
-    if (this.options.printInIframe) return mountIframe(this.env.document);
+    // every mount gets the options so it can size itself to the sheet. a frame
+    // laid out at the wrong width reflows the clone and the job prints something
+    // the user never saw
+    if (this.mode === 'inspect') return mountOverlay(this.env.document, this.options);
+    if (this.options.printInIframe) return mountIframe(this.env.document, this.options);
     return mountWindow(this.env.window, this.options);
   }
 
