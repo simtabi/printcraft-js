@@ -174,6 +174,9 @@ test('a clipRect job runs end-to-end and cancels cleanly via hook', async () => 
   const job = await Printcraft.print(
     {
       clipRect: { x: 0, y: 0, width: 200, height: 120 },
+      // reflow, because capture needs a canvas and jsdom has none. the capture
+      // path is covered against a real browser in test/e2e/region.spec.ts
+      clipMode: 'reflow',
       assetTimeout: 100,
       hooks: {
         beforePrint(ctx) {
@@ -403,4 +406,26 @@ test('sanitize runs by default inside a job; opt-out keeps handlers', async () =
   );
   expect_eq(sanitized, false);
   expect_eq(kept, true);
+});
+
+test('capture says what to do when the environment cannot rasterize', async () => {
+  // jsdom has no canvas, which is exactly the situation a user hits on a page
+  // with a tainted canvas or a locked-down csp
+  const d = dom('<h1>title</h1>');
+  let caught: unknown = null;
+
+  await Printcraft.print(
+    {
+      clipRect: { x: 0, y: 0, width: 200, height: 120 },
+      clipMode: 'capture',
+      assetTimeout: 60,
+      onError: (e: unknown) => {
+        caught = e;
+      }
+    },
+    env(d)
+  );
+
+  expect_match(String(caught), /could not capture the selected region/);
+  expect_match(String(caught), /clipMode: "reflow"/);
 });

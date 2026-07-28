@@ -134,77 +134,70 @@ test('keepSourceCSS keeps the content and honours what the css hides', async ({ 
   expect(plain.targetText - styled.targetText, 'the hidden note, and only that').toBeLessThan(120);
 });
 
-test('a drawn region frames the content it was drawn over', async ({ page }) => {
-  // The whole point, and the bug that started this file. A rectangle means
-  // something only against the layout it was taken from, so the clip clone keeps
-  // that layout instead of being re-flowed to paper width and landing elsewhere.
-  const painted = await page.evaluate(async () => {
-    const el = document.querySelector('#memo h2') as HTMLElement;
-    const r = el.getBoundingClientRect();
-    const rect = {
-      x: Math.round(r.left + scrollX) - 8,
-      y: Math.round(r.top + scrollY) - 8,
-      width: 520,
-      height: 220
-    };
+test('a clipped region reaches the page as a capture that fits it', async ({ page }) => {
+  // The framing and pixel checks live in region.spec.ts. What matters here is
+  // that a clip job produces one image, sized to the sheet, and no live clip
+  // markup: markup would be re-laid-out at paper width and stop framing what was
+  // selected.
+  const seen = await page.evaluate(async () => {
+    const box = document.querySelector('#memo h2')!.getBoundingClientRect();
+    let out = { captured: false, liveClip: 0, scrollWidth: 0, frameWidth: 0 };
 
-    let seen: { sourceWidth: number; texts: string[] } = { sourceWidth: 0, texts: [] };
     const pc = (window as unknown as { Printcraft: { print(o: unknown): Promise<unknown> } })
       .Printcraft;
-
     await pc.print({
-      clipRect: rect,
-      assetTimeout: 2000,
+      clipRect: {
+        x: Math.round(box.left + scrollX) - 8,
+        y: Math.round(box.top + scrollY) - 8,
+        width: 520,
+        height: 220
+      },
+      assetTimeout: 5000,
       hooks: {
         beforePrint(ctx: { window: Window; document: Document }) {
-          const d = ctx.document;
-          const vp = d.querySelector('.pc-clip-viewport') as HTMLElement;
-          const box = vp.getBoundingClientRect();
-          // innerText would report the whole clone: it ignores overflow clipping.
-          // hit-testing reports what the window actually shows.
-          const texts = new Set<string>();
-          for (const fy of [0.1, 0.3, 0.5, 0.8]) {
-            const hit = d.elementFromPoint(box.left + box.width * 0.5, box.top + box.height * fy);
-            if (hit?.textContent) texts.add(hit.textContent.replace(/\s+/g, ' ').trim());
-          }
-          seen = { sourceWidth: ctx.window.innerWidth, texts: [...texts] };
+          out = {
+            captured: !!ctx.document.querySelector('img.pc-capture'),
+            liveClip: ctx.document.querySelectorAll('.pc-clip-viewport').length,
+            scrollWidth: ctx.document.documentElement.scrollWidth,
+            frameWidth: ctx.window.innerWidth
+          };
           return false;
         }
       }
     });
-    return seen;
+    return out;
   });
 
-  expect(painted.sourceWidth, 'laid out at the width the region was drawn on').toBe(1280);
-
-  const all = painted.texts.join(' | ');
-  expect(all, 'the memo the rectangle covered').toContain('R. VELVET');
-  expect(all, 'and not the masthead it used to show').not.toContain('ZERO DEPENDENCIES');
+  expect(seen.captured, 'the region became an image').toBe(true);
+  expect(seen.liveClip, 'and not live markup').toBe(0);
+  expect(seen.frameWidth).toBe(A4.width);
+  expect(seen.scrollWidth, 'nothing overflows the paper').toBeLessThanOrEqual(A4.width);
 });
 
-test('a region wider than the sheet is scaled down to fit it', async ({ page }) => {
-  const style = await page.evaluate(async () => {
-    let seen = '';
+test('reflow mode keeps live markup for callers who want selectable text', async ({ page }) => {
+  const seen = await page.evaluate(async () => {
+    let out = { captured: false, liveClip: 0 };
     const pc = (window as unknown as { Printcraft: { print(o: unknown): Promise<unknown> } })
       .Printcraft;
     await pc.print({
-      clipRect: { x: 0, y: 0, width: 1200, height: 600 },
-      assetTimeout: 2000,
+      clipRect: { x: 0, y: 0, width: 400, height: 300 },
+      clipMode: 'reflow',
+      assetTimeout: 3000,
       hooks: {
         beforePrint(ctx: { document: Document }) {
-          const vp = ctx.document.querySelector('.pc-clip-viewport');
-          const stage = ctx.document.querySelector('.pc-clip-stage');
-          seen = (vp?.getAttribute('style') || '') + ' ~ ' + (stage?.getAttribute('style') || '');
+          out = {
+            captured: !!ctx.document.querySelector('img.pc-capture'),
+            liveClip: ctx.document.querySelectorAll('.pc-clip-viewport').length
+          };
           return false;
         }
       }
     });
-    return seen;
+    return out;
   });
 
-  // 794 / 1200 ≈ 0.66, so the printed box is ~794×397 and the stage carries the scale
-  expect(style).toMatch(/width:79[0-9]px/);
-  expect(style).toMatch(/transform:scale\(0\.66/);
+  expect(seen.liveClip, 'markup, as asked for').toBe(1);
+  expect(seen.captured).toBe(false);
 });
 
 /* the matrix ----------------------------------------------------------------- */

@@ -71,6 +71,7 @@ export const DEFAULTS: ResolvedOptions = {
   annotations: [],
   clipRect: null,
   clipSourceWidth: null,
+  clipMode: 'capture',
 
   debug: null
 };

@@ -34,6 +34,7 @@ import {
   stripDataIds
 } from './transforms';
 import { assemblePrintDocument } from './document';
+import { captureRegion } from './capture';
 import {
   mountIframe,
   mountOverlay,
@@ -304,87 +305,129 @@ export class Job {
         this.mark('transform');
         this.fire('job:transform', { clones });
 
-        this.hook('beforeAssemble', clones, options);
-
-        return this.mount()
-          .then((mount) => {
-            this.mounted = mount;
-            assemblePrintDocument(mount.document, clones, options, this.env.document);
-            this.mark('assemble');
-            if (this.debugOn || this.mode === 'inspect') {
-              try {
-                this.record.documentHTML = mount.document.documentElement.outerHTML;
-              } catch {
-                /* noop */
-              }
-            }
-            this.fire('job:mount', { window: mount.window, document: mount.document });
-            return waitForAssets(mount.document, mount.window, options).then(() => mount);
-          })
-          .then((mount) => {
-            this.mark('assets');
-            this.fire('job:assets');
-
-            if (this.mode === 'inspect') {
-              this.finalize('inspected');
-              const controller = this.toInspectController(mount);
-              this.fire('job:inspected', { controller });
-              this.detachTempListeners();
-              return controller;
-            }
-
-            const hookSaysNo =
-              this.hook('beforePrint', {
-                window: mount.window,
-                document: mount.document,
-                options
-              }) === false;
-            const eventSaysNo = this.fire('job:beforeprint', {
-              window: mount.window,
-              document: mount.document
-            }).some((r) => r === false);
-            if (hookSaysNo || eventSaysNo) return this.cancelled();
-
-            const closed = waitForDialogClose(mount.window, options);
-            try {
-              mount.window.focus();
-            } catch {
-              /* noop */
-            }
-            mount.window.print();
-
-            return closed.then(() => {
-              this.mark('dialog');
-              this.teardownMount();
-              this.hook('afterPrint', { options });
-              if (typeof options.afterPrintCb === 'function') options.afterPrintCb(options);
-              this.finalize('done');
-              this.fire('job:afterprint');
-              this.fire('job:done');
-              this.detachTempListeners();
-              return this.record;
-            });
-          });
+        // A selected region is rasterised here, after every transform, so the
+        // capture already has redaction and exclusions baked in. Doing it any
+        // later would mean photographing content we promised to destroy.
+        return this.captureIfRegion(clones).then((finalClones) => {
+          this.hook('beforeAssemble', finalClones, options);
+          return this.assembleAndPrint(finalClones);
+        });
       })
-      .catch((err: unknown) => {
-        if (this.measured) {
+      .catch((err: unknown) => this.fail(err));
+  }
+
+  /** replaces a clip clone with its raster when `clipMode` asks for one */
+  private captureIfRegion(clones: Element[]): Promise<Element[]> {
+    const { options } = this;
+    const rect = options.clipRect;
+    if (!rect || options.clipMode !== 'capture' || options.target || options.html != null) {
+      return Promise.resolve(clones);
+    }
+    const clone = clones[0];
+    if (!clone) return Promise.resolve(clones);
+
+    this.fire('capture:start', { rect });
+    return captureRegion(clone, rect, options, this.env.document).then((result) => {
+      this.mark('capture');
+      if (result.skipped.length) {
+        this.log.warn('could not inline', result.skipped.length, 'asset(s):', result.skipped);
+      }
+      this.fire('capture:done', {
+        rect,
+        width: result.width,
+        height: result.height,
+        skipped: result.skipped
+      });
+      return [result.element];
+    });
+  }
+
+  private assembleAndPrint(clones: Element[]): Promise<JobRecord | InspectController> {
+    const { options } = this;
+    return this.mount()
+      .then((mount) => {
+        this.mounted = mount;
+        assemblePrintDocument(mount.document, clones, options, this.env.document);
+        this.mark('assemble');
+        if (this.debugOn || this.mode === 'inspect') {
           try {
-            this.measured.cleanup();
+            this.record.documentHTML = mount.document.documentElement.outerHTML;
           } catch {
             /* noop */
           }
         }
-        this.teardownMount();
-        this.finalize('error', err);
-        this.fire('job:error', { error: err });
-        this.detachTempListeners();
-        this.log.error(err);
-        if (typeof this.options.onError === 'function') {
-          this.options.onError(err);
-          return this.record;
+        this.fire('job:mount', { window: mount.window, document: mount.document });
+        return waitForAssets(mount.document, mount.window, options).then(() => mount);
+      })
+      .then((mount) => {
+        this.mark('assets');
+        this.fire('job:assets');
+
+        if (this.mode === 'inspect') {
+          this.finalize('inspected');
+          const controller = this.toInspectController(mount);
+          this.fire('job:inspected', { controller });
+          this.detachTempListeners();
+          return controller;
         }
-        throw err;
+
+        const hookSaysNo =
+          this.hook('beforePrint', {
+            window: mount.window,
+            document: mount.document,
+            options
+          }) === false;
+        const eventSaysNo = this.fire('job:beforeprint', {
+          window: mount.window,
+          document: mount.document
+        }).some((r) => r === false);
+        if (hookSaysNo || eventSaysNo) return this.cancelled();
+
+        const closed = waitForDialogClose(mount.window, options);
+        try {
+          mount.window.focus();
+        } catch {
+          /* noop */
+        }
+        mount.window.print();
+
+        return closed.then(() => {
+          this.mark('dialog');
+          this.teardownMount();
+          this.hook('afterPrint', { options });
+          if (typeof options.afterPrintCb === 'function') options.afterPrintCb(options);
+          this.finalize('done');
+          this.fire('job:afterprint');
+          this.fire('job:done');
+          this.detachTempListeners();
+          return this.record;
+        });
       });
+  }
+
+  /**
+   * One exit for everything that goes wrong: sweep the live page clean, tear the
+   * mount down, and either hand the error to `onError` or rethrow it.
+   */
+  private fail(err: unknown): JobRecord {
+    if (this.measured) {
+      try {
+        this.measured.cleanup();
+      } catch {
+        /* noop */
+      }
+    }
+    this.teardownMount();
+    this.finalize('error', err);
+    this.fire('job:error', { error: err });
+    this.detachTempListeners();
+    this.log.error(err);
+
+    if (typeof this.options.onError === 'function') {
+      this.options.onError(err);
+      return this.record;
+    }
+    throw err;
   }
 }
 

@@ -14,5 +14,5 @@ export {
 
 export * from './kit';
 export { pickSections, type PickResult } from './picker';
-export { drawArea, type DrawResult } from './draw';
+export { drawArea, type DrawResult, type DrawOptions } from './draw';
 export type { UiDeps } from './shared';

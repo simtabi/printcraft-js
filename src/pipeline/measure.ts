@@ -226,10 +226,15 @@ export function buildClipClone(
   // everything, and the region then frames whatever happens to land there.
   const sourceWidth = clipSourceWidth(srcDoc, rect);
 
-  // Fit the region to the sheet, never enlarging it. A 1200px-wide selection has
-  // to come down to 794px of A4; a 300px one is already fine.
+  // Fit the region to the sheet, never enlarging it: a 1200px-wide selection has
+  // to come down to 794px of A4, and a 300px one is already fine.
+  //
+  // Capture mode skips this. The raster is fitted to the sheet when it is placed
+  // on the page, and scaling here as well would shrink the content inside a
+  // full-size frame — the four process inks ended up filling the left 62% of the
+  // image with white beside them.
   const sheet = resolveSheet(options.setPrintSize);
-  const scale = Math.min(1, sheet.width / rect.width);
+  const scale = options.clipMode === 'capture' ? 1 : Math.min(1, sheet.width / rect.width);
 
   const viewport = srcDoc.createElement('div');
   viewport.className = 'pc-clip-viewport';

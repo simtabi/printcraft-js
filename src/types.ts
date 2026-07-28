@@ -72,6 +72,8 @@ export type PrintcraftEvent =
   | 'hotkey'
   | 'config:loaded'
   | 'config:skipped'
+  | 'capture:start'
+  | 'capture:done'
   | 'ui:menu'
   | 'ui:pick'
   | 'ui:draw'
@@ -112,6 +114,18 @@ export interface PrintcraftOptions {
    * replaying a rectangle captured somewhere else.
    */
   clipSourceWidth?: number | null;
+  /**
+   * How a clipped region reaches paper.
+   *
+   * `capture` rasterises the region at the layout it was selected against, which
+   * is the only way to print what was actually on screen: at pagination time the
+   * browser re-evaluates media queries against the page box, so live markup is
+   * re-laid-out and the region no longer frames the same content.
+   *
+   * `reflow` keeps live, selectable markup and accepts that it will be laid out
+   * at paper width. Right when text matters more than fidelity.
+   */
+  clipMode?: 'capture' | 'reflow';
   documentTitle?: string | null;
   jobName?: string | null;
   printInIframe?: boolean;
@@ -182,6 +196,7 @@ export interface ResolvedOptions extends PrintcraftOptions {
   html: string | null;
   clipRect: ClipRect | null;
   clipSourceWidth: number | null;
+  clipMode: 'capture' | 'reflow';
   documentTitle: string | null;
   jobName: string | null;
   printInIframe: boolean;

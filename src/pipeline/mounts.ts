@@ -10,17 +10,18 @@ import type { Mount, ResolvedOptions } from '../types';
 const MOUNT_TIMEOUT = 15000;
 
 /**
- * The width a job's frame must lay out at.
+ * The width a job's frame lays out at: always the sheet.
  *
- * Normally the sheet. For a clip job it is the width the region was measured
- * against, because the clone has to reproduce the layout the user drew on, and
- * media queries inside the frame answer to the frame, not to an element.
+ * An earlier version widened the frame for clip jobs, to reproduce the layout a
+ * region was drawn against. It does not work, and it is worth writing down why.
+ * At pagination time the browser re-evaluates media queries against the page
+ * box, not the frame, so the wide layout is thrown away the moment printing
+ * starts — and the document is left wider than the paper, which crops it.
+ *
+ * Printing a region exactly as it looked on screen needs a raster, not a
+ * relayout. That is what `clipMode: 'capture'` does.
  */
-export function frameWidthFor(options: ResolvedOptions | undefined, sheet: SheetSize): number {
-  const source = options?.clipSourceWidth;
-  if (options?.clipRect && typeof source === 'number' && source > 0) {
-    return Math.max(sheet.width, Math.round(source));
-  }
+export function frameWidthFor(_options: ResolvedOptions | undefined, sheet: SheetSize): number {
   return sheet.width;
 }
 

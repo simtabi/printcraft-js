@@ -195,21 +195,36 @@ test('a live canvas is captured as a real image, not a blank box', async ({ page
 });
 
 test('clipRect prints exactly the drawn region', async ({ page }) => {
-  const frame = await inspect(page, {
-    clipRect: { x: 20, y: 40, width: 320, height: 240 },
-    assetTimeout: 2000
+  // capture mode, so the region arrives as an image sized to the sheet. the
+  // pixel-level framing checks live in region.spec.ts
+  const seen = await page.evaluate(async () => {
+    let out = { captured: false, width: 0, ui: 0, scripts: 0 };
+    const pc = (window as unknown as { Printcraft: { print(o: unknown): Promise<unknown> } })
+      .Printcraft;
+    await pc.print({
+      clipRect: { x: 20, y: 40, width: 320, height: 240 },
+      assetTimeout: 5000,
+      hooks: {
+        beforePrint(ctx: { document: Document }) {
+          const img = ctx.document.querySelector<HTMLImageElement>('img.pc-capture');
+          out = {
+            captured: !!img,
+            width: img ? Math.round(img.getBoundingClientRect().width) : 0,
+            ui: ctx.document.querySelectorAll('[data-pc-ui]').length,
+            scripts: ctx.document.querySelectorAll('.pc-target script').length
+          };
+          return false;
+        }
+      }
+    });
+    return out;
   });
 
-  const viewport = frame.locator('.pc-clip-viewport');
-  const box = await viewport.boundingBox();
-  expect(box?.width).toBeCloseTo(320, 0);
-  expect(box?.height).toBeCloseTo(240, 0);
-
-  await expect(viewport).toHaveCSS('overflow', 'hidden');
-  // the ui layer never appears in its own screenshot
-  await expect(frame.locator('[data-pc-ui]')).toHaveCount(0);
-  await expect(frame.locator('script')).toHaveCount(0);
-  await closeInspector(page);
+  expect(seen.captured).toBe(true);
+  expect(seen.width).toBeCloseTo(320, -1);
+  // the interface never appears in its own screenshot
+  expect(seen.ui).toBe(0);
+  expect(seen.scripts).toBe(0);
 });
 
 test('the repeating header and footer use the table technique', async ({ page }) => {
@@ -276,12 +291,10 @@ test('the context menu opens on right-click and drives a job', async ({ page }) 
   await page.evaluate(() => (window as unknown as { __off?: () => void }).__off?.());
 });
 
-test('draw-to-print produces a clip job from a dragged rectangle', async ({ page }) => {
+test('draw-to-print waits for confirmation before it captures anything', async ({ page }) => {
   await page.evaluate(() => {
     const pc = (
-      window as unknown as {
-        Printcraft: { ui: { drawArea(b: unknown): Promise<unknown> } };
-      }
+      window as unknown as { Printcraft: { ui: { drawArea(b: unknown): Promise<unknown> } } }
     ).Printcraft;
     (window as unknown as { __drawn?: Promise<unknown> }).__drawn = pc.ui.drawArea({});
   });
@@ -292,8 +305,14 @@ test('draw-to-print produces a clip job from a dragged rectangle', async ({ page
   await page.mouse.move(120, 160);
   await page.mouse.down();
   await page.mouse.move(420, 400, { steps: 8 });
-  await expect(page.locator('[data-pc-draw] div').nth(1)).toContainText('×');
   await page.mouse.up();
 
+  // the box stays editable: releasing the mouse is not a decision
+  await expect(page.locator('[data-pc-region]')).toBeVisible();
+  await expect(page.locator('[data-pc-handle]')).toHaveCount(8);
+  await expect(page.locator('[data-pc-dims]')).toContainText('300 × 240 px');
+  await expect(overlay).toBeVisible();
+
+  await page.keyboard.press('Escape');
   await expect(overlay).toHaveCount(0);
 });
