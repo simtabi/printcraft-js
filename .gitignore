@@ -1,0 +1,24 @@
+# build output
+dist/
+
+# test output
+coverage/
+test-results/
+playwright-report/
+.playwright/
+
+# dependencies
+node_modules/
+
+# lock files are never committed: in a library they record a resolution
+# consumers never use, and CI resolves fresh
+package-lock.json
+npm-shrinkwrap.json
+yarn.lock
+pnpm-lock.yaml
+
+# editors and os
+.DS_Store
+.idea/
+.vscode/
+*.swp

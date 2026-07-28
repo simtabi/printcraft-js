@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Question or idea
+    url: https://github.com/simtabi/printcraft-js/discussions
+    about: Ask a question or propose an idea in Discussions.
+  - name: Documentation
+    url: https://opensource.simtabi.com/documentation/simtabi/printcraft-js/
+    about: Options, events, recipes, and the architecture notes.
+  - name: Report a security vulnerability
+    url: https://github.com/simtabi/printcraft-js/blob/main/SECURITY.md
+    about: Please disclose privately to opensource@simtabi.com, not in an issue.

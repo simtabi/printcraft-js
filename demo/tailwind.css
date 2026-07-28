@@ -1,0 +1,70 @@
+/* Tailwind v4 source for the demo sheet.
+   Compiled by `npm run build:css` into dist/demo.css, which the repo demo links
+   and the standalone build inlines. There is no CDN involved anywhere. */
+
+@import 'tailwindcss';
+
+/* v4 scans relative to this file, so the demo markup has to be named explicitly.
+   The run-button and ticket classes are string literals inside index.html's own
+   inline scripts, so this one source covers the whole demo. */
+@source "./index.html";
+
+/* print-shop palette: ink on white with process (CMYK) accents. */
+@theme {
+  --color-ink: #17181b;
+  --color-inksoft: #55575e;
+  --color-rule: #d8d8d3;
+  --color-paperdim: #f2f2ef;
+
+  --color-process-c: #009fe3;
+  --color-process-m: #e5007d;
+  --color-process-y: #ffd500;
+  --color-process-k: #17181b;
+
+  --font-mono: ui-monospace, 'SF Mono', 'Cascadia Mono', Consolas, Menlo, monospace;
+  --font-sans: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+}
+
+/* crop marks on the job tickets: the one thing utilities cannot express cleanly */
+.ticket {
+  position: relative;
+}
+
+.ticket::before,
+.ticket::after,
+.ticket .crop::before,
+.ticket .crop::after {
+  content: '';
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  pointer-events: none;
+}
+
+.ticket::before {
+  top: -1px;
+  left: -1px;
+  border-top: 2px solid #17181b;
+  border-left: 2px solid #17181b;
+}
+
+.ticket::after {
+  top: -1px;
+  right: -1px;
+  border-top: 2px solid #17181b;
+  border-right: 2px solid #17181b;
+}
+
+.ticket .crop::before {
+  bottom: -1px;
+  left: -1px;
+  border-bottom: 2px solid #17181b;
+  border-left: 2px solid #17181b;
+}
+
+.ticket .crop::after {
+  bottom: -1px;
+  right: -1px;
+  border-bottom: 2px solid #17181b;
+  border-right: 2px solid #17181b;
+}

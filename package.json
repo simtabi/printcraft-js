@@ -1,0 +1,100 @@
+{
+  "name": "@simtabi/printcraft",
+  "version": "1.2.0",
+  "description": "Data-driven client-side printing with a fluent API and an interaction layer: print regions, pick sections, draw a print area, redact like a declassified file, auto-blank PII, crop marks, annotations. TypeScript, zero runtime dependencies.",
+  "keywords": [
+    "print",
+    "printing",
+    "print-page",
+    "print-region",
+    "vanilla-js",
+    "zero-dependencies",
+    "watermark",
+    "print-preview",
+    "data-attributes",
+    "redaction",
+    "privacy",
+    "crop-marks",
+    "typescript",
+    "context-menu",
+    "fluent-api"
+  ],
+  "license": "MIT",
+  "author": "Simtabi LLC (https://simtabi.com)",
+  "homepage": "https://opensource.simtabi.com/products/simtabi/printcraft-js",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/simtabi/printcraft-js.git"
+  },
+  "bugs": {
+    "url": "https://github.com/simtabi/printcraft-js/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "engines": {
+    "node": "^20.19.0 || >=22.12.0"
+  },
+  "type": "commonjs",
+  "main": "dist/printcraft.umd.js",
+  "module": "dist/printcraft.mjs",
+  "types": "dist/types/index.d.cts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/types/index.d.mts",
+        "default": "./dist/printcraft.mjs"
+      },
+      "require": {
+        "types": "./dist/types/index.d.cts",
+        "default": "./dist/printcraft.umd.js"
+      }
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "src",
+    "dist",
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "clean": "rimraf dist coverage test-results",
+    "prebuild": "npm run clean",
+    "build": "vite build && npm run build:types && npm run build:css && node tools/build.mjs",
+    "build:css": "tailwindcss -i demo/tailwind.css -o dist/demo.css --minify",
+    "build:types": "tsc -p tsconfig.types.json",
+    "dev": "vite build --watch",
+    "demo": "vite --open /demo/index.html",
+    "typecheck": "tsc -p tsconfig.json",
+    "lint": "oxlint",
+    "lint:pkg": "publint && attw --pack .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "pretest": "npm run build",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "test:e2e": "playwright test",
+    "size": "size-limit",
+    "prepublishOnly": "npm run build"
+  },
+  "devDependencies": {
+    "@arethetypeswrong/cli": "^0.18.5",
+    "@playwright/test": "^1.62.0",
+    "@size-limit/file": "^13.0.1",
+    "@tabler/icons": "^3.45.0",
+    "@tailwindcss/cli": "^4.3.3",
+    "@vitest/coverage-v8": "^4.1.10",
+    "jsdom": "^30.0.0",
+    "oxlint": "^1.76.0",
+    "prettier": "^3.9.6",
+    "publint": "^0.3.22",
+    "rimraf": "^6.1.3",
+    "size-limit": "^13.0.1",
+    "typescript": "^7.0.2",
+    "vite": "^8.1.5",
+    "vitest": "^4.1.10"
+  }
+}

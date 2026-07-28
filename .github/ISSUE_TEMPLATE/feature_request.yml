@@ -1,0 +1,40 @@
+name: Feature request
+description: Suggest a capability Printcraft does not have.
+labels: ['enhancement']
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Some things are deliberately out of scope: PDF generation, cross-origin
+        printing, and a user-facing print preview. See
+        [Comparison](https://github.com/simtabi/printcraft-js/blob/main/docs/comparison.md).
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: The problem
+      description: What are you trying to print, and what stops you today?
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What you have in mind
+      description: An option, an event, a UI mode? A sketch of the API helps.
+    validations:
+      required: true
+
+  - type: textarea
+    id: workaround
+    attributes:
+      label: Current workaround
+      description: How are you handling it now — a custom transform, a hook, something else?
+
+  - type: checkboxes
+    id: constraints
+    attributes:
+      label: Constraints
+      options:
+        - label: This can be done with zero runtime dependencies
+        - label: This works in the browser alone, with no server

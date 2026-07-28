@@ -1,0 +1,66 @@
+name: Bug report
+description: Something does not work the way it is documented.
+labels: ['bug']
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Please do not report security issues here — see
+        [SECURITY.md](https://github.com/simtabi/printcraft-js/blob/main/SECURITY.md).
+
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What did you expect, and what happened instead?
+    validations:
+      required: true
+
+  - type: textarea
+    id: repro
+    attributes:
+      label: Reproduction
+      description: >
+        The smallest markup and options that show the problem. `Printcraft.inspect()`
+        renders the assembled print document in an overlay, which is usually the
+        clearest thing to share.
+      render: html
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Printcraft version
+      placeholder: 1.2.0
+    validations:
+      required: true
+
+  - type: input
+    id: browser
+    attributes:
+      label: Browser and OS
+      placeholder: Chrome 141 on macOS 15
+    validations:
+      required: true
+
+  - type: dropdown
+    id: surface
+    attributes:
+      label: Which surface
+      options:
+        - Imperative (Printcraft.print / job builder)
+        - Declarative (data-printcraft attributes)
+        - JSON config
+        - Interaction UI (menu, picker, draw)
+    validations:
+      required: true
+
+  - type: textarea
+    id: job
+    attributes:
+      label: Job record
+      description: >
+        If a job completed, paste `Printcraft.devtools.last()`. If debug logging is
+        on (`Printcraft.debug(true)`), the per-stage timings help too.
+      render: json

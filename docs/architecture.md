@@ -1,0 +1,141 @@
+# Architecture
+
+The pipeline every job runs, the module layout behind it, and the reasoning for
+the decisions that are not obvious from the code.
+
+## The pipeline
+
+One `Job` owns one print job, start to finish. Every stage emits an event and
+records a timing, so a job is observable from outside without instrumenting it.
+
+| Stage     | What happens                                                                                                                                                              | Event                        |
+| --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------- |
+| start     | Options are already normalized; the job record is created                                                                                                                 | `job:start`                  |
+| measure   | The **live** tree is read: canvas pixels, laid-out image sizes, `currentSrc`, hidden elements, scrollable regions                                                         | `job:measure`                |
+| clone     | Targets are cloned with form state baked in; shadow roots optionally flattened                                                                                            | `job:clone`                  |
+| transform | Sanitize, exclude, redact, privacy-scan, reveal, expose links, capture canvases, handle images, expand scroll areas, strip inline styles, annotate, run custom transforms | `job:transform`              |
+| mount     | A hidden iframe, a popup, or the inspector overlay                                                                                                                        | `job:mount`                  |
+| assemble  | Base href, source CSS, generated page CSS, header/footer, target slots, watermark, marks                                                                                  | —                            |
+| assets    | Images, webfonts and imported stylesheets are awaited, bounded by `assetTimeout`                                                                                          | `job:assets`                 |
+| print     | Cancellable, then the dialog opens                                                                                                                                        | `job:beforeprint`            |
+| done      | The dialog closes, the mount is torn down                                                                                                                                 | `job:afterprint`, `job:done` |
+
+A `false` from any `job:beforeprint` listener, or from the `beforePrint` hook,
+cancels cleanly: the mount is removed and the job resolves with
+`status: 'cancelled'`.
+
+## Module layout
+
+```
+src/
+├── index.ts          the public Printcraft class: fluent builder + statics
+├── core.ts           internal barrel; also the _internals compatibility facade
+├── types.ts          the public type surface
+│
+├── support/          primitives with no printing knowledge
+│   ├── constants.ts  NS, DATA_ID, FORBIDDEN_TAGS
+│   ├── lang.ts       assign, clamp, raise, now, camelize
+│   ├── dom.ts        toArray, isElement, eachInclusive, replaceNode, …
+│   ├── emitter.ts    the pub/sub behind instance events and the global bus
+│   └── logger.ts     the debug flag and the namespaced logger
+│
+├── options/          how a job is described
+│   ├── defaults.ts   DEFAULTS and the defaults ref
+│   ├── normalize.ts  the one seam every surface converges on
+│   └── attributes.ts data-attribute parsing and type coercion
+│
+├── pipeline/         how a job runs
+│   ├── job.ts        the Job class and the stage sequence
+│   ├── measure.ts    live-tree measurement, cloning, target resolution, clipping
+│   ├── transforms.ts the ordered clone transforms
+│   ├── document.ts   page CSS and print-document assembly
+│   ├── mounts.ts     iframe / popup / overlay strategies, and the waits
+│   └── devtools.ts   the job ring buffer
+│
+├── privacy/redact.ts redaction, the PII scan, the clone sanitizer
+├── production/marks.ts crop marks and bleed
+└── ui/               the opt-in interaction layer
+```
+
+The dependency direction is one-way: `support/` knows nothing about printing,
+`options/` and `privacy/` depend only on `support/`, `pipeline/` composes all of
+them, and `index.ts` is the only file that assembles a public API.
+
+## Why is it shaped this way?
+
+**Why measure the live tree first?** Detached clones have no layout and no canvas
+pixels. Anything that needs a computed style or a bounding box — placeholder
+sizing for `removeImages`, scrollable-area detection, hidden-element detection —
+has to be read before cloning. Each measured element is tagged with a temporary
+`data-pc-id` so the matching clone node can be found again, and the tag is swept
+off the live tree immediately afterwards.
+
+**Why three mount strategies behind one interface?** A hidden iframe, a popup and
+the inspector overlay all need the same thing: settle exactly once, hand back a
+window and a document, and guarantee teardown. Written separately, all three grew
+the same settle-once/append/onload dance with slightly different bugs — one never
+timed out, one handed back a document the browser could still replace. One
+`Mount` interface with three implementations makes that shared contract explicit.
+
+**Why is the iframe the default rather than a popup?** Popup blockers eat a
+`window.open` unless the call is inside a trusted click handler, and sometimes
+even then. The iframe path is invisible, reliable, and fires `afterprint` on its
+own `contentWindow`. The popup remains available via `printInIframe: false`, and
+a blocked popup raises a clear error instead of failing silently.
+
+**Why is redaction destructive?** A black overlay on live text survives
+copy-paste out of a generated PDF. Replacing the text nodes with block characters
+and scrubbing the attributes — including `id` and `name`, which routinely encode
+the value itself — is the only approach where the print artifact holds nothing
+recoverable. The same reasoning drives the privacy scanner: matches are rewritten
+in the text nodes, not styled.
+
+**Why does the sanitizer run on every job by default?** The print document is a
+fresh same-origin browsing context. Content that was inert on the host page — a
+script inside a `<template>`, an `onclick` in user-generated markup, a nested
+iframe — would actually execute there. Stripping executable content costs nothing
+visually.
+
+**Why does the fluent builder defer normalization?** Holding raw options and
+validating only at the terminals means partial chains are legal and reusable,
+and `.toOptions()` becomes the seam where the declarative, imperative and fluent
+surfaces demonstrably converge on one validated object.
+
+**Why do the tests run against `dist/` rather than `src/`?** The bundle is what
+consumers actually load. Testing it caught a literal `</script>` inside a code
+comment, which would have truncated the library wherever it was inlined into an
+HTML page — a defect invisible at the source level.
+
+**Why is `_internals` kept as a facade?** The suite reaches through it to test
+stages in isolation. Keeping it as an explicit re-export layer means the module
+split above could happen without touching a single test.
+
+## The demo build
+
+The demo is not a Tailwind CDN page. `demo/tailwind.css` is compiled by the
+Tailwind v4 CLI into `dist/demo.css`, and `tools/build.mjs` inlines both that
+stylesheet and the UMD bundle into `dist/demo-standalone.html`, between
+`<!-- PRINTCRAFT:CSS -->` and `<!-- PRINTCRAFT:LIB -->` markers. The result is a
+single file with zero external requests that works from `file://` offline. The
+generator refuses to inline any asset containing a literal `</script>`, and
+refuses to emit a page that still references an external URL.
+
+## Bundle size
+
+| Bundle              | Raw    | Gzipped | Budget |
+| ------------------- | ------ | ------- | ------ |
+| `printcraft.umd.js` | ~49 kB | ~14 kB  | 17 kB  |
+| `printcraft.mjs`    | ~60 kB | ~15 kB  | 19 kB  |
+
+Budgets are enforced by `npm run size` in CI. Runtime dependencies: zero, and
+that is a hard constraint.
+
+## Known limitation
+
+A `position: fixed` watermark renders on the first page only in most print
+engines. For per-page repetition use the header/footer table technique instead —
+see [Watermarks](tools/watermarks.md).
+
+---
+
+[← Docs index](../README.md#documentation)

@@ -1,0 +1,7 @@
+{
+  "documentTitle": "Printcraft demo",
+  "pageMargin": "18mm",
+  "stripDarkMode": true,
+  "excludeSelectorList": [".no-print"],
+  "footerText": "printcraft demo · page defaults loaded from json"
+}

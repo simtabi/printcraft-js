@@ -1,0 +1,27 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "categories": {
+    "correctness": "error",
+    "suspicious": "error",
+    "perf": "warn"
+  },
+  "env": {
+    "browser": true,
+    "es2022": true
+  },
+  "ignorePatterns": ["dist/**", "coverage/**", "test-results/**", "playwright-report/**"],
+  "rules": {
+    "no-console": "off",
+    "typescript/no-explicit-any": "off",
+    "no-underscore-dangle": "off",
+    "unicorn/consistent-function-scoping": "off"
+  },
+  "overrides": [
+    {
+      "files": ["test/**", "tools/**", "*.config.ts"],
+      "env": {
+        "node": true
+      }
+    }
+  ]
+}
