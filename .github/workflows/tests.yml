@@ -20,7 +20,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        node: ['20.19', '22.12', '24']
+        # jsdom 30 requires ^22.22.2 || ^24.15.0 || >=26, so the suite cannot run
+        # on node 20 even though the package itself supports it
+        node: ['22', '24']
     steps:
       - uses: actions/checkout@v4
 
@@ -46,7 +48,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: '22.12'
+          node-version: '22'
 
       - name: Install
         run: npm install --no-package-lock

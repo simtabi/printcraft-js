@@ -13,8 +13,11 @@ npm run build
 npm test
 ```
 
-Node `^20.19` or `>=22.12` is required — that is Vite 8's floor, and the build
-fails below it.
+**Node 22 or newer is required to develop.** The package itself supports
+`^20.19 || >=22.12` — Vite 8's floor — but jsdom 30, which the test suite runs on,
+requires `^22.22.2 || ^24.15.0 || >=26`. On Node 20 the build succeeds and the
+tests die with an undici `markAsUncloneable` error. `.nvmrc` pins the development
+version; CI runs the matrix on 22 and 24.
 
 | Command                 | What it does                                                                                                           |
 | ----------------------- | ---------------------------------------------------------------------------------------------------------------------- |
