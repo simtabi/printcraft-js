@@ -7,6 +7,7 @@
 import { askForNote, toggleRedact } from './annotations';
 import { drawArea } from './draw';
 import { pickSections } from './picker';
+import { printDialog } from './print-dialog';
 import { openMenu, toast, type MenuEntry, type MenuHandle } from './kit';
 import { defaultEnv, type UiDeps } from './shared';
 import type { Env, PrintcraftOptions } from '../types';
@@ -40,6 +41,13 @@ export function buildMenuItems(deps: UiDeps): ContextMenuEntry[] {
       label: 'Print the page',
       icon: 'printer',
       run: ({ env, base }) => void deps.print({ ...base, target: 'body' }, env)
+    },
+    {
+      id: 'settings',
+      label: 'Print settings…',
+      icon: 'settings',
+      hint: 'Paper, margins, page numbers, borders',
+      run: ({ target, env, base }) => void printDialog(deps, { ...base, target }, env)
     },
     { separator: true },
 

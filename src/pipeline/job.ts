@@ -35,6 +35,7 @@ import {
 } from './transforms';
 import { assemblePrintDocument } from './document';
 import { captureRegion } from './capture';
+import { paginate as paginateInto } from './paginate';
 import {
   mountIframe,
   mountOverlay,
@@ -316,6 +317,18 @@ export class Job {
       .catch((err: unknown) => this.fail(err));
   }
 
+  /** splits the assembled content into real sheets, when asked */
+  private paginateDocument(doc: Document): void {
+    if (!this.options.paginate) return;
+
+    const host = doc.querySelector('.pc-pages') || doc.body;
+    this.fire('paginate:start');
+    const result = paginateInto(doc, host, this.options, this.log);
+    this.mark('paginate');
+    this.record.pages = result.pages;
+    this.fire('paginate:done', { pages: result.pages, oversized: result.oversized });
+  }
+
   /** replaces a clip clone with its raster when `clipMode` asks for one */
   private captureIfRegion(clones: Element[]): Promise<Element[]> {
     const { options } = this;
@@ -357,6 +370,11 @@ export class Job {
           }
         }
         this.fire('job:mount', { window: mount.window, document: mount.document });
+
+        // pagination measures a live layout, so it belongs here: the frame
+        // exists, the content is in it, and nothing has printed yet
+        this.paginateDocument(mount.document);
+
         return waitForAssets(mount.document, mount.window, options).then(() => mount);
       })
       .then((mount) => {

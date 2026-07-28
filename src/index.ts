@@ -515,6 +515,7 @@ class Printcraft {
     toast: ui.toast,
     menu: ui.openMenu,
     toolbar: ui.openToolbar,
+    printDialog: (base?: PrintcraftOptions, env?: Env) => ui.printDialog(uiDeps, base, env),
     theme: { set: ui.setTheme, get: ui.getTheme, defaults: ui.DEFAULT_THEME }
   };
 

@@ -68,6 +68,13 @@ export const DEFAULTS: ResolvedOptions = {
 
   // print production
   printerMarks: null,
+  paginate: false,
+  pageNumbers: false,
+  pageBorder: false,
+  pagePadding: '',
+  pageHeader: null,
+  pageFooter: null,
+  hideBrowserHeaderFooter: false,
   annotations: [],
   clipRect: null,
   clipSourceWidth: null,

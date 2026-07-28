@@ -49,6 +49,41 @@ export type CustomMethodMap = Record<
   | ((el: Element, options: ResolvedOptions) => Element | null | void)[]
 >;
 
+/** Where a page number sits on the sheet. */
+export type PageNumberPosition =
+  'top-left' | 'top-center' | 'top-right' | 'bottom-left' | 'bottom-center' | 'bottom-right';
+
+export interface PageNumbers {
+  /** placeholders: {page} {pages} {title} {date} */
+  template?: string;
+  position?: PageNumberPosition;
+  /** the number the first sheet carries, for a document in parts */
+  startAt?: number;
+  hideOnFirst?: boolean;
+}
+
+export interface PageBorder {
+  width?: string;
+  style?: 'solid' | 'dashed' | 'dotted' | 'double' | 'none';
+  color?: string;
+  radius?: string;
+}
+
+export interface PagePadding {
+  top?: string;
+  right?: string;
+  bottom?: string;
+  left?: string;
+}
+
+export interface PaginateConfig {
+  /** keep at least this many lines of a block on the page it starts on */
+  orphans?: number;
+  widows?: number;
+  /** break long tables by row, repeating the head. on by default. */
+  splitTables?: boolean;
+}
+
 export type LinkExposure = 'all' | 'external';
 export type HeaderFooterMode = 'repeat' | 'once';
 export type ScrollExpansion = boolean | 'table';
@@ -74,6 +109,8 @@ export type PrintcraftEvent =
   | 'config:skipped'
   | 'capture:start'
   | 'capture:done'
+  | 'paginate:start'
+  | 'paginate:done'
   | 'ui:menu'
   | 'ui:pick'
   | 'ui:draw'
@@ -94,6 +131,8 @@ export interface JobRecord {
   cancelled: boolean;
   error: unknown;
   redactions: number;
+  /** sheets produced, when the job paginated */
+  pages?: number;
   duration?: number;
   documentHTML?: string;
 }
@@ -146,6 +185,28 @@ export interface PrintcraftOptions {
   watermarkOpacity?: number;
   watermarkAngle?: number;
   printerMarks?: PrinterMarks | boolean | null;
+
+  /**
+   * Lay the content out as real sheets rather than letting the browser flow it.
+   *
+   * This is what makes page numbers, per-page borders, per-page padding and
+   * per-page headers possible at all: browsers do not implement the Paged Media
+   * margin boxes those would otherwise need.
+   */
+  paginate?: boolean | PaginateConfig;
+  pageNumbers?: boolean | PageNumbers;
+  pageBorder?: boolean | PageBorder;
+  pagePadding?: string | PagePadding;
+  /** per-page bands, with the same placeholders as pageNumbers */
+  pageHeader?: string | null;
+  pageFooter?: string | null;
+  /**
+   * Emit `@page { margin: 0 }`, which leaves the browser nowhere to draw its own
+   * date, title, URL and page count. Works in Chromium and Firefox; Safari
+   * ignores it, and the reader can always switch them back on in the dialog.
+   * Implied by `paginate`.
+   */
+  hideBrowserHeaderFooter?: boolean;
 
   /* content transforms */
   excludeSelectorList?: string | string[];
@@ -216,6 +277,13 @@ export interface ResolvedOptions extends PrintcraftOptions {
   watermarkOpacity: number;
   watermarkAngle: number;
   printerMarks: ResolvedPrinterMarks | null;
+  paginate: boolean | PaginateConfig;
+  pageNumbers: boolean | PageNumbers;
+  pageBorder: boolean | PageBorder;
+  pagePadding: string | PagePadding;
+  pageHeader: string | null;
+  pageFooter: string | null;
+  hideBrowserHeaderFooter: boolean;
 
   excludeSelectorList: string[];
   revealHiddenElements: boolean;

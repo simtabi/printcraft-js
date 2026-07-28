@@ -280,8 +280,9 @@ test('the context menu opens on right-click and drives a job', async ({ page }) 
   await target.click({ button: 'right' });
   const menu = page.locator('[data-pc-menu]');
   await expect(menu).toBeVisible();
-  await expect(menu.locator('[data-pc-item]')).toHaveCount(7);
-  await expect(menu.locator('svg')).toHaveCount(7);
+  // print element, print page, settings, pick, draw, redact, note, inspect
+  await expect(menu.locator('[data-pc-item]')).toHaveCount(8);
+  await expect(menu.locator('svg')).toHaveCount(8);
 
   // the redact item stamps the attribute the pipeline reads
   await menu.locator('[data-pc-item="redact"]').click();

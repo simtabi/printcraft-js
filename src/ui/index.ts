@@ -15,4 +15,10 @@ export {
 export * from './kit';
 export { pickSections, type PickResult } from './picker';
 export { drawArea, type DrawResult, type DrawOptions } from './draw';
+export {
+  printDialog,
+  optionsFromForm,
+  type PrintDialogOptions,
+  type PrintDialogResult
+} from './print-dialog';
 export type { UiDeps } from './shared';

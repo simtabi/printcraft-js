@@ -5,16 +5,31 @@
 import { escapeHtml, NS, toArray } from '../support';
 import { REDACTION_CSS } from '../privacy/redact';
 import { marksCss, marksMarkup } from '../production/marks';
+import { paginationCss } from './paginate';
 import type { ResolvedOptions, ResolvedPrinterMarks } from '../types';
 
 /** the stylesheet printcraft generates for every job, from the resolved options. */
 export function buildPageCss(options: ResolvedOptions): string {
   const css: string[] = [];
 
-  const page: string[] = [];
-  if (options.setPrintSize) page.push('size: ' + options.setPrintSize + ';');
-  if (options.pageMargin) page.push('margin: ' + options.pageMargin + ';');
-  if (page.length) css.push('@page {' + page.join(' ') + '}');
+  // a paginated job owns the page box outright: it sets its own @page rule,
+  // draws its own margin, and takes `margin: 0` so the browser has nowhere to
+  // print its date, title, url and page count
+  if (options.paginate) {
+    css.push(paginationCss(options));
+  } else {
+    const page: string[] = [];
+    if (options.setPrintSize) page.push('size: ' + options.setPrintSize + ';');
+    if (options.hideBrowserHeaderFooter) {
+      // the same trick without pagination: the margin moves onto the body, so
+      // the layout is unchanged and only the browser's own furniture goes
+      page.push('margin: 0;');
+      if (options.pageMargin) css.push('body { padding: ' + options.pageMargin + '; }');
+    } else if (options.pageMargin) {
+      page.push('margin: ' + options.pageMargin + ';');
+    }
+    if (page.length) css.push('@page {' + page.join(' ') + '}');
+  }
 
   css.push('html, body { margin: 0; padding: 0; }');
   css.push('body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }');
@@ -153,8 +168,19 @@ export function assemblePrintDocument(
   }
 
   let contentHost: Element = body;
+
+  // a paginated job puts everything in one host the paginator then deals out
+  if (options.paginate) {
+    const pages = doc.createElement('div');
+    pages.className = 'pc-pages';
+    body.appendChild(pages);
+    contentHost = pages;
+  }
+
   const useSheet =
-    !!(options.headerText || options.footerText) && options.headerFooterMode === 'repeat';
+    !options.paginate &&
+    !!(options.headerText || options.footerText) &&
+    options.headerFooterMode === 'repeat';
 
   if (useSheet) {
     const table = doc.createElement('table');
@@ -178,7 +204,7 @@ export function assemblePrintDocument(
     if (options.footerText) table.appendChild(makeBand('tfoot', options.footerText));
     body.appendChild(table);
     contentHost = td;
-  } else if (options.headerText || options.footerText) {
+  } else if (!options.paginate && (options.headerText || options.footerText)) {
     if (options.headerText) {
       const h = doc.createElement('div');
       h.className = 'pc-header';
