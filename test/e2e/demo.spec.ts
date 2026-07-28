@@ -26,6 +26,16 @@ async function inspect(page: Page, options: Record<string, unknown>): Promise<Fr
   return handle;
 }
 
+/** waits two frames, which is long enough for chromium to flush a pending scroll. */
+async function settleScroll(page: Page): Promise<void> {
+  await page.evaluate(
+    () =>
+      new Promise<void>((resolve) => {
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+      })
+  );
+}
+
 async function closeInspector(page: Page): Promise<void> {
   await page.evaluate(() => {
     const ctl = (window as unknown as { __ctl?: { close(): void } }).__ctl;
@@ -243,7 +253,16 @@ test('the context menu opens on right-click and drives a job', async ({ page }) 
     (window as unknown as { __off?: () => void }).__off = pc.ui.contextMenu({});
   });
 
-  await page.locator('#cust').click({ button: 'right' });
+  // scroll first and let it settle. the menu closes on scroll by design — it is
+  // position:fixed, so it would otherwise detach from what it points at — and
+  // chromium delivers the scroll event from playwright's own scroll-into-view a
+  // frame late, which on a slow runner lands after the contextmenu and shuts the
+  // menu the moment it opens
+  const target = page.locator('#cust');
+  await target.scrollIntoViewIfNeeded();
+  await settleScroll(page);
+
+  await target.click({ button: 'right' });
   const menu = page.locator('[data-pc-menu]');
   await expect(menu).toBeVisible();
   await expect(menu.locator('[data-pc-item]')).toHaveCount(7);
