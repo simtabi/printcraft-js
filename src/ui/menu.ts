@@ -6,6 +6,7 @@
 
 import { askForNote, toggleRedact } from './annotations';
 import { drawArea } from './draw';
+import { redactArea } from './redact';
 import { pickSections } from './picker';
 import { printDialog } from './print-dialog';
 import { openMenu, toast, type MenuEntry, type MenuHandle } from './kit';
@@ -91,6 +92,13 @@ export function buildMenuItems(deps: UiDeps): ContextMenuEntry[] {
           env
         );
       }
+    },
+    {
+      id: 'redact-area',
+      label: 'Redact by dragging…',
+      icon: 'marquee',
+      hint: 'Destroys the characters a box covers, not the whole element',
+      run: ({ env, base }) => void redactArea(deps, { ...base }, env)
     },
     {
       id: 'note',

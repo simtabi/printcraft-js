@@ -70,10 +70,17 @@ export function scrubAttributes(el: Element): void {
   toDrop.forEach((a) => el.removeAttribute(a));
 }
 
-/** destructively redacts one element and its whole subtree in the print copy. */
-export function redactElement(el: Element, ch: string): void {
+/**
+ * Destructively redacts one element and its whole subtree in the print copy.
+ *
+ * `sink` collects what was destroyed so the verifier can confirm afterwards that
+ * none of it survived into the assembled document.
+ */
+export function redactElement(el: Element, ch: string, sink?: string[]): void {
   eachTextNode(el, (node) => {
-    node.nodeValue = blocks(node.nodeValue || '', ch);
+    const original = node.nodeValue || '';
+    if (sink && original.trim().length >= 3) sink.push(original.trim());
+    node.nodeValue = blocks(original, ch);
   });
 
   const doc = el.ownerDocument;
@@ -104,12 +111,20 @@ export function redactElement(el: Element, ch: string): void {
  * selector in `redactSelectorList` raises rather than being swallowed: silently
  * skipping it would print the content the caller asked to hide.
  */
-export function applyRedaction(clone: Element, selectors: string[], ch: string, ns: string): void {
+export function applyRedaction(
+  clone: Element,
+  selectors: string[],
+  ch: string,
+  ns: string,
+  sink?: string[]
+): void {
   const run = (sel: string, strict: boolean): void => {
     try {
-      if (typeof clone.matches === 'function' && clone.matches(sel)) redactElement(clone, ch);
+      if (typeof clone.matches === 'function' && clone.matches(sel)) {
+        redactElement(clone, ch, sink);
+      }
       const found = clone.querySelectorAll(sel);
-      for (let i = 0; i < found.length; i++) redactElement(found[i]!, ch);
+      for (let i = 0; i < found.length; i++) redactElement(found[i]!, ch, sink);
     } catch {
       if (strict) raise("redactSelectorList contains an invalid css selector: '" + sel + "'");
     }
@@ -141,7 +156,12 @@ export function resolvePrivacyPatterns(cfg: PrivacyConfig | true): RegExp[] {
 }
 
 /** scans every text node and blanks pattern matches in place. returns the hit count. */
-export function applyPrivacy(clone: Element, cfg: PrivacyConfig | true, ch: string): number {
+export function applyPrivacy(
+  clone: Element,
+  cfg: PrivacyConfig | true,
+  ch: string,
+  sink?: string[]
+): number {
   const patterns = resolvePrivacyPatterns(cfg);
   let hits = 0;
   eachTextNode(clone, (node) => {
@@ -150,6 +170,7 @@ export function applyPrivacy(clone: Element, cfg: PrivacyConfig | true, ch: stri
       rx.lastIndex = 0;
       value = value.replace(rx, (m) => {
         hits++;
+        if (sink && m.trim().length >= 3) sink.push(m.trim());
         return blocks(m, ch);
       });
     });
@@ -190,5 +211,8 @@ export function sanitizeClone(clone: Element): void {
 export const REDACTION_CSS = [
   '.pc-redacted, .pc-redacted * { background: #000 !important; color: #000 !important;',
   'border-color: #000 !important; text-shadow: none !important; text-decoration: none !important; }',
-  '.pc-redacted-media { background: #000 !important; }'
+  '.pc-redacted-media { background: #000 !important; }',
+  // a run redacts part of an element, so the element keeps its own styling and
+  // only the block characters are painted over
+  '.pc-redacted-run { -webkit-print-color-adjust: exact; print-color-adjust: exact; }'
 ].join(' ');

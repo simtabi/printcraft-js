@@ -4,9 +4,13 @@
 import type { PrivacyConfig } from './privacy/redact';
 import type { PrinterMarks, ResolvedPrinterMarks } from './production/marks';
 import type { BackendPrintOptions, BackendResult, PrintBackend } from './backend';
+import type { TextRun } from './privacy/marking';
+import type { RedactionPolicy } from './privacy/verify';
 
 export type { PrivacyConfig } from './privacy/redact';
 export type { PrinterMarks, ResolvedPrinterMarks } from './production/marks';
+export type { TextRun } from './privacy/marking';
+export type { RedactionPolicy, RedactionReport } from './privacy/verify';
 export type {
   BackendCapabilities,
   BackendPrintOptions,
@@ -201,7 +205,11 @@ export type PrintcraftEvent =
   | 'ui:pick'
   | 'ui:draw'
   | 'ui:redact'
-  | 'ui:annotate';
+  | 'ui:annotate'
+  | 'redact:mark'
+  | 'redact:review'
+  | 'redact:verify'
+  | 'redact:leak';
 
 export type JobStatus = 'running' | 'done' | 'cancelled' | 'inspected' | 'error';
 
@@ -297,6 +305,19 @@ export interface PrintcraftOptions {
   backendOptions?: BackendPrintOptions;
 
   /**
+   * Text runs to destroy, as produced by dragging a rectangle over the page.
+   * Unlike `redactSelectorList` these are character-accurate, so half a
+   * paragraph redacts as half a paragraph.
+   */
+  redactRuns?: TextRun[];
+  /**
+   * What to do when the assembled document still contains something redaction
+   * was told to destroy. `strict` stops the job, and is the default whenever a
+   * job has any redaction at all.
+   */
+  redactionPolicy?: RedactionPolicy;
+
+  /**
    * Lay the content out as real sheets rather than letting the browser flow it.
    *
    * This is what makes page numbers, per-page borders, per-page padding and
@@ -390,6 +411,8 @@ export interface ResolvedOptions extends PrintcraftOptions {
   printerMarks: ResolvedPrinterMarks | null;
   backend: PrintBackend | null;
   backendOptions: BackendPrintOptions;
+  redactRuns: TextRun[];
+  redactionPolicy: RedactionPolicy;
   paginate: boolean | PaginateConfig;
   pageNumbers: boolean | PageNumbers;
   pageBorder: boolean | PageBorder;

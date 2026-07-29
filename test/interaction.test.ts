@@ -301,7 +301,7 @@ test('context menu opens on right-click with all items and tabler icons', () => 
     expect_ok(menu, 'menu rendered');
     const items = menu.querySelectorAll('[data-pc-item]');
     // print element, print page, settings, pick, draw, redact, note, inspect
-    expect_eq(items.length, 8);
+    expect_eq(items.length, 9);
     expect_ok(menu.querySelectorAll('svg').length >= 8, 'icons present');
     // escape closes
     d.window.document.dispatchEvent(

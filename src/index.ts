@@ -536,6 +536,9 @@ class Printcraft {
     drawArea(base?: PrintcraftOptions, env?: Env) {
       return ui.drawArea(uiDeps, base, env);
     },
+    redactArea(base?: ui.RedactOptions, env?: Env) {
+      return ui.redactArea(uiDeps, base, env);
+    },
     toggleRedact: ui.toggleRedact,
     annotate: ui.annotate,
     askForNote: ui.askForNote,
@@ -633,6 +636,10 @@ class Printcraft {
     buildPageCss: core.buildPageCss,
     buildWatermarkNode: core.buildWatermarkNode,
     resolveWatermark: core.resolveWatermark,
+    runsInRect: core.runsInRect,
+    applyRuns: core.applyRuns,
+    secretsOf: core.secretsOf,
+    verifyRedaction: core.verifyRedaction,
     buildWatermarkLayer: core.buildWatermarkLayer,
     needsPages: core.needsPages,
     assemblePrintDocument: core.assemblePrintDocument,

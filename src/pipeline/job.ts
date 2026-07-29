@@ -21,6 +21,8 @@ import {
   resolveTargets
 } from './measure';
 import { applyPrivacy, applyRedaction, sanitizeClone } from '../privacy/redact';
+import { applyRuns, secretsOf } from '../privacy/marking';
+import { RedactionLeakError, verifyRedaction } from '../privacy/verify';
 import {
   applyAnnotations,
   applyCanvasCapture,
@@ -83,6 +85,8 @@ export class Job {
 
   private measured: Measurement | null = null;
   private mounted: Mount | null = null;
+  /** every string redaction destroyed, for the verifier to look for afterwards */
+  private readonly secrets: string[] = [];
 
   constructor(
     private readonly options: ResolvedOptions,
@@ -206,12 +210,20 @@ export class Job {
 
     if (options.sanitize) sanitizeClone(root);
     applyExclusions(root, options);
-    applyRedaction(root, options.redactSelectorList, options.redactChar, NS);
+
+    // everything destroyed here is remembered, so the assembled document can be
+    // re-read for it before the job leaves the browser. see verifyDocument.
+    applyRedaction(root, options.redactSelectorList, options.redactChar, NS, this.secrets);
+    if (options.redactRuns.length) {
+      this.record.redactions += applyRuns(root, options.redactRuns, options.redactChar);
+      this.secrets.push(...secretsOf(options.redactRuns));
+    }
     if (options.privacy) {
       this.record.redactions += applyPrivacy(
         root,
         options.privacy as PrivacyConfig | true,
-        options.redactChar
+        options.redactChar,
+        this.secrets
       );
     }
     if (options.revealHiddenElements) applyReveal(root, meta);
@@ -345,6 +357,36 @@ export class Job {
     };
   }
 
+  /**
+   * Re-reads the assembled document for anything redaction destroyed.
+   *
+   * Everything else in the pipeline is best-effort — a missed exclusion prints an
+   * extra paragraph. A missed redaction prints a name. So the last thing before
+   * the handoff is checking our own work, and by default a leak stops the job
+   * rather than reaching paper.
+   */
+  private verifyDocument(doc: Document): void {
+    const policy = this.options.redactionPolicy;
+    if (policy === 'off' || !this.secrets.length) return;
+
+    const report = verifyRedaction(doc, this.secrets);
+    this.mark('verify');
+    this.fire('redact:verify', { ...report });
+    if (!report.leaked.length) return;
+
+    this.fire('redact:leak', { ...report });
+    if (policy === 'warn') {
+      this.log.warn(
+        'redacted content is still in the print document:',
+        report.leaked.length,
+        'string(s).',
+        'Printing anyway because redactionPolicy is "warn".'
+      );
+      return;
+    }
+    throw new RedactionLeakError(report);
+  }
+
   /** splits the assembled content into real sheets, when asked */
   private paginateDocument(doc: Document): void {
     if (!this.options.paginate) return;
@@ -402,6 +444,11 @@ export class Job {
         // pagination measures a live layout, so it belongs here: the frame
         // exists, the content is in it, and nothing has printed yet
         this.paginateDocument(mount.document);
+
+        // and the check runs on the finished document, after every stage that
+        // could have put something back — including pagination, which rebuilds
+        // container chains as it splits
+        this.verifyDocument(mount.document);
 
         return waitForAssets(mount.document, mount.window, options).then(() => mount);
       })

@@ -84,6 +84,11 @@ export {
   firstPageCss
 } from './production/watermark';
 
+export { runsInRect, applyRuns, secretsOf } from './privacy/marking';
+export type { TextRun } from './privacy/marking';
+export { verifyRedaction, RedactionLeakError } from './privacy/verify';
+export type { RedactionPolicy, RedactionReport } from './privacy/verify';
+
 export { browserBackend } from './backend/browser';
 
 export { captureRegion } from './pipeline/capture';

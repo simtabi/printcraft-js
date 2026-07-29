@@ -48,6 +48,9 @@ export const DEFAULTS: ResolvedOptions = {
   backend: null,
   backendOptions: {},
 
+  redactRuns: [],
+  redactionPolicy: 'strict',
+
   headerText: null,
   footerText: null,
   headerFooterMode: 'repeat',
