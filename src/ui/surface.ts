@@ -42,7 +42,7 @@ export function makeUiSurface({ deps: uiDeps }: Attachment) {
     menu: ui.openMenu,
     toolbar: ui.openToolbar,
     printDialog: (base?: PrintcraftOptions, env?: Env) => ui.printDialog(uiDeps, base, env),
-    theme: { set: ui.setTheme, get: ui.getTheme, defaults: ui.DEFAULT_THEME }
+    theme: { set: ui.setTheme, get: ui.getTheme, reset: ui.resetTheme, defaults: ui.DEFAULT_THEME }
   };
 }
 

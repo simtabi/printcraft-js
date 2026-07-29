@@ -466,10 +466,51 @@ test('the theme is one set of tokens a host can override', () => {
   ui.toast({ message: 'themed' }, env(d));
 
   const sheet = doc.getElementById('pc-kit-style')!.textContent || '';
-  expect(sheet).toContain('--pc-accent: #ff00aa');
   expect(sheet).toContain('--pc-radius: 2px');
+  // `accent` predates the tone objects and still works
+  expect(sheet).toContain('--pc-accent: #ff00aa');
+  expect(sheet, 'and feeds the tone it is an alias for').toContain('--pc-primary: #ff00aa');
 
-  ui.theme.set(ui.theme.defaults, doc);
+  ui.theme.reset(doc);
+});
+
+test('a tone can be one colour, and the rest is worked out', () => {
+  const d = dom('');
+  const doc = d.window.document;
+
+  ui.theme.set({ primary: '#7c3aed' }, doc);
+  const sheet = doc.getElementById('pc-kit-style')!.textContent || '';
+
+  expect(sheet).toContain('--pc-primary: #7c3aed');
+  expect(sheet, 'the border follows the background').toContain('--pc-primary-border: #7c3aed');
+  expect(sheet, 'and the soft variant is derived').toContain(
+    '--pc-primary-soft: rgba(124,58,237,.10)'
+  );
+
+  ui.theme.reset(doc);
+});
+
+test('the kit follows the host into dark mode, and can be pinned', () => {
+  const d = dom('');
+  const doc = d.window.document;
+
+  const auto = (() => {
+    ui.theme.set(ui.theme.defaults, doc);
+    return doc.getElementById('pc-kit-style')!.textContent || '';
+  })();
+  expect(auto, 'a print tool on a dark app should not be the one white rectangle').toContain(
+    '@media (prefers-color-scheme: dark)'
+  );
+
+  ui.theme.set({ colorScheme: 'light' }, doc);
+  expect(doc.getElementById('pc-kit-style')!.textContent).not.toContain('prefers-color-scheme');
+
+  ui.theme.set({ colorScheme: 'dark' }, doc);
+  const dark = doc.getElementById('pc-kit-style')!.textContent || '';
+  expect(dark, 'pinned dark needs no media query').not.toContain('prefers-color-scheme');
+  expect(dark).toContain('--pc-paper: #1c1d21');
+
+  ui.theme.reset(doc);
 });
 
 test('every surface the kit builds is marked as printcraft ui', () => {
