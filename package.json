@@ -53,6 +53,7 @@
     "./package.json": "./package.json"
   },
   "files": [
+    "bin",
     "src",
     "dist",
     "README.md",
@@ -62,14 +63,14 @@
   "scripts": {
     "clean": "rimraf dist coverage test-results _site",
     "prebuild": "npm run clean",
-    "build": "vite build && npm run build:types && npm run build:assets && node tools/build.mjs",
+    "build": "vite build && npm run build:cli && npm run build:types && npm run build:assets && node tools/build.mjs",
     "build:assets": "node tools/build-assets.mjs",
     "build:types": "node tools/build-types.mjs",
     "build:site": "node tools/build-site.mjs",
     "favicons": "node tools/make-favicons.mjs",
     "dev": "vite build --watch",
     "demo": "vite --open /demo/index.html",
-    "typecheck": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json && tsc -p tsconfig.cli.json",
     "lint": "oxlint",
     "lint:pkg": "publint && attw --pack .",
     "format": "prettier --write .",
@@ -80,7 +81,8 @@
     "test:coverage": "vitest run --coverage",
     "test:e2e": "playwright test",
     "size": "size-limit",
-    "prepublishOnly": "npm run build"
+    "prepublishOnly": "npm run build",
+    "build:cli": "vite build --config vite.cli.config.ts"
   },
   "devDependencies": {
     "@arethetypeswrong/cli": "^0.18.5",
@@ -88,6 +90,7 @@
     "@size-limit/file": "^13.0.1",
     "@tabler/icons": "^3.45.0",
     "@tailwindcss/cli": "^4.3.3",
+    "@types/node": "^22.20.1",
     "@vitest/coverage-v8": "^4.1.10",
     "jsdom": "^30.0.0",
     "oxlint": "^1.76.0",
@@ -99,5 +102,16 @@
     "typescript": "^7.0.2",
     "vite": "^8.1.5",
     "vitest": "^4.1.10"
+  },
+  "bin": {
+    "printcraft": "./bin/printcraft.mjs"
+  },
+  "peerDependencies": {
+    "playwright": "^1.50"
+  },
+  "peerDependenciesMeta": {
+    "playwright": {
+      "optional": true
+    }
   }
 }
