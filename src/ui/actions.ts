@@ -133,12 +133,12 @@ export class ActionRegistry {
         else if (typeof verdict === 'string') disabledReason = verdict;
       }
 
-      return {
-        ...action,
+      // oxlint-disable-next-line no-map-spread
+      return Object.assign({}, action, {
         visible,
         disabledReason,
         isChecked: action.checked ? action.checked(ctx) : false
-      };
+      });
     });
   }
 

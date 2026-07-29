@@ -104,6 +104,8 @@ function rank(items: PaletteItem[], query: string): Scored[] {
     if (best.score >= 0)
       out.push({ item, score: best.score, hits: direct.score >= 0 ? direct.hits : [] });
   }
+  // sorted in place: `out` is built here and returned here
+  // oxlint-disable-next-line no-array-sort
   return out.sort((a, b) => b.score - a.score);
 }
 

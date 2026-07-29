@@ -50,9 +50,9 @@ function supportsPopover(el: Element): boolean {
  */
 function attach(floater: HTMLElement, anchor: Element, side: Side, env: Env): () => void {
   const { document: doc, window: win } = env;
-  const popover = supportsPopover(floater);
+  const topLayer = supportsPopover(floater);
 
-  if (popover) floater.setAttribute('popover', 'manual');
+  if (topLayer) floater.setAttribute('popover', 'manual');
   (doc.body || doc.documentElement).appendChild(floater);
 
   let cleanup = (): void => {};
@@ -106,7 +106,7 @@ function attach(floater: HTMLElement, anchor: Element, side: Side, env: Env): ()
     };
   }
 
-  if (popover) {
+  if (topLayer) {
     try {
       (floater as unknown as { showPopover(): void }).showPopover();
     } catch {
@@ -116,7 +116,7 @@ function attach(floater: HTMLElement, anchor: Element, side: Side, env: Env): ()
 
   return function close(): void {
     cleanup();
-    if (popover) {
+    if (topLayer) {
       try {
         (floater as unknown as { hidePopover(): void }).hidePopover();
       } catch {
