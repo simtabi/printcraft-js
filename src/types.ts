@@ -16,7 +16,10 @@ export type {
   BackendPrintOptions,
   BackendResult,
   PrintBackend,
-  PrinterInfo
+  PrinterInfo,
+  HttpBackendOptions,
+  SocketBackendOptions,
+  WebSocketLike
 } from './backend';
 
 /** the document/window pair a job runs against. jobs never touch globals directly. */

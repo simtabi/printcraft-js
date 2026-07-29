@@ -97,6 +97,8 @@ export { verifyRedaction, RedactionLeakError } from './privacy/verify';
 export type { RedactionPolicy, RedactionReport } from './privacy/verify';
 
 export { browserBackend } from './backend/browser';
+export { httpBackend } from './backend/http';
+export { socketBackend } from './backend/socket';
 
 export { captureRegion } from './pipeline/capture';
 export { rasterize, blobToDataUrl } from './share/rasterize';

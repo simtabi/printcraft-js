@@ -78,3 +78,5 @@ export interface PrintBackend {
 
 export type { RenderedJob };
 export { browserBackend } from './browser';
+export { httpBackend, type HttpBackendOptions } from './http';
+export { socketBackend, type SocketBackendOptions, type WebSocketLike } from './socket';

@@ -14,7 +14,11 @@ attachment.Printcraft.ui = makeUiSurface(attachment);
 Object.assign(attachment.Printcraft._internals, {
   buildActions: uiModule.buildActions,
   computeRect: uiModule.computeRect,
-  ActionRegistry: uiModule.ActionRegistry
+  ActionRegistry: uiModule.ActionRegistry,
+  bindKeys: uiModule.bindKeys,
+  parseKeys: uiModule.parseKeys,
+  formatKeys: uiModule.formatKeys,
+  matchesKeys: uiModule.matchesKeys
 });
 
 export * from './index';

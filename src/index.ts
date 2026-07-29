@@ -494,6 +494,10 @@ class Printcraft {
     defaultsRef.current.backend = b;
   }
   static browserBackend = browserBackend;
+  /** Posts finished jobs to an endpoint you run. See docs/backends.md. */
+  static httpBackend = core.httpBackend;
+  /** Speaks to a companion service over localhost. See docs/backends.md. */
+  static socketBackend = core.socketBackend;
 
   /** Levels, sinks and a ring buffer. See docs/tools/logging.md. */
   static logger = core.logger;
