@@ -5,7 +5,7 @@ Three ways to load Printcraft, and what each build in `dist/` is for.
 ## Requirements
 
 Printcraft runs entirely in the browser and has no runtime dependencies. It needs
-a browser with `afterprint`, `document.fonts`, and `break-before` — Chrome, Edge,
+a browser with `afterprint`, `document.fonts`, and `break-before`: Chrome, Edge,
 Firefox and Safari, current and two versions back.
 
 Building from source requires Node `^20.19` or `>=22.12`.
@@ -65,7 +65,7 @@ Both bundles ship source maps.
 
 ## Trying it without installing anything
 
-The hosted demo is at **<https://simtabi.github.io/printcraft-js/>** — nothing to
+The hosted demo is at **<https://simtabi.github.io/printcraft-js/>**, with nothing to
 install.
 
 `dist/demo-standalone.html` is the same page as a single file, with the library,

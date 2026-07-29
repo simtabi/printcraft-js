@@ -2,7 +2,7 @@
 //
 // `window.print()` always hands off to the browser's own dialog. There is no API
 // to style it, skip it, pre-fill it or choose a printer, and that is a platform
-// decision rather than an oversight — a page that could print silently to any
+// decision rather than an oversight: a page that could print silently to any
 // device would be a menace. Everything up to that handoff is ours; the handoff
 // itself is not.
 //

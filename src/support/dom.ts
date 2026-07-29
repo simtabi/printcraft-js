@@ -46,8 +46,8 @@ export function selfAndMatches(root: Element, selector: string): Element[] {
 }
 
 /**
- * swaps `el` for `next` in the tree. returns false when `el` is detached — i.e.
- * it is a clone root — in which case the caller owns the reference and must adopt
+ * swaps `el` for `next` in the tree. returns false when `el` is detached, i.e.
+ * it is a clone root, in which case the caller owns the reference and must adopt
  * `next` itself. a detached node has no parent to be replaced in, and morphing it
  * in place cannot change its tag name.
  */

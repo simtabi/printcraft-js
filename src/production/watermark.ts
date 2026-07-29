@@ -7,7 +7,7 @@
 //
 // Two constraints shape the rebuild. First, `position: fixed` prints on the
 // first page only in Chromium, so a mark on every page needs sheets to attach
-// to — pagination, in other words. Second, the browser's "Background graphics"
+// to, which means pagination. Second, the browser's "Background graphics"
 // checkbox is off by default, so anything drawn as a CSS background does not
 // print at all. The mark has to be a real element, and it is: an `<svg>` or an
 // `<img>`, laid into each sheet.

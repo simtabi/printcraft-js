@@ -1,4 +1,4 @@
-// structural guards on the shipped artifacts. these do not test behaviour — they
+// structural guards on the shipped artifacts. these do not test behaviour: they
 // test that what gets published is what we think it is.
 
 import { test, expect } from 'vitest';

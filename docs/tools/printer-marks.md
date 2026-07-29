@@ -44,8 +44,8 @@ implied by the bleed.
 
 True production bleed requires printing on oversized stock and trimming down.
 Printcraft cannot make a printer image beyond its own margins. What these marks
-give you is an accurate indication of where the trim line falls — the same thing
-proofing tools show — so a design can be checked before it goes to a press that
+give you is an accurate indication of where the trim line falls, the same thing
+proofing tools show, so a design can be checked before it goes to a press that
 does have oversized stock.
 
 For real bleed, set the page larger than the finished size and let the marks show

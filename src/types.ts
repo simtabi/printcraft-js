@@ -237,7 +237,7 @@ export interface JobRecord {
 }
 
 /**
- * everything a caller may pass. all optional — `normalizeOptions` fills the rest
+ * everything a caller may pass. all optional: `normalizeOptions` fills the rest
  * from DEFAULTS and `Printcraft.defaults`.
  */
 export interface PrintcraftOptions {
@@ -488,7 +488,7 @@ export interface Measurement {
 export interface Mount {
   readonly window: Window;
   readonly document: Document;
-  /** inspector overlay only — the host element and its buttons. */
+  /** inspector overlay only: the host element and its buttons. */
   readonly overlay?: HTMLElement;
   teardown(): void;
 }

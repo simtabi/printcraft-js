@@ -4,7 +4,7 @@
 import { test, expect } from 'vitest';
 import { Printcraft, I, BLOCK, dom, env, stubPrint } from './harness';
 
-/* 1 — a clone root that is itself replaced ----------------------------- */
+/* 1. a clone root that is itself replaced ----------------------------- */
 
 test('printing an <img> directly with removeImages does not crash on the detached root', () => {
   const d = dom('<img id="solo" src="a.png" alt="photo">');
@@ -35,7 +35,7 @@ test('printing a <canvas> directly swaps the detached root for the captured imag
   expect((out as HTMLImageElement).getAttribute('src')).toBe('data:image/png;base64,AAA');
 });
 
-/* 2 — once() listeners are removable ----------------------------------- */
+/* 2. once() listeners are removable ----------------------------------- */
 
 test('off() removes a listener that was registered with once()', () => {
   const em = new I.Emitter();
@@ -49,7 +49,7 @@ test('off() removes a listener that was registered with once()', () => {
   expect(em.listenerCount('e')).toBe(0);
 });
 
-/* 3 — form state when the target is the field -------------------------- */
+/* 3. form state when the target is the field -------------------------- */
 
 test('printing an input directly preserves its value', () => {
   const d = dom('<input id="solo" type="text"><textarea id="ta"></textarea>');
@@ -65,7 +65,7 @@ test('printing an input directly preserves its value', () => {
   expect(area.textContent).toBe('notes');
 });
 
-/* 5 — the popup path --------------------------------------------------- */
+/* 5. the popup path --------------------------------------------------- */
 
 test('a blocked popup raises instead of failing silently', () => {
   const d = dom('<div id="r">x</div>');
@@ -83,7 +83,7 @@ test('a blocked popup raises instead of failing silently', () => {
   expect(error?.hint, 'and it says what to do about it').toContain('printInIframe');
 });
 
-/* 6 — concurrent jobs must not share listeners ------------------------- */
+/* 6. concurrent jobs must not share listeners ------------------------- */
 
 test('two concurrent jobs never see each other per-job listeners', async () => {
   const d = dom('<div id="a">a</div><div id="b">b</div>');
@@ -130,7 +130,7 @@ test('two concurrent jobs never see each other per-job listeners', async () => {
   expect(bStarts).toBe(1);
 });
 
-/* 7 — stylesheets are assets too --------------------------------------- */
+/* 7. stylesheets are assets too --------------------------------------- */
 
 test('waitForAssets holds for an imported stylesheet, not just images', async () => {
   const d = dom('');
@@ -168,7 +168,7 @@ test('waitForAssets still resolves when an asset never loads', async () => {
   await I.waitForAssets(doc, d.window, I.normalizeOptions({ target: 'body', assetTimeout: 30 }));
 });
 
-/* 8 — relative urls in an about:blank document -------------------------- */
+/* 8. relative urls in an about:blank document -------------------------- */
 
 test('the print document carries a base href from the source page', () => {
   const src = dom('<div id="r"><a href="/docs">d</a></div>', 'https://example.com/deep/page');
@@ -186,7 +186,7 @@ test('the print document carries a base href from the source page', () => {
   expect(base!.getAttribute('href')).toBe('https://example.com/deep/page');
 });
 
-/* 9 — overlapping selectors ------------------------------------------- */
+/* 9. overlapping selectors ------------------------------------------- */
 
 test('overlapping target selectors resolve to one element, not two', () => {
   const d = dom('<div id="a" class="both"></div><div class="both"></div>');
@@ -196,7 +196,7 @@ test('overlapping target selectors resolve to one element, not two', () => {
   expect(I.resolveTargets([doc.getElementById('a'), '#a'], doc).length).toBe(1);
 });
 
-/* 10 — measurement never leaves tags on the live page ------------------ */
+/* 10. measurement never leaves tags on the live page ------------------ */
 
 test('measurement cleanup sweeps ids left behind by an earlier failed job', () => {
   const d = dom('<div id="r"><p data-pc-id="99">stale</p><img src="a.png"></div>');
@@ -209,7 +209,7 @@ test('measurement cleanup sweeps ids left behind by an earlier failed job', () =
   expect(doc.querySelectorAll('[data-pc-id]').length, 'live dom is left clean').toBe(0);
 });
 
-/* 11 — privacy patterns without the global flag ------------------------ */
+/* 11. privacy patterns without the global flag ------------------------ */
 
 test('a custom privacy pattern without /g still blanks every match', () => {
   const d = dom('<div id="r">CASE-1 and CASE-2 and CASE-3</div>');
@@ -220,7 +220,7 @@ test('a custom privacy pattern without /g still blanks every match', () => {
   expect(clone.textContent).not.toMatch(/CASE-\d/);
 });
 
-/* 12 — a typo in redactSelectorList must not print the secret ---------- */
+/* 12. a typo in redactSelectorList must not print the secret ---------- */
 
 test('an invalid redact selector raises instead of silently printing the content', () => {
   const d = dom('<div id="r"><p class="ssn">123-45-6789</p></div>');
@@ -230,14 +230,14 @@ test('an invalid redact selector raises instead of silently printing the content
   );
 });
 
-/* 13 — no dangling empty rule ------------------------------------------ */
+/* 13. no dangling empty rule ------------------------------------------ */
 
 test('pageBreakBetweenTargets false emits no rule at all', () => {
   const css = I.buildPageCss(I.normalizeOptions({ target: '#x', pageBreakBetweenTargets: false }));
   expect(css).not.toMatch(/\.pc-target \+ \.pc-target/);
 });
 
-/* 14 — the delegated trigger listener ---------------------------------- */
+/* 14. the delegated trigger listener ---------------------------------- */
 
 test('declarative triggers ignore non-primary and already-handled clicks', () => {
   const d = dom('<button data-printcraft="#r">go</button><div id="r">x</div>');
@@ -273,7 +273,7 @@ test('declarative triggers ignore non-primary and already-handled clicks', () =>
   }
 });
 
-/* 15 — no leaked matchMedia subscription ------------------------------- */
+/* 15. no leaked matchMedia subscription ------------------------------- */
 
 test('waitForDialogClose releases its afterprint and matchMedia listeners', async () => {
   const listeners: Record<string, number> = { added: 0, removed: 0 };
@@ -314,7 +314,7 @@ test('waitForDialogClose releases its afterprint and matchMedia listeners', asyn
   expect(mediaListeners['removed'], 'matchMedia listener released').toBe(1);
 });
 
-/* 17 — nested frames are executable content ---------------------------- */
+/* 17. nested frames are executable content ---------------------------- */
 
 test('the sanitizer strips nested iframes out of the print copy', () => {
   const d = dom('<div id="r"><iframe src="https://evil.example/x"></iframe><p>keep</p></div>');
@@ -325,7 +325,7 @@ test('the sanitizer strips nested iframes out of the print copy', () => {
   expect(clone.querySelector('p')!.textContent).toBe('keep');
 });
 
-/* 18 — ids and names leak the redacted value --------------------------- */
+/* 18. ids and names leak the redacted value --------------------------- */
 
 test('redaction scrubs id and name, which routinely encode the value itself', () => {
   const d = dom(
@@ -342,7 +342,7 @@ test('redaction scrubs id and name, which routinely encode the value itself', ()
   expect(clone.querySelector('.row')).toBeTruthy();
 });
 
-/* 19 — selectors are interpolated into a stylesheet -------------------- */
+/* 19. selectors are interpolated into a stylesheet -------------------- */
 
 test('a selector that would break out of its css rule is rejected', () => {
   expect(() =>

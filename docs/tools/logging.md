@@ -4,7 +4,7 @@ Stable codes, hints that say what to do, and a buffer that survives the failure.
 
 ## Why codes
 
-A message is for reading; a code is for branching on. Messages get reworded as they improve, so anything matching on their text breaks quietly. Codes do not change once published — they can be added, never renamed.
+A message is for reading; a code is for branching on. Messages get reworded as they improve, so anything matching on their text breaks quietly. Codes do not change once published: they can be added, never renamed.
 
 ```js
 import { isPrintcraftError } from '@simtabi/printcraft';
@@ -59,7 +59,7 @@ try {
 
 ## Logging
 
-Nobody can reproduce a printer. When a print fails on somebody else's machine, the useful thing is what happened on theirs — which means records have to exist before anyone thought to turn logging on.
+Nobody can reproduce a printer. When a print fails on somebody else's machine, the useful thing is what happened on theirs, which means records have to exist before anyone thought to turn logging on.
 
 So the ring buffer fills whatever the level is. The level only decides what reaches the console.
 
@@ -104,7 +104,7 @@ const detach = Printcraft.logger.sink((record) => {
 detach(); // stop
 ```
 
-Every record reaches every sink, whatever the level. A sink that throws is ignored — a broken reporter must not take a print job down with it.
+Every record reaches every sink, whatever the level. A sink that throws is ignored: a broken reporter must not take a print job down with it.
 
 ### Debugging one job
 

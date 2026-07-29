@@ -83,7 +83,7 @@
 
   /**
    * A tiny seeded generator. The demo doubles as a visual test sheet, so the
-   * same page has to produce the same run log and the same chart on every load —
+   * same page has to produce the same run log and the same chart on every load,
    * Math.random() would make two screenshots incomparable.
    */
   function seeded(seed) {
@@ -99,7 +99,7 @@
   /**
    * Substituted at build time with assets/img/watermark.svg as a data URI. The
    * standalone demo has to run with no network at all, so nothing here may be
-   * fetched — see tools/build-assets.mjs.
+   * fetched. See tools/build-assets.mjs.
    */
   var WATERMARK = '__WATERMARK_DATA_URI__';
 
@@ -268,7 +268,7 @@
 
     [
       'Fluent chain',
-      'job().redact().privacy().marks().watermark().print() — one chain.',
+      'job().redact().privacy().marks().watermark().print() in one chain.',
       function () {
         return Printcraft.job('#memo')
           .name('fluent memo')

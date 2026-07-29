@@ -4,7 +4,7 @@ An opt-in layer that lets someone choose what to print by pointing at it.
 
 Nothing here runs unless the page asks for it, and every mode funnels back into
 an ordinary Printcraft job. Icons are [Tabler Icons](https://tabler.io/icons)
-(MIT), inlined as SVG — no icon font, no network request.
+(MIT), inlined as SVG: no icon font, no network request.
 
 Every element the layer creates carries `data-pc-ui`, so clip jobs strip the
 interface out of their own screenshot and the menu never opens on top of itself.

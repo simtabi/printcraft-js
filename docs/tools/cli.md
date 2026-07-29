@@ -21,7 +21,7 @@ npx printcraft --help
 printcraft print <url|file> --pdf out.pdf
 ```
 
-Loads the page in Chromium, runs the same pipeline a browser user gets — clone, exclude, redact, sanitise, paginate — and writes the result out. Nothing here re-implements any of it, which is why the output matches what the page would have printed.
+Loads the page in Chromium, runs the same pipeline a browser user gets (clone, exclude, redact, sanitise, paginate) and writes the result out. Nothing here re-implements any of it, which is why the output matches what the page would have printed.
 
 | Flag                        | What it does                                                 |
 | --------------------------- | ------------------------------------------------------------ |
@@ -40,7 +40,7 @@ Loads the page in Chromium, runs the same pipeline a browser user gets — clone
 | `-c, --config <file>`       | Read defaults from a config file                             |
 | `--viewport <w>x<h>`        | The layout width the page renders at. `1280x900` by default. |
 
-At least one of `--pdf`, `--png` or `--html` is required — a render with nowhere to go is refused before a browser opens.
+At least one of `--pdf`, `--png` or `--html` is required: a render with nowhere to go is refused before a browser opens.
 
 ```bash
 printcraft print report.html \
@@ -114,7 +114,7 @@ It takes the same flags `print` does, so you can check the configuration you act
 printcraft init
 ```
 
-Writes a `printcraft.config.json` to start from. `--out` puts it somewhere else, `--force` overwrites an existing one — without it, an existing file is left alone and the command exits `1`.
+Writes a `printcraft.config.json` to start from. `--out` puts it somewhere else, `--force` overwrites an existing one. Without it, an existing file is left alone and the command exits `1`.
 
 The same file works in both places:
 

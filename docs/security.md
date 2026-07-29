@@ -6,7 +6,7 @@ What is defended, what redaction guarantees, and what is out of scope.
 
 Printcraft takes content from a page and builds a second document from it. Three things follow from that, and they are the whole model:
 
-1. **The print document is a real browsing context.** It is a same-origin iframe or window, so content that was inert where it came from — a script inside a `<template>`, an `onclick` in user-generated markup, a nested iframe — would actually execute there. The sanitiser exists for this.
+1. **The print document is a real browsing context.** It is a same-origin iframe or window, so content that was inert where it came from (a script inside a `<template>`, an `onclick` in user-generated markup, a nested iframe) would actually execute there. The sanitiser exists for this.
 2. **The print copy outlives the page.** It becomes a PDF, a file, a clipboard payload, an email attachment. Anything left in it travels, and cannot be recalled. Redaction exists for this.
 3. **The library never sends anything anywhere.** No telemetry, no analytics, no network request the caller did not configure. A print job touches the network only to load the assets the content already references.
 
@@ -22,7 +22,7 @@ Runs on every job unless `sanitize: false`. It operates on the detached clone, s
 
 **URLs checked** in `href`, `src`, `action`, `formaction`, `xlink:href`, `ping`, `background`, `data`, `codebase`, `longdesc`, `usemap`, `profile`, `manifest` and `cite`.
 
-The check is an allowlist. `http`, `https`, `mailto` and `tel` pass; `data:image/*` passes in `src`, `srcset` and `poster`, because those only ever draw. Everything else is refused. A blocklist would be a promise to have thought of every scheme anyone will invent, and `javascript:` was never the only one — `vbscript:` and `data:text/html` execute too.
+The check is an allowlist. `http`, `https`, `mailto` and `tel` pass; `data:image/*` passes in `src`, `srcset` and `poster`, because those only ever draw. Everything else is refused. A blocklist would be a promise to have thought of every scheme anyone will invent, and `javascript:` was never the only one: `vbscript:` and `data:text/html` execute too.
 
 Control characters and html entities are stripped before the scheme is read, because `java&#x09;script:` and `java\tscript:` both run in browsers that accept them.
 
@@ -40,7 +40,7 @@ If you are rendering content from strangers, sanitise it on the way in with some
 
 [The full page](tools/redaction.md) covers the mechanics. What matters here is what it guarantees.
 
-**It guarantees** that for every element you name, in the print copy: the text nodes are replaced with block characters, `img`/`picture`/`video`/`canvas`/`svg` become black boxes, and these attributes are removed — `title`, `alt`, `aria-label`, `href`, `src`, `srcset`, `value`, `placeholder`, `download`, `poster`, `id`, `name`, and every `data-*`.
+**It guarantees** that for every element you name, in the print copy: the text nodes are replaced with block characters, `img`/`picture`/`video`/`canvas`/`svg` become black boxes, and these attributes are removed: `title`, `alt`, `aria-label`, `href`, `src`, `srcset`, `value`, `placeholder`, `download`, `poster`, `id`, `name`, and every `data-*`.
 
 `id` and `name` go because they routinely encode the value being hidden: `id="patient-jane-doe"`, `name="ssn-123-45-6789"`.
 
@@ -76,7 +76,7 @@ Without a transport, `mailto:` opens the user's mail client. It cannot carry the
 
 ### Backends
 
-A backend receives `RenderedJob` — the finished, transformed, redacted document — and never a selector or the live page. A backend that could resolve content itself would be able to ship the original past redaction.
+A backend receives `RenderedJob`, the finished, transformed, redacted document, and never a selector or the live page. A backend that could resolve content itself would be able to ship the original past redaction.
 
 If you install one that sends over the network, the content leaves the browser. Satisfy yourself that the redaction it carries is the redaction you intended. [docs/backends.md](backends.md) has the rules a localhost companion has to follow: loopback only, an origin allowlist, per-origin consent in its own interface, and signed requests where it runs unattended.
 

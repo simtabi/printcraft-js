@@ -18,7 +18,7 @@ Printcraft.print({ target: '#invoice', headerText: 'ACME CO' });
 Printcraft.printHTML('<h1>Receipt</h1>', { setPrintSize: 'A5' });
 ```
 
-`Printcraft.job(target)` returns the fluent builder — the same options, expressed
+`Printcraft.job(target)` returns the fluent builder: the same options, expressed
 as a chain, with validation deferred to `.print()`, `.inspect()`, or
 `.toOptions()`.
 

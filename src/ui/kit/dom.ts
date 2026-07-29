@@ -104,7 +104,7 @@ export function focusable(el: Element): HTMLElement[] {
  * Visible enough to receive focus.
  *
  * Deliberately not layout-based. `offsetParent` is null for anything
- * `position: fixed` — which every surface here is — and both it and
+ * `position: fixed`, which every surface here is, and both it and
  * `getClientRects` report nothing under jsdom, so a layout test would quietly
  * decide that a modal has no focusable controls at all.
  */

@@ -1,7 +1,7 @@
 // Our own print settings dialog.
 //
 // The browser's dialog cannot be replaced. `window.print()` always hands off to
-// it and there is no API to style, suppress or pre-fill it — that is a platform
+// it and there is no API to style, suppress or pre-fill it. That is a platform
 // limit, not an oversight, and any library claiming otherwise is describing
 // something else.
 //

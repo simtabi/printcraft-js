@@ -1,7 +1,7 @@
 // the internal barrel.
 //
-// the pipeline lives in focused folders — support/ (primitives), options/ (how a
-// job is described), pipeline/ (how it runs), privacy/, production/, ui/ — and
+// the pipeline lives in focused folders: support/ (primitives), options/ (how a
+// job is described), pipeline/ (how it runs), privacy/, production/, ui/. And
 // this file is the single seam they are re-exported through, so
 // `Printcraft._internals` and anything that imported from './core' keeps working.
 

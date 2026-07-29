@@ -2,7 +2,7 @@
 //
 // The important detail is where the pixels come from. A screenshot taken of the
 // live page would put back everything redaction was asked to destroy, so this
-// runs the ordinary pipeline — clone, exclude, redact, sanitise — and rasterises
+// runs the ordinary pipeline (clone, exclude, redact, sanitise) and rasterises
 // the result. What you get is the print copy, photographed.
 
 import { rasterize, type Raster } from './rasterize';

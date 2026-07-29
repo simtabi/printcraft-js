@@ -14,8 +14,8 @@ unbind(); // restore the browser default
 ```
 
 The handler is registered in the capture phase and matches Ctrl+P or Cmd+P with
-no Alt and no Shift, so Ctrl+Shift+P — the devtools command palette in most
-browsers — is left alone.
+no Alt and no Shift, so Ctrl+Shift+P, the devtools command palette in most
+browsers, is left alone.
 
 Every hotkey press emits `hotkey` on the global bus before the job starts:
 
@@ -36,7 +36,7 @@ Printcraft.bindHotkey({
 });
 ```
 
-A cancelled job resolves with `status: 'cancelled'` — it does not reject.
+A cancelled job resolves with `status: 'cancelled'`. It does not reject.
 
 ## Scoping it
 

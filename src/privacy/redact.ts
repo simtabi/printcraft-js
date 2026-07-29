@@ -37,7 +37,7 @@ const SCRUB_ATTRS = [
   'placeholder',
   'download',
   'poster',
-  // ids and names routinely encode the value itself — id="patient-jane-doe"
+  // ids and names routinely encode the value itself: id="patient-jane-doe"
   'id',
   'name'
 ];
@@ -231,7 +231,7 @@ function safeUrl(value: string, attribute: string): boolean {
     .toLowerCase();
 
   const scheme = /^([a-z][a-z0-9+.-]*):/.exec(cleaned);
-  if (!scheme) return true; // relative, fragment, or query — nothing to execute
+  if (!scheme) return true; // relative, fragment, or query: nothing to execute
 
   const name = scheme[1]!;
   if (name === 'http' || name === 'https' || name === 'mailto' || name === 'tel') return true;
@@ -247,8 +247,8 @@ function safeUrl(value: string, attribute: string): boolean {
  * Always-on defence for the print copy.
  *
  * The print document is a fresh same-origin browsing context, so content that
- * was inert on the host page — a script inside a template, an onclick in
- * user-generated markup, a nested iframe — would actually run there. Stripping
+ * was inert on the host page (a script inside a template, an onclick in
+ * user-generated markup, a nested iframe) would actually run there. Stripping
  * it costs nothing visually.
  *
  * This is not a general-purpose XSS sanitiser and does not claim to be. It

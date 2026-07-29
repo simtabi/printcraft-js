@@ -7,9 +7,9 @@
 //
 // So the print document is re-read before it goes anywhere, looking for the
 // exact strings redaction was told to destroy. Finding one means something in
-// the pipeline put the content back — a transform that re-cloned from the live
-// page, a hook that undid the change, an attribute nobody thought to scrub — and
-// the job stops rather than printing.
+// the pipeline put the content back: a transform that re-cloned from the live
+// page, a hook that undid the change, an attribute nobody thought to scrub. The
+// job stops rather than printing.
 //
 // This is a check on our own work, not a content scanner. It cannot know what
 // you meant to hide, only whether what you named is still there.
@@ -95,7 +95,7 @@ export class RedactionLeakError extends Error {
         'document: ' +
         list +
         more +
-        '. Something after redaction put it back — check any transform, hook or ' +
+        '. Something after redaction put it back. Check any transform, hook or ' +
         'custom backend that re-reads the page. Set redactionPolicy: "warn" to print anyway.'
     );
     this.name = 'RedactionLeakError';

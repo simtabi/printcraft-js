@@ -45,7 +45,7 @@ One of `target`, `html`, or `clipRect` is required.
 
 > Selector options are interpolated into a generated stylesheet, so `{`, `}`, `<`
 > and `/*` are rejected at normalization time. Combinators, pseudo-classes and
-> attribute selectors — `table > tbody tr`, `.a:not(.b)`, `a[href*="@"]` — all
+> attribute selectors (`table > tbody tr`, `.a:not(.b)`, `a[href*="@"]`) all
 > pass.
 
 ## Content transforms

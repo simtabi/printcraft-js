@@ -473,7 +473,7 @@ class Printcraft {
 
   /**
    * Where finished jobs go. The browser's dialog by default, which needs nothing
-   * installed and cannot print silently or pick a device — those need a
+   * installed and cannot print silently or pick a device. Those need a
    * companion service on the machine. See docs/backends.md.
    */
   static get backend(): PrintBackend {
@@ -524,7 +524,7 @@ class Printcraft {
    * The transformed content, with nothing mounted and nothing printed.
    *
    * Everything under `share` goes through this, so a screenshot or a clipboard
-   * copy carries the print copy rather than the live page — redaction included.
+   * copy carries the print copy rather than the live page, redaction included.
    */
   static render(
     options: PrintcraftOptions | string | Element,

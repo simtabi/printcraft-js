@@ -16,7 +16,7 @@ const MOUNT_TIMEOUT = 15000;
  * region was drawn against. It does not work, and it is worth writing down why.
  * At pagination time the browser re-evaluates media queries against the page
  * box, not the frame, so the wide layout is thrown away the moment printing
- * starts — and the document is left wider than the paper, which crops it.
+ * starts, and the document is left wider than the paper, which crops it.
  *
  * Printing a region exactly as it looked on screen needs a raster, not a
  * relayout. That is what `clipMode: 'capture'` does.
@@ -89,8 +89,9 @@ class PopupMount implements Mount {
 }
 
 /**
- * resolves once the frame has a usable document. `onload` alone is not enough —
- * an `about:blank` frame can already be complete before the listener attaches —
+ * resolves once the frame has a usable document. `onload` alone is not enough,
+ * because an `about:blank` frame can already be complete before the listener
+ * attaches;
  * and without the timeout a frame that never loads would hang the job forever
  * with the iframe still attached.
  */
@@ -241,7 +242,7 @@ export function mountOverlay(srcDoc: Document, options?: ResolvedOptions): Promi
 
   const label = srcDoc.createElement('span');
   label.textContent =
-    'printcraft inspector — ' + sheet.label + ' (' + sheet.width + '×' + sheet.height + 'px)';
+    'printcraft inspector · ' + sheet.label + ' (' + sheet.width + '×' + sheet.height + 'px)';
   label.setAttribute('style', 'flex:1');
   bar.appendChild(label);
 
@@ -302,7 +303,7 @@ export function mountOverlay(srcDoc: Document, options?: ResolvedOptions): Promi
     // a scaled box keeps its unscaled footprint, so claw the difference back
     sheetBox.style.marginBottom = -(sheet.height * (1 - scale)) + 'px';
     label.textContent =
-      'printcraft inspector — ' +
+      'printcraft inspector · ' +
       sheet.label +
       ' (' +
       sheet.width +

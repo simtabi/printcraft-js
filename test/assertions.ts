@@ -1,6 +1,6 @@
 // node:assert-shaped helpers on top of vitest's expect.
 //
-// the suites were written against node:assert and read well that way — the
+// the suites were written against node:assert and read well that way, so the
 // assertion reads as a sentence about the subject. keeping that shape made the
 // port to vitest a mechanical, reviewable diff instead of a rewrite.
 

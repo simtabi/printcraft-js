@@ -151,7 +151,7 @@ const serverBackend = {
 Printcraft.backend = serverBackend;
 ```
 
-Two things to weigh before you do. Sending `job.html` to a server means the content leaves the browser, so satisfy yourself that the redaction it carries is the redaction you intended — [security.md](security.md) covers what is guaranteed. And a backend that reports `silent: true` while showing a dialog will make callers distrust `capabilities()` generally, so report what is true.
+Two things to weigh first. Sending `job.html` to a server means the content leaves the browser, so satisfy yourself that the redaction it carries is the redaction you intended — [security.md](security.md) covers what is guaranteed. And a backend that reports `silent: true` while showing a dialog will make callers distrust `capabilities()` generally, so report what is true.
 
 ## Events
 

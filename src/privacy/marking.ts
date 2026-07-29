@@ -9,7 +9,7 @@
 // `getClientRects` to ask the browser where each character actually is.
 //
 // Nothing here touches the live page. A run is recorded as a path of child
-// indices plus a character offset, and applied to the clone later — the clone is
+// indices plus a character offset, and applied to the clone later. The clone is
 // a deep copy, so the same path leads to the same node. Wrapping live text in
 // marker elements would mutate a page we promised only to read.
 

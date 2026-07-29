@@ -61,7 +61,7 @@ The demo and the build scripts sit alongside it:
 
 ```
 demo/
-├── index.html        markup only — no inline script, no inline style
+├── index.html        markup only: no inline script, no inline style
 └── assets/
     ├── scss/         the component layer (tokens, mixins, components)
     ├── css/          the Tailwind v4 entry
@@ -85,8 +85,8 @@ them, and `index.ts` is the only file that assembles a public API.
 ## Why is it shaped this way?
 
 **Why measure the live tree first?** Detached clones have no layout and no canvas
-pixels. Anything that needs a computed style or a bounding box — placeholder
-sizing for `removeImages`, scrollable-area detection, hidden-element detection —
+pixels. Anything that needs a computed style or a bounding box (placeholder
+sizing for `removeImages`, scrollable-area detection, hidden-element detection)
 has to be read before cloning. Each measured element is tagged with a temporary
 `data-pc-id` so the matching clone node can be found again, and the tag is swept
 off the live tree immediately afterwards.
@@ -94,7 +94,7 @@ off the live tree immediately afterwards.
 **Why three mount strategies behind one interface?** A hidden iframe, a popup and
 the inspector overlay all need the same thing: settle exactly once, hand back a
 window and a document, and guarantee teardown. Written separately, all three grew
-the same settle-once/append/onload dance with slightly different bugs — one never
+the same settle-once/append/onload dance with slightly different bugs. One never
 timed out, one handed back a document the browser could still replace. One
 `Mount` interface with three implementations makes that shared contract explicit.
 
@@ -106,15 +106,15 @@ a blocked popup raises a clear error instead of failing silently.
 
 **Why is redaction destructive?** A black overlay on live text survives
 copy-paste out of a generated PDF. Replacing the text nodes with block characters
-and scrubbing the attributes — including `id` and `name`, which routinely encode
-the value itself — is the only approach where the print artifact holds nothing
+and scrubbing the attributes, including `id` and `name`, which routinely encode
+the value itself, is the only approach where the print artifact holds nothing
 recoverable. The same reasoning drives the privacy scanner: matches are rewritten
 in the text nodes, not styled.
 
 **Why does the sanitizer run on every job by default?** The print document is a
-fresh same-origin browsing context. Content that was inert on the host page — a
+fresh same-origin browsing context. Content that was inert on the host page: a
 script inside a `<template>`, an `onclick` in user-generated markup, a nested
-iframe — would actually execute there. Stripping executable content costs nothing
+iframe, would actually execute there. Stripping executable content costs nothing
 visually.
 
 **Why does the fluent builder defer normalization?** Holding raw options and
@@ -125,7 +125,7 @@ surfaces demonstrably converge on one validated object.
 **Why do the tests run against `dist/` rather than `src/`?** The bundle is what
 consumers actually load. Testing it caught a literal `</script>` inside a code
 comment, which would have truncated the library wherever it was inlined into an
-HTML page — a defect invisible at the source level.
+HTML page, a defect invisible at the source level.
 
 **Why is `_internals` kept as a facade?** The suite reaches through it to test
 stages in isolation. Keeping it as an explicit re-export layer means the module
@@ -142,7 +142,7 @@ demo/assets/css/tailwind.css   ──tailwindcss──┐
 demo/assets/scss/main.scss     ──sass─────────┘
 ```
 
-Sass owns the component layer — tokens, mixins, nesting — and Tailwind owns the
+Sass owns the component layer (tokens, mixins, nesting) and Tailwind owns the
 utilities and the design tokens the markup reaches for. They are compiled
 separately because `@import "tailwindcss"` cannot be fed through Sass, which
 resolves bare imports as Sass files. Sass output is concatenated **second**, so
@@ -153,7 +153,7 @@ watermark and the demo config into `dist/assets/`, mirroring the source layout
 under `demo/assets/`.
 
 `tools/build.mjs` then produces `dist/demo-standalone.html` by replacing each
-marker pair in the demo markup with an inlined equivalent — stylesheet, library,
+marker pair in the demo markup with an inlined equivalent: stylesheet, library,
 demo script, favicon as a `data:` URI, and the page defaults as an inline JSON
 block, since a `file://` page cannot fetch a sibling file. The result is a single
 file with zero external requests. The generator refuses to inline any asset
@@ -166,19 +166,43 @@ standalone is offered next to it as a download. See [Demo](demo.md).
 
 ## Bundle size
 
-| Bundle              | Raw    | Gzipped | Budget |
-| ------------------- | ------ | ------- | ------ |
-| `printcraft.umd.js` | ~49 kB | ~14 kB  | 17 kB  |
-| `printcraft.mjs`    | ~60 kB | ~15 kB  | 19 kB  |
+The esm build splits, because `static ui = {...}` is a live reference no bundler
+can drop. Without the split, someone who only calls `print('#invoice')` would
+ship a modal kit, a rasteriser and an email composer they never open.
 
-Budgets are enforced by `npm run size` in CI. Runtime dependencies: zero, and
-that is a hard constraint.
+| Entry                            | Brotli | Budget |
+| -------------------------------- | ------ | ------ |
+| `@simtabi/printcraft`            | ~22 kB | 24 kB  |
+| `+ /ui`                          | ~39 kB | 40 kB  |
+| `+ /share`                       | ~40 kB | 45 kB  |
+| `printcraft.umd.js` (script tag) | ~38 kB | 45 kB  |
 
-## Known limitation
+The umd bundle stays whole: a page with no bundler cannot split anything, so
+three script tags would cost requests and buy nothing.
 
-A `position: fixed` watermark renders on the first page only in most print
-engines. For per-page repetition use the header/footer table technique instead —
-see [Watermarks](tools/watermarks.md).
+Budgets are enforced by `npm run size` in CI, and 45 kB is a ceiling that does
+not move. Runtime dependencies: zero, and that is a hard constraint. Playwright
+is an optional peer for the command line only, so a browser user never downloads
+a browser.
+
+## Known limitations
+
+**A watermark on every page needs pagination.** `position: fixed` paints the
+first page and stops, so a repeating mark has to be built into each sheet, and
+sheets only exist when the paginator has run. Asking for `repeat: 'every-page'`
+turns `paginate` on for that reason, and says so in the log. See
+[Watermarks](tools/watermarks.md).
+
+**A block taller than a page cannot be split.** The paginator moves nodes between
+sheets; it cannot break a single element that exceeds a whole page on its own.
+Such a block is kept whole and overflows, and the job logs which one it was.
+
+**Live markup cannot be clipped faithfully.** At pagination time the browser
+re-evaluates media queries against the page box, so a region chosen against a
+1280px layout is re-laid-out at 794px before it prints. Measured: a
+`min-width: 1000px` rule that makes a block 3000px tall yields one A4 page, not
+four. `clipMode: 'capture'` rasterises the region instead, which is why it is the
+default. See [Clip printing](tools/clip-printing.md).
 
 ---
 

@@ -312,7 +312,7 @@ test('the verifier checks the strings destroyed, not everything they contain', (
 test('selector redaction does not reach a copy in another element', async () => {
   // `.name` is destroyed; the caption's title attribute holds the same string on
   // a different element that was never named. Redaction is scoped to what you
-  // ask for — `privacy` patterns are the tool for finding a value anywhere.
+  // ask for. `privacy` patterns are the tool for finding a value anywhere.
   const d = dom(fixture());
   let printed = '';
 

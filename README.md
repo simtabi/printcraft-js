@@ -7,9 +7,9 @@
 
 > Data-driven client-side printing: print any region of a page cleanly, drive jobs from JavaScript, data attributes, JSON config or a right-click menu, redact like a declassified file, auto-blank PII, and draw the exact area you want on paper.
 
-Runs in any browser with `afterprint` and `document.fonts` — Chrome, Edge, Firefox and Safari, current and two back. TypeScript source, zero runtime dependencies, ESM + UMD builds.
+Runs in any browser with `afterprint` and `document.fonts`: Chrome, Edge, Firefox and Safari, current and two back. TypeScript source, zero runtime dependencies, ESM + UMD builds.
 
-**[Try the demo](https://simtabi.github.io/printcraft-js/)** — twenty-three print jobs, the interaction layer, and the inspector, with nothing to install.
+**[Try the demo](https://simtabi.github.io/printcraft-js/)**: twenty-three print jobs, the interaction layer, and the inspector, with nothing to install.
 
 ## Install
 
@@ -22,7 +22,7 @@ import Printcraft from '@simtabi/printcraft'; // esm
 const Printcraft = require('@simtabi/printcraft'); // cjs (umd build)
 ```
 
-Or a script tag — the UMD build sets a `Printcraft` global and boots the
+Or a script tag. The UMD build sets a `Printcraft` global and boots the
 declarative layer automatically:
 
 ```html

@@ -10,6 +10,6 @@ import { fileURLToPath } from 'node:url';
 export default function setup(): void {
   const bundle = fileURLToPath(new URL('../dist/printcraft.umd.js', import.meta.url));
   if (!existsSync(bundle)) {
-    throw new Error('dist/printcraft.umd.js is missing — run `npm run build` before vitest');
+    throw new Error('dist/printcraft.umd.js is missing. Run `npm run build` before vitest');
   }
 }

@@ -18,7 +18,7 @@ await Printcraft.print({
 ```
 
 `headerFooterMode` defaults to `'repeat'`, which uses the `thead`/`tfoot`
-technique browsers repeat on every printed page — so a multi-page invoice carries
+technique browsers repeat on every printed page, so a multi-page invoice carries
 the header throughout.
 
 `avoidBreakSelectors: ['tr']` is the one that matters most in practice: without

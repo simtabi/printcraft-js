@@ -19,7 +19,7 @@ await Printcraft.ui.drawArea({
 });
 ```
 
-To do it without the overlay — from your own drag handler, or a fixed region:
+To do it without the overlay, from your own drag handler or a fixed region:
 
 ```js
 const rect = Printcraft.ui.computeRect(startX, startY, endX, endY, window.scrollX, window.scrollY);

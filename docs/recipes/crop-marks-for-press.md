@@ -19,7 +19,7 @@ The pieces:
   stock; the sheet has to be bigger than the trim.
 - **`pageMargin: '0'`.** The bleed inset comes from `printerMarks`, so a page
   margin on top of it would double the offset.
-- **`printerMarks.bleed`** matches the oversize you added — 3mm here.
+- **`printerMarks.bleed`** matches the oversize you added: 3mm here.
 - **`stripDarkMode`** forces a light color scheme, so a dark-mode viewer does not
   send an inverted design to press.
 
@@ -43,7 +43,7 @@ ctl.close();
 ```
 
 > Printcraft cannot make a printer image beyond its own margins. The marks show
-> where the trim line falls — the same thing a proofing tool shows — which is what
+> where the trim line falls, the same thing a proofing tool shows, which is what
 > lets a press with real oversized stock do the rest.
 
 Reference: [Printer marks](../tools/printer-marks.md)

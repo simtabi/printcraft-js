@@ -86,7 +86,7 @@ Printcraft.print({
 
 Either a `beforePrint` hook or any `job:beforeprint` listener returning `false`
 cancels. The mount is torn down, the dialog never opens, and the promise resolves
-with `status: 'cancelled'` — it does not reject.
+with `status: 'cancelled'`. It does not reject.
 
 ```js
 const job = await Printcraft.print({

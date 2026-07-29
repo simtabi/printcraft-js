@@ -115,7 +115,7 @@ export function collectSourceCss(srcDoc: Document): Element[] {
 /**
  * builds the whole print document in `doc`. the base href goes in first: the frame
  * is an `about:blank` document, and without it every relative href, src, and
- * imported stylesheet resolves against nothing — which is why the popup path used
+ * imported stylesheet resolves against nothing, which is why the popup path used
  * to render unstyled.
  */
 export function assemblePrintDocument(

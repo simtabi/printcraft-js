@@ -1,7 +1,7 @@
 // Laying content out as real pages.
 //
 // Browsers do not implement `@page { @bottom-center { content: counter(page) } }`
-// — that is a Prince and WeasyPrint feature — and neither the fixed-position nor
+// which is a Prince and WeasyPrint feature. Neither the fixed-position nor
 // the thead/tfoot technique can count pages. So "Page 3 of 12" needs us to
 // measure the content and split it into sheets ourselves.
 //
@@ -255,7 +255,7 @@ export function paginate(
  * The stylesheet the sheets need.
  *
  * `@page { margin: 0 }` is the important line. The browser draws its own header
- * and footer — the date, the title, the URL, the page count — into the page
+ * and footer (the date, the title, the URL, the page count) into the page
  * margin box, so leaving no margin leaves nowhere to draw them. Chromium and
  * Firefox both honour it. Safari does not, and in every browser the user can
  * turn them back on in the print dialog.

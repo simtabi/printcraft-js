@@ -29,8 +29,8 @@ these areas are in scope:
   URLs are stripped from every clone. A way to get executable content past that
   is a vulnerability.
 - **Redaction recovery.** Redaction is destructive by design: text nodes become
-  block characters, media becomes black boxes, and identifying attributes —
-  including `id` and `name` — are scrubbed. If any redacted value is recoverable
+  block characters, media becomes black boxes, and identifying attributes,
+  including `id` and `name`, are scrubbed. If any redacted value is recoverable
   from the assembled print document or the resulting PDF, that is a vulnerability.
 - **Privacy scan leakage.** A pattern that should match a supported PII class
   (emails, phone numbers, SSNs, card numbers) but leaves it readable.

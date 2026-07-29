@@ -57,7 +57,7 @@ await Printcraft.share.copyText({ target: '#invoice' }); // plain text
 
 > **Call these from a click handler.** Browsers only allow a clipboard write during a user gesture. Safari additionally stops treating a gesture as live once you await anything, so `copyImage` hands `ClipboardItem` a _promise_ of the blob rather than awaiting the render first. Doing your own `await` before calling it puts that back.
 
-If the async API is missing or refuses, text falls back to `execCommand('copy')` and reports `via: 'execCommand'`. Images have no fallback — `copyImage` throws with a message saying to save the screenshot instead.
+If the async API is missing or refuses, text falls back to `execCommand('copy')` and reports `via: 'execCommand'`. Images have no fallback: `copyImage` throws with a message saying to save the screenshot instead.
 
 ## Email
 

@@ -343,8 +343,8 @@ test('a selection too small to be useful cannot be confirmed', async ({ page }) 
 
 /* the preview ----------------------------------------------------------- */
 //
-// The preview used to render nothing. The raster was fine — a 1280×900 PNG with
-// no errors — but the `<img>` showing it laid out at 77×54, because the demo's
+// The preview used to render nothing. The raster was fine, a 1280×900 PNG with
+// no errors, but the `<img>` showing it laid out at 77×54, because the demo's
 // `img { max-width: 100% }` sized it to its container before the transform that
 // was supposed to position it, and the negative offsets then put what was left
 // outside the box. It is now a crop, so there is no arithmetic to invalidate,

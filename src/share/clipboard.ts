@@ -2,7 +2,7 @@
 //
 // Same rule as everywhere else in this folder: what gets copied is the
 // transformed clone, so a redacted document copies as a redacted document. The
-// alternative — reading the live selection — would hand back everything the job
+// alternative, reading the live selection, would hand back everything the job
 // was told to destroy.
 //
 // Safari is the reason this file is more careful than it looks. `navigator

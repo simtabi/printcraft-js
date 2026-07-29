@@ -4,7 +4,7 @@ Destructive, declassified-file bars: the print copy holds nothing recoverable.
 
 ## Why destructive
 
-A black overlay drawn over live text survives copy-paste out of a generated PDF —
+A black overlay drawn over live text survives copy-paste out of a generated PDF:
 the characters are still there, just painted over. Printcraft instead replaces the
 text nodes with block characters and scrubs the attributes, so the print artifact
 itself never contains the value.
@@ -27,7 +27,7 @@ For every matched element and its whole subtree:
   and everything inside it solid black
 
 `id` and `name` are scrubbed because they routinely encode the very value being
-hidden — `id="patient-jane-doe"`, `name="ssn-123-45-6789"`. `class` survives,
+hidden: `id="patient-jane-doe"`, `name="ssn-123-45-6789"`. `class` survives,
 because the redaction CSS depends on it.
 
 ## Usage
@@ -46,7 +46,7 @@ In markup, on the trigger or on the content itself:
 ```
 
 The `data-printcraft-redact` attribute is honoured by every job from every
-surface, which is what makes the UI layer's redact mode work — it simply writes
+surface, which is what makes the UI layer's redact mode work: it writes
 that attribute onto the live element. See [Interaction UI](interaction-ui.md).
 
 ## The redact character

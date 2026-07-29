@@ -1,6 +1,6 @@
 // the clone transforms. every one runs on a detached copy, never on the live
 // page. the ones that can swap the clone root return the (possibly new) root so
-// the pipeline can adopt it — `Printcraft.print(someCanvas)` replaces that canvas
+// the pipeline can adopt it: `Printcraft.print(someCanvas)` replaces that canvas
 // with an <img>, and a detached node has no parent to be replaced in.
 
 import {

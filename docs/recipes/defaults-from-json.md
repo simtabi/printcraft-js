@@ -2,7 +2,7 @@
 
 Set the house print style once, and let individual jobs override it.
 
-The simplest form — an inline block, read at boot before any trigger can fire:
+The simplest form is an inline block, read at boot before any trigger can fire:
 
 ```html
 <script type="application/json" data-printcraft-config>

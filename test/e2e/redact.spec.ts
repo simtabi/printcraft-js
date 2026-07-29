@@ -2,7 +2,7 @@
 //
 // Selectors need the markup; a person reading a document has a phrase. So a
 // rectangle resolves to the characters it actually covers, which needs real
-// layout — `Range.getClientRects` is the whole mechanism and jsdom has none of
+// layout, and `Range.getClientRects` is the whole mechanism, which jsdom has none of
 // it. These are the tests that can only run in a browser.
 
 import { expect, test, type Page } from '@playwright/test';

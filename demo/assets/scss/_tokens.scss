@@ -24,7 +24,7 @@ $process: (
 /// map lookup would silently resolve to null.
 @function process($channel) {
   @if not map.has-key($process, $channel) {
-    @error 'unknown process channel "#{$channel}" — expected one of #{map.keys($process)}';
+    @error 'unknown process channel "#{$channel}": expected one of #{map.keys($process)}';
   }
   @return map.get($process, $channel);
 }

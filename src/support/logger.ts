@@ -2,7 +2,7 @@
 //
 // The old logger was a console wrapper behind one boolean. That is fine while
 // you are the only person debugging it, and useless the moment a print fails on
-// somebody else's machine — nobody can reproduce a printer.
+// somebody else's machine, because nobody can reproduce a printer.
 //
 // So records are structured rather than formatted, kept in a ring buffer whether
 // or not anything is listening, and handed to whatever sinks are attached. When

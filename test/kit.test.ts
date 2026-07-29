@@ -1,7 +1,7 @@
 // The component kit: modals, confirms, menus, forms, toolbars and toasts.
 //
 // Everything the library shows is built from a spec, so these are mostly "does
-// the spec produce the right thing" — plus the keyboard and focus behaviour,
+// the spec produce the right thing", plus the keyboard and focus behaviour,
 // which is the part that quietly rots if nobody asserts it.
 
 import { test, expect } from 'vitest';

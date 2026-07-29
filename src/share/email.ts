@@ -1,8 +1,8 @@
 // Sending the result somewhere.
 //
 // No vendor adapters and no keys. A browser cannot hold an API credential
-// safely — anything shipped to the page is readable by anyone who opens
-// devtools — so this composes the message and hands it to a `transport` you
+// safely, because anything shipped to the page is readable by anyone who opens
+// devtools. So it composes the message and hands it to a `transport` you
 // write, which talks to your own server.
 //
 // Without a transport there is still `mailto:`, which opens the user's mail

@@ -1,7 +1,7 @@
 // end-to-end coverage in a real browser.
 //
 // the OS print dialog cannot be driven headlessly, but `Printcraft.inspect()`
-// runs the identical pipeline into a visible overlay instead of the dialog — so
+// runs the identical pipeline into a visible overlay instead of the dialog, so
 // everything up to and including the assembled print document is exercised
 // against real layout, real @page css, real webfonts, and a real canvas. jsdom
 // can do none of those.
@@ -274,8 +274,8 @@ test('the context menu opens on right-click and drives a job', async ({ page }) 
     (window as unknown as { __off?: () => void }).__off = pc.ui.contextMenu({});
   });
 
-  // scroll first and let it settle. the menu closes on scroll by design — it is
-  // position:fixed, so it would otherwise detach from what it points at — and
+  // scroll first and let it settle. the menu closes on scroll by design: it is
+  // position:fixed, so it would otherwise detach from what it points at, and
   // chromium delivers the scroll event from playwright's own scroll-into-view a
   // frame late, which on a slow runner lands after the contextmenu and shuts the
   // menu the moment it opens

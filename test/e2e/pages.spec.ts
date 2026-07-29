@@ -271,7 +271,7 @@ test('cancel changes nothing', async ({ page }) => {
 //
 // The old watermark was one `position: fixed` element on the body: measured at
 // 794×1123 in a 5089px document, so it marked page one and stopped, and under
-// pagination it sat outside the sheets entirely — six sheets, one mark.
+// pagination it sat outside the sheets entirely: six sheets, one mark.
 //
 // It is now built into each sheet as a real `<svg>` or `<img>`. That matters
 // beyond neatness: a mark drawn as a CSS background depends on

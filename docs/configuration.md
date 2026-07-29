@@ -70,7 +70,7 @@ Printcraft.on('config:loaded', ({ source, config }) => {
 
 ## Configurable by attribute instead
 
-Anything a config file can set, a trigger can set for one job — see
+Anything a config file can set, a trigger can set for one job. See
 [Surfaces](surfaces.md) for the attribute form and its type coercion. Content
 annotations (`data-printcraft-exclude`, `-break-before`, `-redact`, `-note`, …)
 are honoured regardless of how the job was described, so they are the right place

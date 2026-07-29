@@ -38,7 +38,7 @@ const HINTS: Record<ErrorCode, string> = {
   PC_TARGET_UNPRINTABLE: 'Point at the element holding the content instead.',
   PC_OPTIONS_INVALID: 'The message names the option; see docs/tools/options.md.',
   PC_SELECTOR_INVALID: 'Usually a typo. Try it in document.querySelectorAll first.',
-  PC_SELECTOR_UNSAFE: 'Remove {, }, < or /* — a valid css selector never contains them.',
+  PC_SELECTOR_UNSAFE: 'Remove {, }, < or /*; a valid css selector never contains them.',
   PC_CLIP_INVALID: 'x, y, width and height all have to be numbers, and big enough to see.',
   PC_CONFIG_INVALID: 'The config has to be a plain object, or json that parses to one.',
   PC_CONFIG_UNREACHABLE:

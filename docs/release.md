@@ -6,7 +6,7 @@ Versioning, the publish flow, and the one-time setup a first release needs.
 
 Semantic versioning, with `package.json` as the single source of truth. The
 version is injected into the bundle at build time through a Vite `define`, so
-`Printcraft.version` can never drift from the package — a packaging test asserts
+`Printcraft.version` can never drift from the package, and a packaging test asserts
 they match.
 
 Because the library ships types, a change to the shape of `PrintcraftOptions`
@@ -15,7 +15,7 @@ that could break a TypeScript consumer is a minor at minimum, never a patch.
 ## Cutting a release
 
 1. Update `CHANGELOG.md`: move `## [Unreleased]` entries under a new
-   `## [X.Y.Z] — description` heading.
+   `## [X.Y.Z]` heading with a description.
 2. Bump the version:
    ```bash
    npm version minor   # or patch / major
@@ -39,7 +39,7 @@ npm, and creates the GitHub release with the body extracted from that version's
 ## Publishing
 
 Publishing runs from CI through the `npm` GitHub Environment using npm's OIDC
-trusted publishing — there is no `NPM_TOKEN` secret. The workflow requests
+trusted publishing, so there is no `NPM_TOKEN` secret. The workflow requests
 `id-token: write`, which is what lets npm verify the release came from this
 repository and this workflow, and is what attaches provenance to the published
 package.
@@ -55,7 +55,7 @@ src/  dist/  README.md  CHANGELOG.md  LICENSE
 ```
 
 `npm pack --dry-run` is the check. Tests, the demo sources, configs and `docs/`
-are not shipped — the docs are hosted, and so is the demo.
+are not shipped: the docs are hosted, and so is the demo.
 
 ## The demo deploy
 

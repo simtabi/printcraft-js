@@ -1,8 +1,8 @@
 // The sanitiser.
 //
 // The print document is a fresh same-origin browsing context, so anything inert
-// on the host page — a script inside a template, an onclick in user-generated
-// markup, a nested iframe — would actually run there. These are the vectors that
+// on the host page (a script inside a template, an onclick in user-generated
+// markup, a nested iframe) would actually run there. These are the vectors that
 // matter, written as the markup that carries them.
 //
 // This is not a general-purpose XSS sanitiser and the tests do not pretend it

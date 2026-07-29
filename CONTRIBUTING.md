@@ -14,7 +14,7 @@ npm test
 ```
 
 **Node 22 or newer is required to develop.** The package itself supports
-`^20.19 || >=22.12` — Vite 8's floor — but jsdom 30, which the test suite runs on,
+`^20.19 || >=22.12`, which is Vite 8's floor. But jsdom 30, which the test suite runs on,
 requires `^22.22.2 || ^24.15.0 || >=26`. On Node 20 the build succeeds and the
 tests die with an undici `markAsUncloneable` error. `.nvmrc` pins the development
 version; CI runs the matrix on 22 and 24.
@@ -51,7 +51,7 @@ src/
 └── ui/               the opt-in interaction layer
 
 demo/
-├── index.html        markup only — no inline script, no inline style
+├── index.html        markup only: no inline script, no inline style
 └── assets/           scss/ css/ js/ img/ favicon/ data/
 
 tools/
@@ -62,11 +62,11 @@ tools/
 └── make-favicons.mjs the raster favicon set
 ```
 
-The demo's markup carries **no inline script or style** — a packaging test fails
+The demo's markup carries **no inline script or style**, and a packaging test fails
 the build if any creeps back in. Behaviour goes in `demo/assets/js/demo.js`,
 styling in `demo/assets/scss/`. See [docs/demo.md](docs/demo.md).
 
-Every job — imperative, fluent, declarative, or triggered from the UI — converges
+Every job (imperative, fluent, declarative, or triggered from the UI) converges
 on `normalizeOptions()` and then runs the same ordered stages in
 `pipeline/job.ts`. If you are adding behaviour, it almost certainly belongs in a
 stage rather than in a new entry point.
@@ -89,14 +89,14 @@ even though it is underscore-prefixed.
 ## Tests
 
 The suite runs against `dist/printcraft.umd.js`, not the source. That is
-deliberate — it is the artifact consumers actually load, and it is what caught a
+on purpose: it is the artifact consumers actually load, and it is what caught a
 literal `</script>` inside a code comment once before.
 
 - Behaviour changes need a test in `test/`.
 - Bug fixes go in `test/regressions.test.ts`, one test per bug, named after the
   failure it locks down.
 - Anything that needs real layout, real `@page` CSS, or a real canvas belongs in
-  `test/e2e/` — jsdom cannot do those.
+  `test/e2e/`, because jsdom cannot do those.
 
 jsdom has no canvas implementation, so the demo's chart logs errors under jsdom.
 That is expected and covered by the e2e suite instead; please do not chase it.
@@ -104,7 +104,7 @@ That is expected and covered by the e2e suite instead; please do not chase it.
 ## Pull requests
 
 1. Branch off `main`.
-2. Keep the change focused — one concern per PR.
+2. Keep the change focused: one concern per PR.
 3. Run `npm run typecheck && npm run lint && npm test` before pushing.
 4. Update `CHANGELOG.md` under an `## [Unreleased]` heading.
 5. Write commit subjects in the imperative mood, 72 characters or fewer, with the
@@ -113,4 +113,4 @@ That is expected and covered by the e2e suite instead; please do not chase it.
 ## Security
 
 Please do not open a public issue for a security problem. See
-[SECURITY.md](SECURITY.md) — disclosures go to `opensource@simtabi.com`.
+[SECURITY.md](SECURITY.md). Disclosures go to `opensource@simtabi.com`.

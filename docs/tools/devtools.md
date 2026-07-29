@@ -25,7 +25,7 @@ ctl.close(); // dismiss the overlay
 ```
 
 This is the fastest way to iterate on print styles, and it is what the browser
-test suite drives — the print dialog cannot be automated, but everything up to it
+test suite drives. The print dialog cannot be automated, but everything up to it
 can.
 
 ## Debug logging
@@ -53,7 +53,7 @@ then a per-stage timing line, then a summary table:
 [printcraft#3] job 3 done in 2841ms
 ```
 
-When debug is off, the logger is inert — no formatting cost and no console noise.
+When debug is off, the logger is inert: no formatting cost and no console noise.
 
 ## Job records
 

@@ -39,12 +39,12 @@ Printcraft.print({
 `custom` accepts `RegExp` objects and strings (compiled with the `g` flag).
 
 A `RegExp` without the global flag is re-created with it. Without that, only the
-first match in each text node would be blanked — which reads as "it worked" while
+first match in each text node would be blanked, which reads as "it worked" while
 leaking every subsequent occurrence.
 
 ## How matches are replaced
 
-Matches are rewritten in the text nodes themselves, not styled — the same
+Matches are rewritten in the text nodes themselves, not styled, so the same
 reasoning as [Redaction](redaction.md). Each matched run becomes the redact
 character, so the bar keeps the width of what it replaced.
 

@@ -59,8 +59,8 @@ export function resolveTargets(target: PrintTarget, doc: Document): Element[] {
 }
 
 /**
- * captures what only the live tree knows — canvas pixels, laid-out image sizes,
- * the resolved `currentSrc`, hidden elements, scrollable regions — tagging each
+ * captures what only the live tree knows (canvas pixels, laid-out image sizes,
+ * the resolved `currentSrc`, hidden elements, scrollable regions), tagging each
  * measured element so the matching clone node can be found again.
  */
 export function measureLiveTree(
@@ -238,7 +238,7 @@ export function buildClipClone(
   //
   // Capture mode skips this. The raster is fitted to the sheet when it is placed
   // on the page, and scaling here as well would shrink the content inside a
-  // full-size frame — the four process inks ended up filling the left 62% of the
+  // full-size frame. the four process inks ended up filling the left 62% of the
   // image with white beside them.
   const sheet = resolveSheet(options.setPrintSize);
   const scale = options.clipMode === 'capture' ? 1 : Math.min(1, sheet.width / rect.width);

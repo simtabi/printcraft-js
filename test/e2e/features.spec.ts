@@ -6,7 +6,7 @@
 // narrowest breakpoint, and the content reflowed into something nobody had seen.
 // Drawn regions then landed on empty space.
 //
-// The inspector could never have caught it — its frame is visible and sized. So
+// The inspector could never have caught it: its frame is visible and sized. So
 // these run through `Printcraft.print()` and cancel at `beforePrint`, which is the
 // last moment the assembled document exists and the only place the real frame can
 // be measured.

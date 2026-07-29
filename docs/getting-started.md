@@ -53,7 +53,7 @@ await draft.print(); // prints
 await draft.title('Copy').print(); // same chain, one more setting
 ```
 
-`.toOptions()` returns the normalized options object without running anything —
+`.toOptions()` returns the normalized options object without running anything,
 useful for testing a chain, or for handing the same description to another
 surface.
 

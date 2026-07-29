@@ -15,8 +15,8 @@ await Printcraft.print({
 Two mechanisms, deliberately layered:
 
 - **`redactSelectorList`** blacks out sections you can name. Text becomes block
-  characters, media becomes black boxes, and identifying attributes — including
-  `id` and `name` — are scrubbed.
+  characters, media becomes black boxes, and identifying attributes, including
+  `id` and `name`, are scrubbed.
 - **`privacy: true`** scans every remaining text node for emails, phone numbers,
   SSNs and card numbers.
 

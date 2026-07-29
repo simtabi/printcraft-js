@@ -2,7 +2,7 @@
 //
 // `print` renders a page the way the library would and writes the result out.
 // `init` writes a config file. `doctor` says what would print, what would leak,
-// and what failed to load — the three questions that come up when a print is
+// and what failed to load: the three questions that come up when a print is
 // wrong and nobody can see why.
 
 import { mkdir, writeFile } from 'node:fs/promises';

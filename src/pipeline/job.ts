@@ -1,5 +1,5 @@
-// one print job, start to finish. every surface — imperative, fluent,
-// declarative, the ui layer — converges here on the same ordered stages, each of
+// one print job, start to finish. every surface (imperative, fluent,
+// declarative, the ui layer) converges here on the same ordered stages, each of
 // which emits an event and records a timing.
 
 import {
@@ -169,7 +169,7 @@ export class Job {
 
   /* stages ------------------------------------------------------------- */
 
-  /** clip rect, raw html, or resolved targets — the three ways content enters. */
+  /** clip rect, raw html, or resolved targets: the three ways content enters. */
   private buildClones(): Element[] {
     const { options, env } = this;
 
@@ -413,7 +413,7 @@ export class Job {
   /**
    * Re-reads the assembled document for anything redaction destroyed.
    *
-   * Everything else in the pipeline is best-effort — a missed exclusion prints an
+   * Everything else in the pipeline is best-effort: a missed exclusion prints an
    * extra paragraph. A missed redaction prints a name. So the last thing before
    * the handoff is checking our own work, and by default a leak stops the job
    * rather than reaching paper.
@@ -499,7 +499,7 @@ export class Job {
         this.paginateDocument(mount.document);
 
         // and the check runs on the finished document, after every stage that
-        // could have put something back — including pagination, which rebuilds
+        // could have put something back, including pagination, which rebuilds
         // container chains as it splits
         this.verifyDocument(mount.document);
 
@@ -579,7 +579,7 @@ export class Job {
 }
 
 /**
- * runs one job. pass `null` for the emitter to get a private one — which is what
+ * runs one job. pass `null` for the emitter to get a private one, which is what
  * every static entry point does, so two concurrent jobs never see each other's
  * per-job `on` listeners.
  */

@@ -422,7 +422,7 @@ export function drawArea(
               preview,
               node(doc, 'p', {
                 style: 'margin-top:8px;color:#8a3324;font-size:13px;',
-                text: 'This area looks empty. Printing it would give you a blank page — keep adjusting to cover some content.'
+                text: 'This area looks empty. Printing it would give you a blank page. Keep adjusting to cover some content.'
               })
             ]
           })
