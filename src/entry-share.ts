@@ -5,10 +5,10 @@
 // feature from a caller's point of view.
 
 import { attachment } from './index';
-import { makeUiSurface } from './ui/surface';
+import { attachUi } from './attach';
 import { makeShareSurface } from './share/surface';
 
-attachment.Printcraft.ui = makeUiSurface(attachment);
+attachUi();
 attachment.Printcraft.share = makeShareSurface(attachment);
 
 export * from './index';

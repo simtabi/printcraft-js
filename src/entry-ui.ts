@@ -6,9 +6,9 @@
 
 import { attachment } from './index';
 import * as uiModule from './ui';
-import { makeUiSurface } from './ui/surface';
+import { attachUi } from './attach';
 
-attachment.Printcraft.ui = makeUiSurface(attachment);
+attachUi();
 
 // the test seam gains what only exists once the ui is loaded
 Object.assign(attachment.Printcraft._internals, {

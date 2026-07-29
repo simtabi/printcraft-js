@@ -475,6 +475,22 @@ class Printcraft {
    */
   static autoMenu = true;
 
+  /**
+   * Installs the interface. Called by the `/ui` entry once it has attached.
+   *
+   * It cannot happen in `_boot`: that runs while this module is still
+   * evaluating, which is before the interaction layer has hung anything on the
+   * class, so reaching for it there would find nothing and silently do nothing.
+   */
+  static _installInterface(): void {
+    if (!Printcraft.autoInit || !Printcraft.autoMenu) return;
+    try {
+      void (Printcraft.ui as unknown as { instance: unknown }).instance;
+    } catch {
+      // a page with no document, or one that replaced the surface
+    }
+  }
+
   static get defaults(): PrintcraftOptions {
     return defaultsRef.current;
   }

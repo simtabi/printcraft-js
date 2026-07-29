@@ -43,13 +43,23 @@ const NOTE_ATTR = 'data-' + NS + '-note';
  * a test, or a keyboard shortcut without dragging the UI layer along.
  */
 export function annotate(target: Element, text: string | null): string | null {
-  if (text == null) return null;
-  if (text === '') {
+  // `null` and `''` both mean there is no note. This used to return early on
+  // null, so `annotate(el, null)` looked like a removal and silently did
+  // nothing; cancelling a prompt is handled in askForNote, which never gets
+  // here, so there was nothing for the early return to protect.
+  if (text == null || text === '') {
     target.removeAttribute(NOTE_ATTR);
-    return '';
+    return null;
   }
   target.setAttribute(NOTE_ATTR, text);
   return text;
+}
+
+/** Takes the note off, if there is one. Returns what it was. */
+export function removeNote(target: Element): string | null {
+  const had = target.getAttribute(NOTE_ATTR);
+  target.removeAttribute(NOTE_ATTR);
+  return had;
 }
 
 export function noteOn(target: Element): string {

@@ -8,6 +8,7 @@ export {
   annotate,
   askForNote,
   noteOn,
+  removeNote,
   annotations,
   clearAnnotations,
   describeElement,

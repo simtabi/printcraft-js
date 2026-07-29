@@ -173,11 +173,20 @@ export class ActionRegistry {
 
 /* keybindings ------------------------------------------------------------- */
 
-/** True on a platform where the meta key is the modifier. */
+/**
+ * Whether to draw the modifier as ⌘ rather than Ctrl.
+ *
+ * Both signals are consulted because either can be wrong on its own:
+ * `navigator.platform` is deprecated and frozen on some builds, and
+ * `userAgentData.platform` reports the UA's claimed platform, which is
+ * "Windows" under an automated Chromium running on a Mac. This only decides how
+ * a binding is *drawn* — see `matchesKeys` for why matching does not sniff.
+ */
 function isApple(env: Env): boolean {
   const nav = env.window.navigator as Navigator & { userAgentData?: { platform?: string } };
-  const platform = nav.userAgentData?.platform || nav.platform || '';
-  return /mac|iphone|ipad|ipod/i.test(platform);
+  const claimed = nav.userAgentData?.platform || '';
+  const legacy = nav.platform || '';
+  return /mac|iphone|ipad|ipod/i.test(claimed) || /mac|iphone|ipad|ipod/i.test(legacy);
 }
 
 /** Turns `mod+shift+p` into the parts an event can be compared against. */
@@ -197,12 +206,21 @@ export function parseKeys(keys: string): {
   };
 }
 
-/** Whether an event is the binding. */
+/**
+ * Whether an event is the binding.
+ *
+ * `mod` matches either Command or Control, without asking which platform this
+ * is. Deciding from a platform string means one wrong answer silently disables
+ * every shortcut, and the strings do lie: an automated Chromium on a Mac reports
+ * "Windows" through `userAgentData` and "MacIntel" through `navigator.platform`.
+ * Accepting both is also kinder to anyone on a keyboard their OS did not ship
+ * with.
+ */
 export function matchesKeys(e: KeyboardEvent, keys: string, env: Env): boolean {
+  void env;
   const want = parseKeys(keys);
-  const mod = isApple(env) ? e.metaKey : e.ctrlKey;
 
-  if (want.mod !== mod) return false;
+  if (want.mod !== (e.metaKey || e.ctrlKey)) return false;
   if (want.shift !== e.shiftKey) return false;
   if (want.alt !== e.altKey) return false;
   return e.key.toLowerCase() === want.key;

@@ -9,7 +9,7 @@
 // So: a panel that lists them, scrolls to each one, and lets you edit or remove
 // it before anything is printed.
 
-import { annotations, annotate, clearAnnotations, toggleRedact, type Mark } from './annotations';
+import { annotations, clearAnnotations, removeNote, toggleRedact, type Mark } from './annotations';
 import { h, confirm, iconNode, modal, toast, tooltip } from './kit';
 import { defaultEnv, type UiDeps } from './shared';
 import type { Env, PrintcraftOptions } from '../types';
@@ -94,7 +94,7 @@ function card(mark: Mark, doc: Document, env: Env, refresh: () => void): HTMLEle
   });
   tooltip(remove, { text: mark.kind === 'note' ? 'Delete this note' : 'Stop redacting this' }, env);
   remove.addEventListener('click', () => {
-    if (mark.kind === 'note') annotate(mark.element, null);
+    if (mark.kind === 'note') removeNote(mark.element);
     else toggleRedact(mark.element);
     refresh();
   });

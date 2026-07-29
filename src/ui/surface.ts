@@ -71,6 +71,7 @@ export function makeUiSurface({ deps: uiDeps }: Attachment) {
     },
     toggleRedact: ui.toggleRedact,
     annotate: ui.annotate,
+    removeNote: ui.removeNote,
     askForNote: ui.askForNote,
     computeRect: ui.computeRect,
     icon,

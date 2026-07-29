@@ -280,7 +280,18 @@ test('toggleRedact and annotate write the data attributes the pipeline reads', (
   expect_eq(p.hasAttribute('data-printcraft-redact'), false);
   expect_eq(Printcraft.ui.annotate(p, 'check me'), 'check me');
   expect_eq(p.getAttribute('data-printcraft-note'), 'check me');
-  expect_eq(Printcraft.ui.annotate(p, ''), '');
+  // '' and null both mean there is no note, and both return null. annotate used
+  // to return early on null, so `annotate(el, null)` looked like a removal and
+  // silently did nothing.
+  expect_eq(Printcraft.ui.annotate(p, ''), null);
+  expect_eq(p.hasAttribute('data-printcraft-note'), false);
+
+  Printcraft.ui.annotate(p, 'again');
+  expect_eq(Printcraft.ui.annotate(p, null), null);
+  expect_eq(p.hasAttribute('data-printcraft-note'), false, 'null removes it too');
+
+  Printcraft.ui.annotate(p, 'once more');
+  expect_eq(Printcraft.ui.removeNote(p), 'once more', 'removeNote hands back what it took');
   expect_eq(p.hasAttribute('data-printcraft-note'), false);
 });
 
