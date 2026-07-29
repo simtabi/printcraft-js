@@ -17,9 +17,16 @@ export function attachUi(): void {
 
   attachment.Printcraft.ui = makeUiSurface(attachment);
 
-  // the menu and the keymap, now that there is something to install. index.ts
-  // cannot do this itself: its boot runs before this file has attached anything.
+  // The menu and the keymap, once every entry has finished loading.
+  //
+  // index.ts cannot do this itself: its boot runs before this file has attached
+  // anything. And it cannot happen inline here either, because /share
+  // contributes its own actions after /ui has loaded, and an interface built
+  // before that would be missing them. A microtask is after all of it: module
+  // evaluation is synchronous.
   if (typeof window !== 'undefined' && typeof document !== 'undefined') {
-    attachment.Printcraft._installInterface();
+    const install = (): void => attachment.Printcraft._installInterface();
+    if (typeof queueMicrotask === 'function') queueMicrotask(install);
+    else setTimeout(install, 0);
   }
 }

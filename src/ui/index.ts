@@ -36,7 +36,7 @@ export {
   type ActionContext,
   type ResolvedAction
 } from './actions';
-export { buildActions, markCount, GROUPS } from './catalogue';
+export { buildActions, contributeActions, markCount, GROUPS } from './catalogue';
 export { PrintcraftInterface, createInterface, type InterfaceOptions } from './instance';
 export { notesPanel, type NotesPanelOptions, type NotesPanelResult } from './notes';
 

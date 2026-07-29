@@ -18,6 +18,24 @@ import { toast } from './kit';
 import type { Action, ActionContext } from './actions';
 import type { UiDeps } from './shared';
 
+/**
+ * Actions contributed by a layer that is not always loaded.
+ *
+ * `/share` is a separate entry, so the catalogue cannot import it: doing that
+ * would put a rasteriser and an email composer in front of everyone who wanted
+ * a menu. Instead the share entry contributes its own actions when it is
+ * imported, and they are simply absent when it is not — which is honest, since
+ * there is no screenshot without the screenshot code.
+ */
+type ActionFactory = (deps: UiDeps) => Action[];
+
+const contributed: ActionFactory[] = [];
+
+/** Adds a factory whose actions appear in every interface built after it. */
+export function contributeActions(factory: ActionFactory): void {
+  if (!contributed.includes(factory)) contributed.push(factory);
+}
+
 /** The groups, in the order they appear. */
 export const GROUPS = {
   print: 'Print',
@@ -34,6 +52,10 @@ export const GROUPS = {
  * this file testable and keeps the ui layer a leaf.
  */
 export function buildActions(deps: UiDeps): Action[] {
+  return [...stockActions(deps), ...contributed.flatMap((factory) => factory(deps))];
+}
+
+function stockActions(deps: UiDeps): Action[] {
   /** the element an action should aim at, falling back to the whole page */
   const aim = (ctx: ActionContext): Element | string => ctx.target || 'body';
 

@@ -23,3 +23,5 @@ export type {
   EmailTransport,
   SendOptions
 } from './email';
+
+export { shareActions, type ShareHost } from './actions';

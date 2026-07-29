@@ -4,7 +4,13 @@
 // a capability once puts it in the menu, in the palette, on its keybinding and
 // in the API, instead of in one of the four.
 
-import { formatKeys, type Action, type ActionContext, type ActionRegistry } from './actions';
+import {
+  formatKeys,
+  type Action,
+  type ActionContext,
+  type ActionRegistry,
+  type ResolvedAction
+} from './actions';
 import { openMenu, openPalette, type MenuEntry, type MenuHandle } from './kit';
 import { defaultEnv, type UiDeps } from './shared';
 import type { Env, PrintcraftOptions } from '../types';
@@ -48,26 +54,42 @@ const DESCRIPTION = 'Choose what prints, redact it, or note it first';
  */
 export function actionsToEntries(registry: ActionRegistry, ctx: ActionContext): ContextMenuEntry[] {
   const entries: ContextMenuEntry[] = [];
-  let group: string | null = null;
 
+  // Collected by group rather than emitted in registration order.
+  //
+  // A contributed action lands wherever its layer was loaded, so a group can
+  // reappear later in the list. Emitting a heading whenever the name changed
+  // would then draw the same one twice. Groups keep the order they were first
+  // seen, and actions keep theirs within a group.
+  const groups = new Map<string, ResolvedAction[]>();
   for (const action of registry.available(ctx)) {
-    if (action.group && action.group !== group) {
-      if (group !== null) entries.push({ separator: true });
-      entries.push({ group: action.group });
-      group = action.group;
-    }
+    const name = action.group || '';
+    const bucket = groups.get(name);
+    if (bucket) bucket.push(action);
+    else groups.set(name, [action]);
+  }
 
-    entries.push({
-      id: action.id,
-      label: action.label,
-      ...(action.icon ? { icon: action.icon } : {}),
-      ...(action.description ? { hint: action.description } : {}),
-      ...(action.keys ? { kbd: formatKeys(action.keys, ctx.env) } : {}),
-      ...(action.tone && action.tone !== 'default' ? { tone: action.tone } : {}),
-      ...(action.checked ? { checked: action.isChecked } : {}),
-      ...(action.disabledReason ? { disabled: action.disabledReason } : {}),
-      run: () => void registry.run(action.id, { ...ctx, via: 'menu' })
-    });
+  let first = true;
+  for (const [name, actions] of groups) {
+    if (name) {
+      if (!first) entries.push({ separator: true });
+      entries.push({ group: name });
+    }
+    first = false;
+
+    for (const action of actions) {
+      entries.push({
+        id: action.id,
+        label: action.label,
+        ...(action.icon ? { icon: action.icon } : {}),
+        ...(action.description ? { hint: action.description } : {}),
+        ...(action.keys ? { kbd: formatKeys(action.keys, ctx.env) } : {}),
+        ...(action.tone && action.tone !== 'default' ? { tone: action.tone } : {}),
+        ...(action.checked ? { checked: action.isChecked } : {}),
+        ...(action.disabledReason ? { disabled: action.disabledReason } : {}),
+        run: () => void registry.run(action.id, { ...ctx, via: 'menu' })
+      });
+    }
   }
   return entries;
 }

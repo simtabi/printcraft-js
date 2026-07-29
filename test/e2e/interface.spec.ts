@@ -338,3 +338,51 @@ test('a title and description are printed above the content', async ({ page }) =
   expect(printed).toContain('pc-heading-meta');
   expect(printed.indexOf('pc-heading')).toBeLessThan(printed.indexOf('pc-target'));
 });
+
+/* the share layer, as actions --------------------------------------------- */
+
+test('screenshot, copy and email are menu entries like everything else', async ({ page }) => {
+  await page.locator('h1').click({ button: 'right' });
+  const menu = page.locator('[data-pc-menu]');
+
+  // contributed by /share when it loads, rather than imported by the catalogue,
+  // so a page that only takes /ui does not pull a rasteriser in behind it
+  await Promise.all(
+    ['screenshot', 'copy-image', 'copy-markup', 'email'].map((id) =>
+      expect(menu.locator(`[data-pc-item="${id}"]`), id).toBeVisible()
+    )
+  );
+
+  // and each group is drawn once, wherever its actions were contributed
+  const groups = await menu.locator('.pc-k-group').allTextContents();
+  expect(new Set(groups).size, groups.join(' | ')).toBe(groups.length);
+  expect(groups).toContain('Share');
+});
+
+test('the screenshot action saves a file named from the title', async ({ page }) => {
+  const wait = page.waitForEvent('download');
+  await page.evaluate(() => {
+    const pc = (window as unknown as { Printcraft: Record<string, any> }).Printcraft;
+    pc.ui.run('screenshot', document.querySelector('#report'));
+  });
+
+  const download = await wait;
+  expect(download.suggestedFilename()).toMatch(/\.png$/);
+});
+
+test('a share action that fails says so rather than going quiet', async ({ page }) => {
+  const message = await page.evaluate(async () => {
+    const pc = (window as unknown as { Printcraft: Record<string, any> }).Printcraft;
+    // no ClipboardItem means an image cannot go on the clipboard at all
+    const real = (window as unknown as { ClipboardItem?: unknown }).ClipboardItem;
+    delete (window as unknown as { ClipboardItem?: unknown }).ClipboardItem;
+
+    pc.ui.run('copy-image');
+    await new Promise((r) => setTimeout(r, 800));
+    const text = document.querySelector('[data-pc-toast]')?.textContent || '';
+    (window as unknown as { ClipboardItem?: unknown }).ClipboardItem = real;
+    return text;
+  });
+
+  expect(message).toContain('cannot put an image on the clipboard');
+});
