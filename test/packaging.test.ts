@@ -194,3 +194,62 @@ test('the compiled stylesheet carries both the utility and component layers', ()
   expect(css, 'sass components').toMatch(/\.pc-ticket/);
   expect(css, 'sass mixin output').toMatch(/\.pc-run/);
 });
+
+/* the subpath split ------------------------------------------------------- */
+//
+// `static ui = {...}` is a live reference no bundler can drop, so without a
+// split everybody who only calls print() would ship a modal kit and a rasteriser
+// they never open. These pin the split down, because the failure mode is silent:
+// the wrong import graph still works, it is just twice the size.
+
+test('the core bundle contains no interface code', () => {
+  const core = read('dist/printcraft-core.mjs');
+
+  expect(core, 'no modal kit').not.toContain('pc-k-panel');
+  expect(core, 'no toolbar').not.toContain('pc-k-toolbar');
+  expect(core, 'no context menu').not.toContain('pc-k-menu');
+  // and it does still hold the things a print needs
+  expect(core).toContain('pc-page-sheet');
+  expect(core).toContain('pc-redacted');
+});
+
+test('the interface chunk is where the kit actually lives', () => {
+  const ui = read('dist/printcraft-ui.mjs');
+  expect(ui).toContain('pc-k-panel');
+});
+
+test('every subpath in exports resolves to a file that exists', () => {
+  const pkg = JSON.parse(read('package.json'));
+
+  for (const [subpath, conditions] of Object.entries(pkg.exports)) {
+    if (typeof conditions === 'string') {
+      expect(existsSync(at(conditions)), subpath).toBe(true);
+      continue;
+    }
+    for (const [mode, entry] of Object.entries(conditions as Record<string, unknown>)) {
+      for (const file of Object.values(entry as Record<string, string>)) {
+        expect(existsSync(at(file)), subpath + ' → ' + mode).toBe(true);
+      }
+    }
+  }
+});
+
+test('typesVersions covers every subpath, for resolvers that predate exports', () => {
+  const pkg = JSON.parse(read('package.json'));
+  const subpaths = Object.keys(pkg.exports)
+    .filter((k) => k !== '.' && k !== './package.json')
+    .map((k) => k.replace('./', ''));
+
+  for (const subpath of subpaths) {
+    expect(pkg.typesVersions['*'][subpath], subpath + ' is missing').toBeTruthy();
+    expect(existsSync(at(pkg.typesVersions['*'][subpath][0])), subpath + ' points at nothing').toBe(
+      true
+    );
+  }
+});
+
+test('the umd bundle still carries everything, because a script tag cannot split', () => {
+  const umd = read('dist/printcraft.umd.js');
+  expect(umd).toContain('pc-k-panel');
+  expect(umd).toContain('pc-page-sheet');
+});

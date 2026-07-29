@@ -4,9 +4,6 @@
 import * as core from './core';
 import * as redact from './privacy/redact';
 import * as marks from './production/marks';
-import * as ui from './ui';
-import * as share from './share';
-import { icon } from './ui/icons';
 import { browserBackend } from './backend/browser';
 import {
   assign,
@@ -23,6 +20,8 @@ import {
   runJob,
   VERSION
 } from './core';
+import type { ShareSurface } from './share/surface';
+import type { UiSurface } from './ui/surface';
 import type {
   BackendPrintOptions,
   ClipRect,
@@ -81,6 +80,31 @@ export type {
 
 function defaultEnv(): Env {
   return { document, window };
+}
+
+/**
+ * Stands in for a surface that has not been imported.
+ *
+ * Every property throws with the import to add, rather than the
+ * `undefined is not a function` a plain absence would give.
+ */
+function missing(name: 'ui' | 'share'): Record<string, never> {
+  const explain = (): never =>
+    core.fail(
+      'PC_OPTIONS_INVALID',
+      'Printcraft.' +
+        name +
+        ' is not loaded. Add the import:\n\n' +
+        "  import '@simtabi/printcraft/" +
+        name +
+        "'\n\n" +
+        'The script-tag build already has it.'
+    );
+
+  return new Proxy({} as Record<string, never>, {
+    get: (_t, key) => (key === 'then' ? undefined : explain()),
+    has: () => true
+  });
 }
 
 /** the global bus. every job mirrors its events here, whatever surface started it. */
@@ -509,91 +533,6 @@ class Printcraft {
     return core.renderJob(normalizeOptions(options), env || defaultEnv(), bus);
   }
 
-  static share = {
-    /** Renders the job to an image, optionally saving it. */
-    async screenshot(options: share.ScreenshotOptions = {}, env?: Env) {
-      const scope = env || defaultEnv();
-      const shot = await share.screenshot(
-        (o, e) => Promise.resolve(Printcraft.render(o, e)),
-        options,
-        scope
-      );
-      bus.emit('share:screenshot', {
-        width: shot.width,
-        height: shot.height,
-        skipped: shot.skipped
-      });
-      return shot;
-    },
-
-    /**
-     * Puts the job on the clipboard as a png.
-     *
-     * Safari only counts a gesture as live until the first `await`, so the
-     * pending render is handed to `ClipboardItem` rather than awaited first.
-     * Call this straight from a click handler.
-     */
-    copyImage(options: share.ScreenshotOptions = {}, env?: Env) {
-      const scope = env || defaultEnv();
-      const pending = Printcraft.share
-        .screenshot({ ...options, download: false, type: 'image/png' }, scope)
-        .then((shot) => shot.blob);
-      return share.copyImage(pending, scope).then((r) => {
-        bus.emit('share:copy', { format: r.format, via: r.via });
-        return r;
-      });
-    },
-
-    /** Copies the print copy as rich markup, with plain text alongside. */
-    async copy(options: PrintcraftOptions | string | Element = {}, env?: Env) {
-      const scope = env || defaultEnv();
-      const { element } = Printcraft.render(options, scope);
-      const result = await share.copyHtml(
-        element.innerHTML,
-        (element as HTMLElement).innerText || element.textContent || '',
-        scope
-      );
-      bus.emit('share:copy', { format: result.format, via: result.via });
-      return result;
-    },
-
-    /** Copies the print copy as plain text. */
-    async copyText(options: PrintcraftOptions | string | Element = {}, env?: Env) {
-      const scope = env || defaultEnv();
-      const { element } = Printcraft.render(options, scope);
-      const result = await share.copyText(
-        (element as HTMLElement).innerText || element.textContent || '',
-        scope
-      );
-      bus.emit('share:copy', { format: result.format, via: result.via });
-      return result;
-    },
-
-    /** Opens the compose window, then sends through your transport. */
-    async email(options: ui.ComposeOptions & share.ScreenshotOptions = {}, env?: Env) {
-      const scope = env || defaultEnv();
-      let attachment: share.EmailAttachment | null = null;
-
-      if (options.attachment !== null) {
-        const shot = await Printcraft.share.screenshot({ ...options, download: false }, scope);
-        attachment = {
-          filename: (options.documentTitle || 'printcraft') + '.png',
-          type: 'image/png',
-          blob: shot.blob,
-          dataUrl: shot.dataUrl
-        };
-      }
-      return ui.composeEmail(uiDeps, { ...options, attachment }, scope);
-    },
-
-    sendEmail: share.sendEmail,
-    mailtoUrl: share.mailtoUrl,
-    parseAddresses: share.parseAddresses,
-    invalidAddresses: share.invalidAddresses,
-    saveBlob: share.saveBlob,
-    rasterize: share.rasterize
-  };
-
   static on(name: PrintcraftEvent | string, fn: Listener): typeof Printcraft {
     bus.on(name, fn);
     return Printcraft;
@@ -672,36 +611,17 @@ class Printcraft {
 
   /* ui ------------------------------------------------------------------ */
 
-  static ui = {
-    contextMenu(cfg?: ui.ContextMenuOptions, env?: Env): () => void {
-      return ui.contextMenu(uiDeps, cfg, env);
-    },
-    pickSections(base?: PrintcraftOptions, env?: Env) {
-      return ui.pickSections(uiDeps, base, env);
-    },
-    drawArea(base?: PrintcraftOptions, env?: Env) {
-      return ui.drawArea(uiDeps, base, env);
-    },
-    redactArea(base?: ui.RedactOptions, env?: Env) {
-      return ui.redactArea(uiDeps, base, env);
-    },
-    toggleRedact: ui.toggleRedact,
-    annotate: ui.annotate,
-    askForNote: ui.askForNote,
-    computeRect: ui.computeRect,
-    icon,
+  /**
+   * The interaction layer, attached by importing `@simtabi/printcraft/ui`.
+   *
+   * It is not part of the core entry because a `static ui = {...}` is a live
+   * reference no bundler can drop, so everyone printing an invoice would ship a
+   * modal kit they never open. The umd build imports it, so a script tag has it.
+   */
+  static ui: UiSurface = missing('ui') as unknown as UiSurface;
 
-    // the component kit, so a host can build its own surfaces in the same style
-    modal: ui.modal,
-    confirm: ui.confirm,
-    notify: ui.notify,
-    prompt: ui.promptFor,
-    toast: ui.toast,
-    menu: ui.openMenu,
-    toolbar: ui.openToolbar,
-    printDialog: (base?: PrintcraftOptions, env?: Env) => ui.printDialog(uiDeps, base, env),
-    theme: { set: ui.setTheme, get: ui.getTheme, defaults: ui.DEFAULT_THEME }
-  };
+  /** Screenshots, clipboard and email, attached by importing `/share`. */
+  static share: ShareSurface = missing('share') as unknown as ShareSurface;
 
   /** browser boot: declarative triggers, inline config, linked config file. */
   static _boot(doc: Document | null, win: Window | null): void {
@@ -811,18 +731,20 @@ class Printcraft {
     applyRedaction: redact.applyRedaction,
     applyPrivacy: redact.applyPrivacy,
     resolvePrivacyPatterns: redact.resolvePrivacyPatterns,
-    // marks + ui
     marksCss: marks.marksCss,
-    normalizeMarks: marks.normalizeMarks,
-    buildMenuItems: ui.buildMenuItems,
-    computeRect: ui.computeRect
+    normalizeMarks: marks.normalizeMarks
   };
 }
 
-const uiDeps: ui.UiDeps = {
-  print: (options, env) => Printcraft.print(options, env),
-  inspect: (options, env) => Printcraft.inspect(options, env),
-  emit: (name, payload) => bus.emit(name, payload)
+/** Everything an entry needs to build a surface and hang it on the class. */
+export const attachment = {
+  Printcraft,
+  bus,
+  deps: {
+    print: (options: PrintcraftOptions, env?: Env) => Printcraft.print(options, env),
+    inspect: (options: PrintcraftOptions, env?: Env) => Printcraft.inspect(options, env),
+    emit: (name: string, payload?: unknown) => bus.emit(name, payload)
+  }
 };
 
 // browser auto-boot. a no-op under node, where window is undefined.

@@ -1,12 +1,33 @@
 [
   {
-    "name": "umd bundle (script tag)",
-    "path": "dist/printcraft.umd.js",
+    "name": "core \u2014 import { Printcraft }",
+    "path": ["dist/printcraft.mjs", "dist/printcraft-core.mjs"],
+    "limit": "24 kB"
+  },
+  {
+    "name": "core + /ui",
+    "path": [
+      "dist/printcraft.mjs",
+      "dist/printcraft-core.mjs",
+      "dist/printcraft-ui.mjs",
+      "dist/printcraft.ui.mjs"
+    ],
+    "limit": "40 kB"
+  },
+  {
+    "name": "core + /ui + /share",
+    "path": [
+      "dist/printcraft.mjs",
+      "dist/printcraft-core.mjs",
+      "dist/printcraft-ui.mjs",
+      "dist/printcraft.ui.mjs",
+      "dist/printcraft.share.mjs"
+    ],
     "limit": "45 kB"
   },
   {
-    "name": "esm bundle (import)",
-    "path": "dist/printcraft.mjs",
+    "name": "umd \u2014 one script tag",
+    "path": "dist/printcraft.umd.js",
     "limit": "45 kB"
   }
 ]

@@ -50,6 +50,26 @@
         "default": "./dist/printcraft.umd.js"
       }
     },
+    "./ui": {
+      "import": {
+        "types": "./dist/types/ui.d.mts",
+        "default": "./dist/printcraft.ui.mjs"
+      },
+      "require": {
+        "types": "./dist/types/ui.d.cts",
+        "default": "./dist/printcraft.umd.js"
+      }
+    },
+    "./share": {
+      "import": {
+        "types": "./dist/types/share.d.mts",
+        "default": "./dist/printcraft.share.mjs"
+      },
+      "require": {
+        "types": "./dist/types/share.d.cts",
+        "default": "./dist/printcraft.umd.js"
+      }
+    },
     "./package.json": "./package.json"
   },
   "files": [
@@ -63,7 +83,7 @@
   "scripts": {
     "clean": "rimraf dist coverage test-results _site",
     "prebuild": "npm run clean",
-    "build": "vite build && npm run build:cli && npm run build:types && npm run build:assets && node tools/build.mjs",
+    "build": "vite build && npm run build:umd && npm run build:cli && npm run build:types && npm run build:assets && node tools/build.mjs",
     "build:assets": "node tools/build-assets.mjs",
     "build:types": "node tools/build-types.mjs",
     "build:site": "node tools/build-site.mjs",
@@ -82,7 +102,8 @@
     "test:e2e": "playwright test",
     "size": "size-limit",
     "prepublishOnly": "npm run build",
-    "build:cli": "vite build --config vite.cli.config.ts"
+    "build:cli": "vite build --config vite.cli.config.ts",
+    "build:umd": "vite build --config vite.umd.config.ts"
   },
   "devDependencies": {
     "@arethetypeswrong/cli": "^0.18.5",
@@ -112,6 +133,16 @@
   "peerDependenciesMeta": {
     "playwright": {
       "optional": true
+    }
+  },
+  "typesVersions": {
+    "*": {
+      "ui": [
+        "./dist/types/entry-ui.d.ts"
+      ],
+      "share": [
+        "./dist/types/entry-share.d.ts"
+      ]
     }
   }
 }
