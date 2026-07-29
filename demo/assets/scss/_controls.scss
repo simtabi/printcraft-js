@@ -64,3 +64,79 @@
     background: process('k');
   }
 }
+
+/// The keyboard table.
+///
+/// Two columns, the caps drawn as caps. A shortcut nobody can see is a shortcut
+/// nobody uses, so it is a table on the page rather than a line in the docs.
+.pc-keys {
+  border-collapse: collapse;
+  margin-bottom: 1rem;
+
+  td {
+    padding: 0.25rem 1rem 0.25rem 0;
+    vertical-align: middle;
+  }
+
+  td:first-child {
+    white-space: nowrap;
+  }
+
+  td:last-child {
+    color: $ink-soft;
+    font-size: 0.875rem;
+  }
+}
+
+/// Tailwind's preflight sets `border-width: 0` on everything, and it is loaded
+/// after this layer, so a bare `kbd` rule loses. Two selectors deep wins it back.
+.pc-keys kbd,
+.pc-prose kbd {
+  display: inline-block;
+  min-width: 1.5rem;
+  margin-right: 0.25rem;
+  padding: 0.125rem 0.375rem;
+  border: 1px solid $rule;
+  border-bottom-width: 2px;
+  border-radius: 0.25rem;
+  background: $paper-dim;
+  font:
+    0.6875rem/1 ui-monospace,
+    Consolas,
+    Menlo,
+    monospace;
+  text-align: center;
+}
+
+/// Two panes side by side, each with its own scoped interface.
+.pc-split {
+  display: grid;
+  gap: 1rem;
+  margin-bottom: 1rem;
+
+  @media (min-width: 48rem) {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.pc-pane {
+  padding: 1rem;
+  border: 1px dashed $rule;
+  border-radius: 0.375rem;
+  background: $paper-dim;
+
+  h3 {
+    margin: 0 0 0.5rem;
+    font-size: 0.9375rem;
+    font-weight: 600;
+  }
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}

@@ -154,10 +154,18 @@ export function buildHeading(options: ResolvedOptions, doc: Document): Element |
   return box;
 }
 
+/**
+ * The page's own stylesheets, for `keepSourceCSS`.
+ *
+ * The interface's own sheet is skipped. It styles surfaces that are stripped
+ * from the copy before this runs, so carrying it would put several kilobytes of
+ * dead rules in every printed document, and leave a `data-pc-ui` node in a copy
+ * that is supposed to have none.
+ */
 export function collectSourceCss(srcDoc: Document): Element[] {
-  return toArray(srcDoc.querySelectorAll('style, link[rel~="stylesheet"]')).map(
-    (n) => n.cloneNode(true) as Element
-  );
+  return toArray(srcDoc.querySelectorAll('style, link[rel~="stylesheet"]'))
+    .filter((n) => !n.hasAttribute('data-' + NS + '-ui') && !n.hasAttribute('data-pc-ui'))
+    .map((n) => n.cloneNode(true) as Element);
 }
 
 /**

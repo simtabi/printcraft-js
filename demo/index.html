@@ -119,17 +119,82 @@
 
     <section class="pc-sheet">
       <h2>Interaction layer</h2>
+      <p class="pc-prose mb-4"><strong>Right-click anywhere on this page.</strong> The menu installs
+      itself at load, so nothing below is needed to use it. Every entry is a registered action, which
+      is also why the same things appear in the command palette and on the keyboard.</p>
+
       <div class="pc-controls mb-4">
-        <button type="button" class="pc-run" id="btn-menu" aria-pressed="false">Enable right-click menu</button>
-        <button type="button" class="pc-run" id="btn-pick">Pick sections…</button>
-        <button type="button" class="pc-run" id="btn-draw">Draw print area…</button>
+        <button type="button" class="pc-run" id="btn-palette"
+          data-tip="Everything this page can print, searchable">Command palette</button>
+        <button type="button" class="pc-run" id="btn-notes"
+          data-tip="Every note and redaction on the page">All notes…</button>
+        <button type="button" class="pc-run" id="btn-pick"
+          data-tip="Click several sections, print them together">Pick sections…</button>
+        <button type="button" class="pc-run" id="btn-draw"
+          data-tip="Drag a rectangle; only that region prints">Draw print area…</button>
+        <button type="button" class="pc-run" id="btn-redact-area"
+          data-tip="Destroys the characters a box covers">Redact by dragging…</button>
+        <button type="button" class="pc-run" id="btn-menu" aria-pressed="true"
+          data-tip="Give the browser its own menu back">Disable right-click menu</button>
       </div>
-      <p class="pc-prose">The context menu (Tabler icons, opt-in) offers print page/element, pick,
-      draw, redaction toggle, notes, and the inspector on whatever you right-clicked. The picker
-      multi-selects sections with hover highlight; Enter prints, Esc cancels. Draw drags a rectangle
-      and prints exactly that region of the page via a clipped clone. Redactions and notes are stored
-      as <code class="pc-code">data-printcraft-*</code>
-      attributes, so every later job honors them.</p>
+
+      <table class="pc-keys">
+        <caption class="sr-only">Keyboard commands</caption>
+        <tbody>
+          <tr><td><kbd>Mod</kbd><kbd>K</kbd></td><td>All commands</td></tr>
+          <tr><td><kbd>Mod</kbd><kbd>P</kbd></td><td>Print the page</td></tr>
+          <tr><td><kbd>Mod</kbd><kbd>⇧</kbd><kbd>P</kbd></td><td>Print settings</td></tr>
+          <tr><td><kbd>Mod</kbd><kbd>⇧</kbd><kbd>D</kbd></td><td>Draw a print area</td></tr>
+          <tr><td><kbd>Mod</kbd><kbd>⇧</kbd><kbd>R</kbd></td><td>Redact by dragging</td></tr>
+          <tr><td><kbd>Mod</kbd><kbd>⇧</kbd><kbd>N</kbd></td><td>All notes and redactions</td></tr>
+          <tr><td><kbd>Mod</kbd><kbd>⇧</kbd><kbd>I</kbd></td><td>Preview the print</td></tr>
+        </tbody>
+      </table>
+
+      <p class="pc-prose">Mod is <kbd>⌘</kbd> on a Mac and <kbd>Ctrl</kbd> elsewhere; either works.
+      Notes and redactions are stored as <code class="pc-code">data-printcraft-*</code> attributes on
+      the live element, so every later job honours them, and
+      <code class="pc-code">Printcraft.ui.notes()</code> lists them all before anything prints.</p>
+    </section>
+
+    <section class="pc-sheet">
+      <h2>Two interfaces, one page</h2>
+      <div class="pc-controls mb-4">
+        <button type="button" class="pc-run" id="btn-scoped"
+          data-tip="Each panel gets its own menu, actions and title">Scope a menu to each panel</button>
+        <button type="button" class="pc-run" id="btn-scoped-off"
+          data-tip="Back to one menu for the whole page">Back to one</button>
+      </div>
+      <div class="pc-split">
+        <div class="pc-pane" id="pane-invoice">
+          <h3>Invoice pane</h3>
+          <p class="pc-prose">Right-click here after scoping: printing and previewing only.</p>
+        </div>
+        <div class="pc-pane" id="pane-legal">
+          <h3>Legal pane</h3>
+          <p class="pc-prose">And here: redaction only, with its own heading.</p>
+        </div>
+      </div>
+      <p class="pc-prose">Each pane owns a registry, a menu, a keymap and a scope.
+      <code class="pc-code">destroy()</code> takes one down completely, which is what an app that
+      mounts and unmounts a panel needs.</p>
+    </section>
+
+    <section class="pc-sheet">
+      <h2>Backends</h2>
+      <div class="pc-controls mb-4">
+        <button type="button" class="pc-run" id="btn-backend-http"
+          data-tip="Posts the finished document to an endpoint">Send to a print server</button>
+        <button type="button" class="pc-run" id="btn-backend-caps"
+          data-tip="Ask the current backend what it can do">Backend capabilities</button>
+        <button type="button" class="pc-run" id="btn-backend-reset"
+          data-tip="Back to the browser's own dialog">Use the browser again</button>
+      </div>
+      <p class="pc-prose">The browser's dialog is one backend among several. This page has no print
+      server, so <strong>Send to a print server</strong> fails on purpose and shows you the error it
+      gives: the url it tried and what to do. A real one takes
+      <code class="pc-code">httpBackend({ url })</code> or
+      <code class="pc-code">socketBackend({ url })</code> and everything else is unchanged.</p>
     </section>
 
     <section class="pc-sheet">

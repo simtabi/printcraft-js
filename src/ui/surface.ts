@@ -85,8 +85,13 @@ export function makeUiSurface({ deps: uiDeps }: Attachment) {
     menu: ui.openMenu,
     toolbar: ui.openToolbar,
     printDialog: (base?: PrintcraftOptions, env?: Env) => ui.printDialog(uiDeps, base, env),
-    tooltip: ui.tooltip,
-    popover: ui.popover,
+    // env is optional here as it is everywhere else on this surface. exported
+    // raw, these two were the only public functions that required it, which
+    // failed with a destructuring error rather than anything readable.
+    tooltip: (el: HTMLElement, spec: ui.TooltipSpec, env?: Env) =>
+      ui.tooltip(el, spec, env || { document, window: window as Window & typeof globalThis }),
+    popover: (anchor: HTMLElement, spec: ui.PopoverSpec, env?: Env) =>
+      ui.popover(anchor, spec, env || { document, window: window as Window & typeof globalThis }),
     openPalette: ui.openPalette,
     notesPanel: (o?: ui.NotesPanelOptions, env?: Env) => ui.notesPanel(uiDeps, o, env),
     annotations: ui.annotations,

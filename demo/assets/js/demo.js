@@ -387,20 +387,124 @@
     return el;
   }
 
+  /**
+   * Attaches a kit tooltip to every control that declares one.
+   *
+   * The demo uses the library's own rather than `title`, which is the point:
+   * whatever a host builds gets the same surface, the same theme and the same
+   * accessible-name handling.
+   */
+  function wireTooltips() {
+    var seen = document.querySelectorAll('[data-tip]');
+    for (var i = 0; i < seen.length; i++) {
+      Printcraft.ui.tooltip(seen[i], { text: seen[i].getAttribute('data-tip') });
+    }
+  }
+
   function wireInteractionLayer() {
-    var menuOff = null;
+    // the page's interface installs itself at load, so this only takes it away
+    // and puts it back
+    var pageMenu = Printcraft.ui.instance;
 
     on('btn-menu', function () {
-      if (menuOff) {
-        menuOff();
-        menuOff = null;
+      if (pageMenu && pageMenu.isLive) {
+        pageMenu.destroy();
         this.textContent = 'Enable right-click menu';
         this.setAttribute('aria-pressed', 'false');
         return;
       }
-      menuOff = Printcraft.ui.contextMenu({ base: {} });
+      pageMenu = Printcraft.ui.instance;
       this.textContent = 'Disable right-click menu';
       this.setAttribute('aria-pressed', 'true');
+    });
+
+    on('btn-palette', function () {
+      Printcraft.ui.palette();
+    });
+
+    on('btn-notes', function () {
+      Printcraft.ui.notes();
+    });
+
+    on('btn-redact-area', function () {
+      Printcraft.ui.redactArea();
+    });
+
+    /* two interfaces, one page ------------------------------------------- */
+
+    var panes = [];
+
+    on('btn-scoped', function () {
+      if (panes.length) return;
+      // the page-wide one has to go, or it would answer for these too
+      if (pageMenu && pageMenu.isLive) pageMenu.destroy();
+
+      panes.push(
+        Printcraft.ui.create({
+          scope: '#pane-invoice',
+          title: 'Invoice tools',
+          description: 'Print or preview this pane',
+          items: ['print-element', 'inspect']
+        }),
+        Printcraft.ui.create({
+          scope: '#pane-legal',
+          title: 'Legal tools',
+          description: 'Redact before anything leaves the building',
+          items: ['redact', 'redact-area', 'notes']
+        })
+      );
+      Printcraft.ui.toast({ message: 'Right-click either pane', tone: 'success' });
+    });
+
+    on('btn-scoped-off', function () {
+      panes.forEach(function (p) {
+        p.destroy();
+      });
+      panes = [];
+      pageMenu = Printcraft.ui.instance;
+      Printcraft.ui.toast({ message: 'One menu again, for the whole page' });
+    });
+
+    /* backends ------------------------------------------------------------ */
+
+    on('btn-backend-http', function () {
+      // this page has no print server, so the point of the button is the error
+      Printcraft.backend = Printcraft.httpBackend({ url: '/api/print', retry: 0 });
+      Printcraft.print({ target: '#report', assetTimeout: 3000 })
+        .then(function (job) {
+          Printcraft.ui.toast({
+            message: 'Sent: ' + JSON.stringify(job.backend),
+            tone: 'success'
+          });
+        })
+        .catch(function (e) {
+          Printcraft.ui.notify({
+            title: 'No print server here',
+            message: e.message,
+            tone: 'danger'
+          });
+        })
+        .finally(function () {
+          Printcraft.backend = Printcraft.browserBackend;
+        });
+    });
+
+    on('btn-backend-caps', function () {
+      Printcraft.backend.capabilities().then(function (caps) {
+        var can = Object.keys(caps).filter(function (k) {
+          return caps[k];
+        });
+        Printcraft.ui.notify({
+          title: Printcraft.backend.name + ' backend',
+          message: can.length ? 'Can: ' + can.join(', ') : 'Can do none of it without a companion',
+          tone: 'primary'
+        });
+      });
+    });
+
+    on('btn-backend-reset', function () {
+      Printcraft.backend = Printcraft.browserBackend;
+      Printcraft.ui.toast({ message: 'Back to the browser dialog' });
     });
 
     on('btn-pick', function () {
@@ -473,6 +577,7 @@
     });
 
     wireInteractionLayer();
+    wireTooltips();
     wireDevtools();
     traceBus();
   }
