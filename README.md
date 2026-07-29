@@ -59,6 +59,7 @@ Full documentation: **<https://opensource.simtabi.com/documentation/simtabi/prin
 - [Clip printing](docs/tools/clip-printing.md) — printing an exact rectangle
 - [Watermarks](docs/tools/watermarks.md) — text and image watermarks
 - [The interaction layer](docs/tools/interaction-ui.md) — actions, menu, command palette, keyboard, theming
+- [The component kit](docs/tools/component-kit.md) — modals, menus, forms, toasts, tooltips, popovers
 - [Sharing](docs/tools/sharing.md) — screenshots, clipboard and email
 - [Errors and logging](docs/tools/logging.md) — codes, levels, sinks and events
 - [The command line](docs/tools/cli.md) — print, doctor and init, for CI

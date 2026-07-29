@@ -321,6 +321,9 @@ test('a title and description are printed above the content', async ({ page }) =
       target: '#report',
       documentTitle: 'Quarterly production report',
       documentDescription: 'Prepared for the board',
+      // the demo's config sets printHeading: false, because the title there is
+      // for the save-as-PDF filename rather than the paper
+      printHeading: true,
       printHeadingMeta: true,
       assetTimeout: 3000,
       hooks: {
@@ -385,4 +388,28 @@ test('a share action that fails says so rather than going quiet', async ({ page 
   });
 
   expect(message).toContain('cannot put an image on the clipboard');
+});
+
+test('a configured title alone does not put a heading on the paper', async ({ page }) => {
+  // the demo's config carries documentTitle for the filename and printHeading:
+  // false. Without the second, every job on the page would grow a heading it
+  // never asked for, which is the upgrade hazard the option exists for.
+  const printed = await page.evaluate(async () => {
+    let html = '';
+    const pc = (window as unknown as { Printcraft: Record<string, any> }).Printcraft;
+    await pc.print({
+      target: '#report',
+      assetTimeout: 3000,
+      hooks: {
+        beforePrint(ctx: { document: Document }) {
+          html = ctx.document.body.innerHTML;
+          return false;
+        }
+      }
+    });
+    return html;
+  });
+
+  expect(await page.evaluate(() => (window as any).Printcraft.defaults.documentTitle)).toBeTruthy();
+  expect(printed).not.toContain('pc-heading');
 });

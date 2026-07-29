@@ -279,6 +279,135 @@
           .footer('released under demo act §4')
           .print();
       }
+    ],
+
+    /* 2.0 ---------------------------------------------------------------- */
+
+    [
+      'Real sheets, numbered',
+      'The page laid out as A4 with a border, padding and "Page n of m".',
+      {
+        target: 'body',
+        paginate: true,
+        pageMargin: '10mm',
+        pagePadding: '12mm',
+        pageBorder: { width: '1px', style: 'solid', color: '#17181b' },
+        pageNumbers: { template: 'Page {page} of {pages}', position: 'bottom-center' },
+        pageHeader: 'ACME PRINTWORKS · {date}'
+      }
+    ],
+
+    [
+      'Watermark on every page',
+      'Repeating turns pagination on, because a fixed mark only ever paints page one.',
+      {
+        target: 'body',
+        watermark: { text: 'CONFIDENTIAL', repeat: 'every-page', opacity: 0.18 }
+      }
+    ],
+
+    [
+      'Tiled watermark',
+      'A grid of marks across each sheet, staggered, at 18% of the sheet width.',
+      {
+        target: 'body',
+        watermark: {
+          text: 'COPY',
+          repeat: 'tile',
+          size: '18%',
+          rotate: -30,
+          opacity: 0.1,
+          tile: { gap: '8%', stagger: true }
+        }
+      }
+    ],
+
+    [
+      'Corner watermark',
+      'Bottom right, upright, small: a stamp rather than a wash.',
+      {
+        target: '#report',
+        watermark: {
+          text: 'v2.0 DRAFT',
+          position: 'bottom-right',
+          size: '22%',
+          rotate: 0,
+          opacity: 0.5,
+          color: '#e5007d',
+          margin: '8mm'
+        }
+      }
+    ],
+
+    [
+      'Title and description on the paper',
+      'A title reaching only the save-as-PDF filename is invisible on the sheet.',
+      {
+        target: '#report',
+        documentTitle: 'Quarterly production report',
+        documentDescription: 'Prepared for the board. Figures are provisional until audit.',
+        // the config file turns the heading off, because its title is there for
+        // the filename. this ticket is the one that wants it on the paper.
+        printHeading: true,
+        printHeadingMeta: true
+      }
+    ],
+
+    [
+      'Redaction, verified',
+      'The assembled document is re-read for everything redaction destroyed.',
+      {
+        target: '#memo',
+        redactSelectorList: ['.codename', '.routing'],
+        privacy: true,
+        redactionPolicy: 'strict'
+      }
+    ],
+
+    [
+      'A leak stops the job',
+      'A transform puts the secret back after redaction. Nothing prints.',
+      function () {
+        Printcraft.print({
+          target: '#memo',
+          redactSelectorList: ['.codename'],
+          transforms: [
+            {
+              selector: 'h2',
+              fn: function (el) {
+                el.setAttribute('title', el.ownerDocument.title);
+                el.textContent = 'Codename: NIGHTJAR';
+                return el;
+              }
+            }
+          ]
+        }).catch(function (e) {
+          Printcraft.ui.notify({
+            title: e.code || 'Stopped',
+            message: e.message,
+            tone: 'danger'
+          });
+        });
+      }
+    ],
+
+    [
+      'Stamp the last sheet',
+      'afterPaginate hands over the sheets as live elements, so one can be marked.',
+      {
+        target: 'body',
+        paginate: true,
+        pageNumbers: true,
+        hooks: {
+          afterPaginate: function (ctx) {
+            var last = ctx.sheets[ctx.sheets.length - 1];
+            var mark = ctx.document.createElement('p');
+            mark.textContent = '— end of document —';
+            mark.setAttribute('style', 'text-align:center;margin-top:2rem;opacity:.6');
+            if (last) last.appendChild(mark);
+          }
+        }
+      }
     ]
   ];
 

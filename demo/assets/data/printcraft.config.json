@@ -3,5 +3,6 @@
   "pageMargin": "18mm",
   "stripDarkMode": true,
   "excludeSelectorList": [".no-print"],
-  "footerText": "printcraft demo · page defaults loaded from json"
+  "footerText": "printcraft demo · page defaults loaded from json",
+  "printHeading": false
 }
