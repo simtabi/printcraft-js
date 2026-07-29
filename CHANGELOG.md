@@ -4,6 +4,116 @@ All notable changes to this project are documented here. This project adheres to
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.0] — pages you can count, regions that print what you drew, and an interface
+
+The version says 2.0 because the option surface grew a great deal and two
+defaults changed: the right-click menu now installs itself, and `clipMode`
+defaults to `capture`. Everything that worked in 1.2 still works.
+
+### Fixed
+
+- **A drawn region printed a blank page.** The print frame was mounted 0×0, so
+  the clone laid out against a zero-width viewport: every media query collapsed
+  to its narrowest breakpoint and the content reflowed into something nobody had
+  seen. Measured on the demo: 5935px of content where the real page is 4140px.
+  Every job was affected; a clipped one was fatal, because the rectangle landed
+  on whatever had moved there. The frame is now mounted at the sheet size.
+- **The region preview drew nothing.** The raster was fine, a 1280×900 png with
+  no errors, but the `<img>` showing it laid out at 77×54: the host page's
+  `img { max-width: 100% }` sized it to its container before the transform meant
+  to position it, and the negative offsets put what was left outside the box.
+  The preview is a crop now, so there is no arithmetic for host css to
+  invalidate, and the kit re-states the styles it depends on.
+- **A watermark marked one page.** It was a single `position: fixed` element on
+  the body: 794×1123 in a 5089px document, and under pagination it sat outside
+  the sheets entirely, so six sheets shared one mark.
+- **`annotate(el, null)` did nothing.** Null meant "cancelled" and returned
+  early, which made removal-by-null look like it worked.
+- **The interface never installed itself at boot.** The boot ran before the `/ui`
+  entry had attached anything, so it reached for a surface that was not there
+  yet. Importing both `/ui` and `/share` also built the surface twice, and one
+  right-click opened two menus.
+- **Keybindings were bound to the wrong modifier** wherever `userAgentData`
+  disagreed with `navigator.platform`, which it does under an automated browser.
+- **`keepSourceCSS` copied the interface's own stylesheet** into every printed
+  document.
+
+### Added
+
+- **A paginator.** Real sheets, page numbers, per-page borders and padding,
+  running headers and footers, and `@page { margin: 0 }`, which is what removes
+  the browser's own date, title, url and page count. Browsers do not implement
+  the Paged Media margin boxes any of this would otherwise need.
+- **Region capture.** `clipMode: 'capture'` rasterises the region at the layout
+  it was chosen against. At pagination time the browser re-evaluates media
+  queries against the page box, so live markup cannot be clipped faithfully:
+  measured, a `min-width: 1000px` rule that makes a block 3000px tall yields one
+  A4 page, not four.
+- **A region tool** with eight handles, move, arrow-key nudge, a live readout in
+  px and mm, and a confirm step that shows what will print and says so when the
+  selection is empty.
+- **A print settings dialog** owning everything up to the browser's handoff.
+- **A component kit** — modals, confirms, menus, forms, toolbars, toasts,
+  tooltips, popovers and a command palette — with semantic tones, dark mode and
+  a token set a host can restyle. Tooltips and popovers use the platform's
+  `popover` attribute and CSS anchor positioning where they exist.
+- **An actions registry.** Every capability is one registered thing with an id,
+  a description, an icon, a keybinding, a `when` that can say why it is off, and
+  a `run`. The menu renders them, the palette searches them, the keymap fires
+  them, and a host adds, replaces, reorders or removes any of them by id.
+- **A command palette** on `Mod+K`, matching by subsequence and showing which
+  characters matched.
+- **Keyboard commands** for every bound action, suppressed while typing.
+- **Multiple instances.** `Printcraft.ui.create()` gives a panel its own
+  registry, menu, keymap and scope; `destroy()` takes it all down.
+- **The right-click menu installs itself**, with a heading, a one-line
+  description, a description on every row and red rows for destructive ones.
+  `data-menu="false"` turns it off.
+- **A notes panel** listing every note and redaction, with scroll-to, edit and
+  remove, before anything prints.
+- **A printed heading.** `documentTitle` and `documentDescription` are drawn
+  above the content, so a title stops being only a save-as-PDF filename.
+- **Redaction by dragging.** A rectangle resolves to the characters it covers,
+  so half a paragraph redacts as half a paragraph.
+- **A redaction verifier.** The assembled document is re-read for every string
+  redaction destroyed. A hit throws `PC_REDACTION_LEAK` and nothing prints.
+- **Screenshots, clipboard and email**, all from the transformed clone, so a
+  redacted document stays redacted in the png, the clipboard payload and the
+  attachment.
+- **Print backends.** `PrintBackend` with the browser as the default, plus
+  working `httpBackend` and `socketBackend` transports.
+- **Coded errors.** Every failure carries a stable code, a hint saying what to
+  change, and the context that made it specific.
+- **A structured logger** with levels, sinks and a ring buffer that fills
+  whatever the level is, so `logger.export()` works after the fact.
+- **A command line.** `printcraft print`, `doctor` and `init`, with Playwright as
+  an optional peer. `doctor` exits non-zero when something would leak, which
+  makes it a CI gate.
+- **Subpath exports.** `@simtabi/printcraft` is 22 kB; `/ui` and `/share` are
+  opt-in. The umd bundle stays whole.
+
+### Changed
+
+- **The right-click menu is on by default.** `data-menu="false"`, or
+  `Printcraft.autoMenu = false`, restores the browser's.
+- **`clipMode` defaults to `capture`.** `'reflow'` is the old behaviour.
+- **`watermark` is an object** with position, size, rotation, colour, font,
+  tiling and layer. The flat `watermarkText` options still work as aliases.
+- **A repeating watermark turns pagination on**, because `position: fixed` paints
+  the first page and stops. The job logs that it did.
+- **`redactionPolicy` defaults to `strict`** for any job with redaction.
+- **`.watermark()` takes the object form.** It previously accepted arbitrary
+  options and merged them.
+- **Theme tones are objects** — background, foreground, border and a soft
+  variant — and can be given as one colour. `accent` still works.
+- **The sanitiser checks urls against an allowlist** rather than looking for
+  `javascript:`, and removes `base`, `template`, `srcdoc`, `meta[http-equiv]`
+  and external svg `use` references.
+
+### Removed
+
+- `buildMenuItems` and `openContextMenuAt`, replaced by the actions registry.
+
 ## [1.2.0] — scoped release, hardening, and a real type surface
 
 Published as **`@simtabi/printcraft`** from `simtabi/printcraft-js`. The public

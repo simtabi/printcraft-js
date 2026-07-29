@@ -1,7 +1,7 @@
 {
   "name": "@simtabi/printcraft",
-  "version": "1.2.0",
-  "description": "Data-driven client-side printing with a fluent API and an interaction layer: print regions, pick sections, draw a print area, redact like a declassified file, auto-blank PII, crop marks, annotations. TypeScript, zero runtime dependencies.",
+  "version": "2.0.0",
+  "description": "Client-side printing you can aim: paginated sheets, a region tool, verified redaction, and a right-click menu, command palette and keyboard commands out of the box.",
   "keywords": [
     "print",
     "printing",

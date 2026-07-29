@@ -37,11 +37,39 @@ One of `target`, `html`, or `clipRect` is required.
 | `headerText`               | string                 | `null`     | Header text                                                                     |
 | `footerText`               | string                 | `null`     | Footer text                                                                     |
 | `headerFooterMode`         | `'repeat'` \| `'once'` | `'repeat'` | `'repeat'` uses the `thead`/`tfoot` technique so the band appears on every page |
-| `watermarkText`            | string                 | `null`     | See [Watermarks](watermarks.md)                                                 |
-| `watermarkImageURL`        | string                 | `null`     |                                                                                 |
-| `watermarkOpacity`         | number                 | `0.25`     | Clamped to 0–1                                                                  |
-| `watermarkAngle`           | number                 | `-30`      | Degrees, text watermarks only                                                   |
+| `watermark`                | string \| object       | `null`     | See [Watermarks](watermarks.md). A repeating mark turns `paginate` on.          |
+| `watermarkText`            | string                 | `null`     | Deprecated; an alias for `watermark.text`                                       |
+| `watermarkImageURL`        | string                 | `null`     | Deprecated; an alias for `watermark.image`                                      |
+| `watermarkOpacity`         | number                 | `0.25`     | Deprecated; clamped to 0–1                                                      |
+| `watermarkAngle`           | number                 | `-30`      | Deprecated; an alias for `watermark.rotate`                                     |
 | `printerMarks`             | `true` \| object       | `null`     | See [Printer marks](printer-marks.md)                                           |
+
+### Real sheets
+
+Browsers cannot number pages, so these lay the content out as sheets and do it
+ourselves. Off by default. See [Pagination](../pagination.md).
+
+| Option                    | Type             | Default | What it does                                         |
+| ------------------------- | ---------------- | ------- | ---------------------------------------------------- |
+| `paginate`                | `true` \| object | `false` | Lay the content out as real sheets                   |
+| `pageNumbers`             | `true` \| object | `false` | `{ template, position, startAt, hideOnFirst }`       |
+| `pageBorder`              | `true` \| object | `null`  | `{ width, style, color, radius }`, drawn per sheet   |
+| `pagePadding`             | string \| object | `null`  | A css length, or per side                            |
+| `pageHeader`              | string           | `null`  | Repeated on every sheet; takes the same placeholders |
+| `pageFooter`              | string           | `null`  | Repeated on every sheet                              |
+| `hideBrowserHeaderFooter` | boolean          | `false` | Removes the browser's own date, title, url and count |
+
+### The printed heading
+
+A title that only reaches the save-as-PDF filename is invisible on the paper, so
+both are drawn as a block above the content when either is set.
+
+| Option                | Type              | Default | What it does                                    |
+| --------------------- | ----------------- | ------- | ----------------------------------------------- |
+| `documentTitle`       | string            | `null`  | The heading, and the browser's filename         |
+| `documentDescription` | string            | `null`  | A line under it                                 |
+| `printHeading`        | boolean           | `true`  | `false` leaves the title for the filename alone |
+| `printHeadingMeta`    | boolean \| string | `false` | `true` stamps the date; a string prints it      |
 
 > Selector options are interpolated into a generated stylesheet, so `{`, `}`, `<`
 > and `/*` are rejected at normalization time. Combinators, pseudo-classes and
@@ -72,6 +100,21 @@ One of `target`, `html`, or `clipRect` is required.
 | `customMethodMap`          | object                  | `null`              | Legacy tag-keyed transform chain                                              |
 | `annotations`              | `{selector, text}[]`    | `[]`                | See [Annotations](annotations.md)                                             |
 
+## Where the job goes
+
+| Option           | Type           | Default | What it does                                               |
+| ---------------- | -------------- | ------- | ---------------------------------------------------------- |
+| `backend`        | `PrintBackend` | `null`  | Where a finished job goes. See [backends](../backends.md). |
+| `backendOptions` | object         | `{}`    | `{ printer, copies, duplex, tray, silent, signal }`        |
+
+## Clipped regions
+
+| Option            | Type                      | Default     | What it does                                          |
+| ----------------- | ------------------------- | ----------- | ----------------------------------------------------- |
+| `clipRect`        | `{ x, y, width, height }` | `null`      | The region to print, in page coordinates              |
+| `clipMode`        | `'capture'` \| `'reflow'` | `'capture'` | Rasterise the region, or print live markup            |
+| `clipSourceWidth` | number                    | `null`      | The layout width it was measured against; set for you |
+
 ## Security and privacy
 
 | Option               | Type             | Default | What it does                                                                                         |
@@ -80,6 +123,13 @@ One of `target`, `html`, or `clipRect` is required.
 | `redactSelectorList` | string[]         | `[]`    | Destructively redact. See [Redaction](redaction.md)                                                  |
 | `redactChar`         | string           | `'█'`   | The character bars are painted with                                                                  |
 | `privacy`            | `true` \| object | `null`  | See [Privacy](privacy.md)                                                                            |
+
+### Redaction
+
+| Option            | Type                              | Default    | What it does                                       |
+| ----------------- | --------------------------------- | ---------- | -------------------------------------------------- |
+| `redactRuns`      | `TextRun[]`                       | `[]`       | Character-accurate runs, from dragging a rectangle |
+| `redactionPolicy` | `'strict'` \| `'warn'` \| `'off'` | `'strict'` | What a leak does. See [Redaction](redaction.md).   |
 
 ## Lifecycle
 

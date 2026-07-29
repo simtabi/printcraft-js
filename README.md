@@ -5,11 +5,11 @@
 [![Static analysis](https://img.shields.io/github/actions/workflow/status/simtabi/printcraft-js/static-analysis.yml?branch=main&label=Static%20analysis)](https://github.com/simtabi/printcraft-js/actions/workflows/static-analysis.yml)
 [![License MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-> Data-driven client-side printing: print any region of a page cleanly, drive jobs from JavaScript, data attributes, JSON config or a right-click menu, redact like a declassified file, auto-blank PII, and draw the exact area you want on paper.
+> Client-side printing you can aim: real paginated sheets with numbers and borders, a region tool that prints what you drew, redaction that is verified rather than hoped for, and a right-click menu, command palette and keyboard commands that are there the moment the script loads.
 
-Runs in any browser with `afterprint` and `document.fonts`: Chrome, Edge, Firefox and Safari, current and two back. TypeScript source, zero runtime dependencies, ESM + UMD builds.
+Runs in any browser with `afterprint` and `document.fonts`: Chrome, Edge, Firefox and Safari, current and two back. TypeScript source, zero runtime dependencies, ESM + UMD builds, and a command line for CI.
 
-**[Try the demo](https://simtabi.github.io/printcraft-js/)**: twenty-three print jobs, the interaction layer, and the inspector, with nothing to install.
+**[Try the demo](https://simtabi.github.io/printcraft-js/)**: every job, the interaction layer and the inspector, with nothing to install.
 
 ## Install
 
@@ -42,6 +42,9 @@ Full documentation: **<https://opensource.simtabi.com/documentation/simtabi/prin
 - [Surfaces](docs/surfaces.md) — imperative, declarative, and JSON config
 - [Configuration](docs/configuration.md) — page defaults, config files, content annotations
 - [Architecture](docs/architecture.md) — the pipeline, the module layout, and why it is shaped this way
+- [Pagination](docs/pagination.md) — real sheets, page numbers, borders and running bands
+- [Security](docs/security.md) — the threat model, and what redaction guarantees
+- [Print backends](docs/backends.md) — sending a job to a server or a companion service
 - [Comparison](docs/comparison.md) — lineage from ezPrintJS, and what changed
 - [Release](docs/release.md) — versioning and the publish process
 
@@ -55,7 +58,10 @@ Full documentation: **<https://opensource.simtabi.com/documentation/simtabi/prin
 - [Annotations](docs/tools/annotations.md) — note chips in the print copy
 - [Clip printing](docs/tools/clip-printing.md) — printing an exact rectangle
 - [Watermarks](docs/tools/watermarks.md) — text and image watermarks
-- [Interaction UI](docs/tools/interaction-ui.md) — context menu, picker, draw-to-print
+- [The interaction layer](docs/tools/interaction-ui.md) — actions, menu, command palette, keyboard, theming
+- [Sharing](docs/tools/sharing.md) — screenshots, clipboard and email
+- [Errors and logging](docs/tools/logging.md) — codes, levels, sinks and events
+- [The command line](docs/tools/cli.md) — print, doctor and init, for CI
 - [Devtools](docs/tools/devtools.md) — the inspector, the debug log, job records
 
 ### Recipes

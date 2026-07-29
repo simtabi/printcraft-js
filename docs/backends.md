@@ -119,6 +119,80 @@ A localhost service that any page can reach is a liability if it is careless. Th
 
 Silent printing · naming a destination · copies and duplex · selecting a tray, which is what label and cheque printing need · reading printer status before sending · raw ZPL and ESC/POS for thermal devices · a tray icon showing what has been printed and by whom.
 
+## The two that ship
+
+### `httpBackend`
+
+Posts a finished job to an endpoint you run.
+
+```js
+Printcraft.backend = Printcraft.httpBackend({
+  url: '/api/print',
+  headers: () => ({ authorization: 'Bearer ' + token() }),
+  retry: 2
+});
+
+await Printcraft.print('#invoice');
+```
+
+The default body is `{ id, title, html, sheet, pages, options }`.
+
+| Option            | Default  | What it does                                                                |
+| ----------------- | -------- | --------------------------------------------------------------------------- |
+| `url`             | required | Where a job is posted                                                       |
+| `printersUrl`     | —        | Where `printers()` reads from. Omit and the backend reports it cannot list. |
+| `capabilitiesUrl` | —        | Where `capabilities()` reads from                                           |
+| `headers`         | —        | An object, or a function called per request so a token is fresh             |
+| `credentials`     | —        | `include` for a cross-origin endpoint behind a cookie                       |
+| `timeout`         | `30000`  | Milliseconds before a request is abandoned                                  |
+| `retry`           | `1`      | Retries on a network error or a 5xx, backing off between                    |
+| `capabilities`    | —        | What this endpoint can do, when it does not say for itself                  |
+| `serialize`       | —        | Reshape the body for an endpoint with its own schema                        |
+
+A 5xx, a 408 or a 429 is retried; a 4xx is an answer and repeating it will not change it. Retries back off, because a server that just returned 503 is not helped by three more requests in the same millisecond.
+
+```js
+Printcraft.httpBackend({
+  url: '/api/print',
+  serialize: (job) => ({ document: job.html, name: job.title })
+});
+```
+
+### `socketBackend`
+
+Speaks the protocol above to a companion service on the machine.
+
+```js
+Printcraft.backend = Printcraft.socketBackend({ url: 'wss://127.0.0.1:8443' });
+
+const printers = await Printcraft.backend.printers();
+await Printcraft.print({
+  target: '#label',
+  backendOptions: { printer: printers[0].id, copies: 2 }
+});
+```
+
+| Option    | Default     | What it does                                         |
+| --------- | ----------- | ---------------------------------------------------- |
+| `url`     | required    | Where the service listens                            |
+| `origin`  | this page's | Sent with `hello`, for the service's allowlist       |
+| `printer` | —           | The default destination when a job does not name one |
+| `timeout` | `30000`     | Milliseconds to wait for a reply                     |
+| `sign`    | —           | Signs the payload of every frame                     |
+| `socket`  | —           | Supply your own, for a test or a managed connection  |
+
+One connection is opened lazily and reused, and the handshake is sent once: a service that has to re-verify an origin on every print is a service that prompts on every print.
+
+Nothing here installs anything. With no service listening, the first call fails with the url it tried and what to do about it:
+
+```
+PC_BACKEND_UNSUPPORTED
+no print service answered at wss://127.0.0.1:8443: could not connect.
+It has to be installed and running on this machine.
+```
+
+`close()` drops the connection; the next call opens a new one.
+
 ## Writing your own
 
 Nothing about the interface is reserved. A backend that posts to your own print server is a few lines:
