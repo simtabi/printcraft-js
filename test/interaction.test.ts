@@ -299,10 +299,26 @@ test('context menu opens on right-click with all items and tabler icons', () => 
     expect_eq(ev.defaultPrevented, true, 'native menu suppressed');
     const menu = d.window.document.querySelector('[data-pc-menu]');
     expect_ok(menu, 'menu rendered');
-    const items = menu.querySelectorAll('[data-pc-item]');
-    // print element, print page, settings, pick, draw, redact, note, inspect
-    expect_eq(items.length, 9);
+    // asserted by id, not by count: the catalogue grows, and a number here
+    // would only ever record how many there were the day it was written
+    const present = new Set(
+      [...menu.querySelectorAll('[data-pc-item]')].map((n) => n.getAttribute('data-pc-item'))
+    );
+    for (const id of [
+      'print-element',
+      'print-page',
+      'settings',
+      'draw',
+      'redact',
+      'note',
+      'inspect'
+    ]) {
+      expect_ok(present.has(id), 'menu is missing ' + id);
+    }
     expect_ok(menu.querySelectorAll('svg').length >= 8, 'icons present');
+    // the heading says whose menu it is
+    expect_ok(menu.querySelector('.pc-k-menu-title'), 'menu has a title');
+    expect_ok(menu.querySelector('.pc-k-menu-desc'), 'and a one-line description');
     // escape closes
     d.window.document.dispatchEvent(
       new d.window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true })
@@ -332,7 +348,11 @@ test('context menu redact item toggles the attribute on the clicked element', ()
     );
     const item = d.window.document.querySelector('[data-pc-item="redact"]');
     expect_ok(item, 'filtered menu shows only requested item');
-    expect_eq(d.window.document.querySelectorAll('[data-pc-item]').length, 1);
+    // the palette is added by the interface itself, so `items` leaves two
+    const shown = [...d.window.document.querySelectorAll('[data-pc-item]')].map((n) =>
+      n.getAttribute('data-pc-item')
+    );
+    expect_deep(shown, ['redact', 'palette']);
     item.dispatchEvent(new d.window.MouseEvent('click', { bubbles: true }));
     expect_ok(p.hasAttribute('data-printcraft-redact'));
   } finally {

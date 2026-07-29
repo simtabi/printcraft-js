@@ -1,19 +1,15 @@
-// The right-click menu: the way into every other mode.
+// The right-click menu and the command palette, over one registry.
 //
-// The menu itself is the kit's now, so this file is the item catalogue and the
-// listener that opens it. Adding an entry means adding an object, and a host can
-// extend or replace the whole set.
+// Both are views of the same actions. That is the point of the registry: adding
+// a capability once puts it in the menu, in the palette, on its keybinding and
+// in the API, instead of in one of the four.
 
-import { askForNote, toggleRedact } from './annotations';
-import { drawArea } from './draw';
-import { redactArea } from './redact';
-import { pickSections } from './picker';
-import { printDialog } from './print-dialog';
-import { openMenu, toast, type MenuEntry, type MenuHandle } from './kit';
+import { formatKeys, type Action, type ActionContext, type ActionRegistry } from './actions';
+import { openMenu, openPalette, type MenuEntry, type MenuHandle } from './kit';
 import { defaultEnv, type UiDeps } from './shared';
 import type { Env, PrintcraftOptions } from '../types';
 
-/** what a menu item is handed when it runs */
+/** What a menu item is handed when it runs. Kept for callers that predate actions. */
 export interface MenuContext {
   target: Element;
   env: Env;
@@ -23,140 +19,136 @@ export interface MenuContext {
 
 export type ContextMenuEntry = MenuEntry<MenuContext>;
 
-/**
- * The stock entries, grouped. Exported so a host can start from these and add,
- * remove or reorder rather than rebuild the lot.
- */
-export function buildMenuItems(deps: UiDeps): ContextMenuEntry[] {
-  return [
-    { group: 'Print' },
-    {
-      id: 'print-element',
-      label: 'Print this element',
-      icon: 'click',
-      hint: 'Just what you right-clicked',
-      run: ({ target, env, base }) => void deps.print({ ...base, target }, env)
-    },
-    {
-      id: 'print-page',
-      label: 'Print the page',
-      icon: 'printer',
-      run: ({ env, base }) => void deps.print({ ...base, target: 'body' }, env)
-    },
-    {
-      id: 'settings',
-      label: 'Print settings…',
-      icon: 'settings',
-      hint: 'Paper, margins, page numbers, borders',
-      run: ({ target, env, base }) => void printDialog(deps, { ...base, target }, env)
-    },
-    { separator: true },
-
-    { group: 'Choose what prints' },
-    {
-      id: 'pick',
-      label: 'Pick sections…',
-      icon: 'marquee',
-      hint: 'Click several, then print them together',
-      run: ({ env, base }) => void pickSections(deps, base, env)
-    },
-    {
-      id: 'draw',
-      label: 'Draw a print area…',
-      icon: 'crop',
-      hint: 'Drag a rectangle over the page',
-      run: ({ env, base }) => void drawArea(deps, base, env)
-    },
-    { separator: true },
-
-    { group: 'Mark up' },
-    {
-      id: 'redact',
-      label: 'Toggle redaction',
-      icon: 'redact',
-      hint: 'Blacks it out destructively',
-      run: ({ target, env }) => {
-        const on = toggleRedact(target);
-        deps.emit('ui:redact', { element: target, redacted: on });
-        toast(
-          {
-            message: on ? 'Marked for redaction' : 'Redaction removed',
-            action: {
-              label: 'Undo',
-              onSelect: () => {
-                toggleRedact(target);
-                deps.emit('ui:redact', { element: target, redacted: !on });
-              }
-            }
-          },
-          env
-        );
-      }
-    },
-    {
-      id: 'redact-area',
-      label: 'Redact by dragging…',
-      icon: 'marquee',
-      hint: 'Destroys the characters a box covers, not the whole element',
-      run: ({ env, base }) => void redactArea(deps, { ...base }, env)
-    },
-    {
-      id: 'note',
-      label: 'Add a note…',
-      icon: 'note',
-      run: ({ target, env }) => {
-        void askForNote(target, env).then((text) => {
-          if (text == null) return;
-          deps.emit('ui:annotate', { element: target, text });
-          toast({ message: text ? 'Note attached' : 'Note removed' }, env);
-        });
-      }
-    },
-    { separator: true },
-
-    {
-      id: 'inspect',
-      label: 'Preview the print',
-      icon: 'inspect',
-      hint: 'Opens the assembled document, no dialog',
-      run: ({ target, env, base }) => void deps.inspect({ ...base, target }, env)
-    }
-  ];
-}
-
 export interface ContextMenuOptions {
   /** merged into every job the menu starts */
   base?: PrintcraftOptions;
-  /** item ids to keep, in the order you want them */
+  /** action ids to keep, in the order you want them */
   items?: string[];
-  /** entries appended after the stock ones */
-  extra?: ContextMenuEntry[];
-  /** replace the catalogue outright */
-  entries?: ContextMenuEntry[];
+  /** extra actions, appended */
+  extra?: Action[];
+  /** the heading at the top of the menu */
+  title?: string;
+  /** the line under it */
+  description?: string;
   /** return false to leave the native menu alone for this target */
   shouldOpen?: (target: Element) => boolean;
+  /** replace the whole catalogue */
+  registry?: ActionRegistry;
 }
 
-type ContextMenuItem = Extract<ContextMenuEntry, { id: string }>;
+/** The default heading, so the menu says whose it is rather than floating there. */
+const TITLE = 'Print & mark up';
+const DESCRIPTION = 'Choose what prints, redact it, or note it first';
 
-const isItem = (e: ContextMenuEntry): e is ContextMenuItem => 'id' in e;
+/**
+ * Turns resolved actions into menu entries, with a rule between groups.
+ *
+ * Groups come from the actions themselves, so a host that registers one with a
+ * new group name gets a new section without touching this.
+ */
+export function actionsToEntries(registry: ActionRegistry, ctx: ActionContext): ContextMenuEntry[] {
+  const entries: ContextMenuEntry[] = [];
+  let group: string | null = null;
 
-/** Installs the right-click menu. The returned function removes it again. */
-export function contextMenu(deps: UiDeps, cfg?: ContextMenuOptions, env?: Env): () => void {
+  for (const action of registry.available(ctx)) {
+    if (action.group && action.group !== group) {
+      if (group !== null) entries.push({ separator: true });
+      entries.push({ group: action.group });
+      group = action.group;
+    }
+
+    entries.push({
+      id: action.id,
+      label: action.label,
+      ...(action.icon ? { icon: action.icon } : {}),
+      ...(action.description ? { hint: action.description } : {}),
+      ...(action.keys ? { kbd: formatKeys(action.keys, ctx.env) } : {}),
+      ...(action.tone && action.tone !== 'default' ? { tone: action.tone } : {}),
+      ...(action.checked ? { checked: action.isChecked } : {}),
+      ...(action.disabledReason ? { disabled: action.disabledReason } : {}),
+      run: () => void registry.run(action.id, { ...ctx, via: 'menu' })
+    });
+  }
+  return entries;
+}
+
+/** The same actions as palette items. */
+export function actionsToPaletteItems(
+  registry: ActionRegistry,
+  ctx: ActionContext
+): Array<{
+  id: string;
+  label: string;
+  description?: string;
+  icon?: string;
+  group?: string;
+  keys?: string[];
+  keywords?: string[];
+  disabled?: boolean;
+  tone?: string;
+}> {
+  // oxlint-disable-next-line no-map-spread
+  return registry.available(ctx).map((action) => ({
+    id: action.id,
+    label: action.label,
+    ...(action.description ? { description: action.description } : {}),
+    ...(action.icon ? { icon: action.icon } : {}),
+    ...(action.group ? { group: action.group } : {}),
+    ...(action.keys ? { keys: formatKeys(action.keys, ctx.env) } : {}),
+    ...(action.keywords ? { keywords: action.keywords } : {}),
+    ...(action.tone && action.tone !== 'default' ? { tone: action.tone } : {}),
+    disabled: !!action.disabledReason
+  }));
+}
+
+/** Opens the menu at a point. */
+export function openActionMenu(
+  registry: ActionRegistry,
+  ctx: ActionContext,
+  at: { x: number; y: number },
+  options: { title?: string; description?: string; onClose?: () => void } = {}
+): MenuHandle {
+  return openMenu<MenuContext>(
+    {
+      entries: actionsToEntries(registry, ctx) as MenuEntry<MenuContext>[],
+      anchor: at,
+      label: 'Printcraft actions',
+      icon: 'printer',
+      title: options.title || TITLE,
+      description: options.description || DESCRIPTION,
+      ...(options.onClose ? { onClose: options.onClose } : {})
+    },
+    ctx.env
+  );
+}
+
+/** Opens the palette over the same registry. */
+export function openActionPalette(registry: ActionRegistry, ctx: ActionContext): void {
+  openPalette(
+    {
+      items: actionsToPaletteItems(registry, ctx),
+      placeholder: 'Print, redact, note, preview…',
+      onPick: (id) => void registry.run(id, { ...ctx, via: 'palette' })
+    },
+    ctx.env
+  );
+}
+
+/**
+ * Installs the right-click menu. The returned function removes it again.
+ *
+ * `target` is remembered on every right-click, so an action fired later from the
+ * palette or a keybinding still knows what the user was aiming at.
+ */
+export function contextMenu(
+  registry: ActionRegistry,
+  cfg: ContextMenuOptions,
+  deps: UiDeps,
+  env?: Env
+): () => void {
   const scope = env || defaultEnv();
   const doc = scope.document;
-  const base = cfg?.base || {};
-
-  let entries = cfg?.entries || buildMenuItems(deps);
-  if (cfg?.items) {
-    const byId = new Map<string, ContextMenuItem>(
-      entries.filter(isItem).map((e) => [e.id, e] as const)
-    );
-    entries = cfg.items
-      .map((id) => byId.get(id))
-      .filter((e): e is ContextMenuItem => e !== undefined);
-  }
-  if (cfg?.extra?.length) entries = entries.concat(cfg.extra);
+  const base = cfg.base || {};
 
   let open: MenuHandle | null = null;
 
@@ -164,25 +156,27 @@ export function contextMenu(deps: UiDeps, cfg?: ContextMenuOptions, env?: Env): 
     const target = ev.target as Element | null;
     // never take over the menu on the kit's own surfaces
     if (!target || (typeof target.closest === 'function' && target.closest('[data-pc-ui]'))) return;
-    if (cfg?.shouldOpen && !cfg.shouldOpen(target)) return;
+    if (cfg.shouldOpen && !cfg.shouldOpen(target)) return;
 
     ev.preventDefault();
     open?.close();
 
     const me = ev as MouseEvent;
-    open = openMenu<MenuContext>(
+    const ctx: ActionContext = { target, env: scope, base, via: 'menu' };
+
+    open = openActionMenu(
+      registry,
+      ctx,
+      { x: me.clientX, y: me.clientY },
       {
-        entries,
-        context: { target, env: scope, base, deps },
-        anchor: { x: me.clientX, y: me.clientY },
-        label: 'Printcraft actions',
+        ...(cfg.title ? { title: cfg.title } : {}),
+        ...(cfg.description ? { description: cfg.description } : {}),
         onClose: () => {
           open = null;
         }
-      },
-      scope
+      }
     );
-    deps.emit('ui:menu', { target, entries: entries.filter(isItem).map((e) => e.id) });
+    deps.emit('ui:menu', { target, actions: registry.available(ctx).map((a) => a.id) });
   }
 
   doc.addEventListener('contextmenu', onContext);
@@ -192,23 +186,4 @@ export function contextMenu(deps: UiDeps, cfg?: ContextMenuOptions, env?: Env): 
     open = null;
     doc.removeEventListener('contextmenu', onContext);
   };
-}
-
-/** Opens the same menu at a point, without waiting for a right-click. */
-export function openContextMenuAt(
-  deps: UiDeps,
-  at: { x: number; y: number; target: Element },
-  cfg?: ContextMenuOptions,
-  env?: Env
-): MenuHandle {
-  const scope = env || defaultEnv();
-  return openMenu<MenuContext>(
-    {
-      entries: cfg?.entries || buildMenuItems(deps),
-      context: { target: at.target, env: scope, base: cfg?.base || {}, deps },
-      anchor: { x: at.x, y: at.y },
-      label: 'Printcraft actions'
-    },
-    scope
-  );
 }

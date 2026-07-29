@@ -27,7 +27,7 @@ export {
   type PopoverHandle,
   type Side
 } from './floating';
-export { h, root, button, iconNode, focusable } from './dom';
+export { h, root, button, iconNode, focusable, type ToneName } from './dom';
 export {
   openPalette,
   scoreMatch,

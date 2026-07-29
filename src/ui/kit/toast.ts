@@ -3,13 +3,13 @@
 // One stack per document, bottom right, polite to screen readers. Anything that
 // needs an answer is a modal instead; a toast is for things that already worked.
 
-import { button, h, root } from './dom';
+import { button, h, root, type ToneName } from './dom';
 import { ensureStyles } from './theme';
 import type { Env } from '../../types';
 
 export interface ToastSpec {
   message: string;
-  tone?: 'default' | 'success' | 'danger';
+  tone?: ToneName;
   /** milliseconds on screen; 0 keeps it until dismissed */
   duration?: number;
   action?: { label: string; onSelect: () => void };

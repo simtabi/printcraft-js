@@ -43,6 +43,9 @@ export const DEFAULTS: ResolvedOptions = {
   watermarkText: null,
   watermarkOpacity: 0.25,
   watermarkAngle: -30,
+  documentDescription: null,
+  printHeading: true,
+  printHeadingMeta: false,
   watermark: null,
 
   backend: null,

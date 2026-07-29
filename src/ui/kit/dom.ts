@@ -7,6 +7,16 @@
 import { icon } from '../icons';
 import { ensureStyles, KIT_CLASS, UI_ATTR } from './theme';
 
+/**
+ * A semantic tone.
+ *
+ * `ghost` and `quiet` are the two shapes rather than colours: no background, and
+ * an outline with muted text. Everything else names a colour from the theme, so
+ * a button, a menu row and a toast that mean the same thing look related.
+ */
+export type ToneName =
+  'default' | 'primary' | 'danger' | 'warn' | 'success' | 'info' | 'ghost' | 'quiet';
+
 export interface NodeSpec {
   class?: string;
   text?: string;
@@ -58,7 +68,7 @@ export function iconNode(doc: Document, name: string, className = 'pc-k-item-ico
 
 export interface ButtonSpec {
   label: string;
-  tone?: 'default' | 'primary' | 'danger' | 'ghost';
+  tone?: ToneName;
   icon?: string;
   disabled?: boolean;
   onClick?: (ev: MouseEvent) => void;

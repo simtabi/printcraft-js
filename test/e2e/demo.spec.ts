@@ -267,12 +267,7 @@ test('the assembled document renders to a pdf', async ({ page, browserName }) =>
 });
 
 test('the context menu opens on right-click and drives a job', async ({ page }) => {
-  await page.evaluate(() => {
-    const pc = (
-      window as unknown as { Printcraft: { ui: { contextMenu(c: unknown): () => void } } }
-    ).Printcraft;
-    (window as unknown as { __off?: () => void }).__off = pc.ui.contextMenu({});
-  });
+  // no setup call: the menu installs itself at boot now
 
   // scroll first and let it settle. the menu closes on scroll by design: it is
   // position:fixed, so it would otherwise detach from what it points at, and
@@ -286,16 +281,26 @@ test('the context menu opens on right-click and drives a job', async ({ page }) 
   await target.click({ button: 'right' });
   const menu = page.locator('[data-pc-menu]');
   await expect(menu).toBeVisible();
-  // print element, print page, settings, pick, draw, redact, note, inspect
-  await expect(menu.locator('[data-pc-item]')).toHaveCount(9);
-  await expect(menu.locator('svg')).toHaveCount(9);
+
+  // it says whose menu it is, which a floating list of verbs does not
+  await expect(menu.locator('.pc-k-menu-title')).toHaveText('Print & mark up');
+  await expect(menu.locator('.pc-k-menu-desc')).toContainText('Choose what prints');
+
+  // asserted by id rather than by count, which would only record how many there
+  // were the day it was written
+  await Promise.all(
+    ['print-element', 'print-page', 'settings', 'draw', 'redact', 'inspect'].map((id) =>
+      expect(menu.locator(`[data-pc-item="${id}"]`), id).toBeVisible()
+    )
+  );
+  // every row carries a one-line description and its keys
+  await expect(menu.locator('.pc-k-item-hint').first()).toBeVisible();
+  await expect(menu.locator('.pc-k-kbd').first()).toBeVisible();
 
   // the redact item stamps the attribute the pipeline reads
   await menu.locator('[data-pc-item="redact"]').click();
   await expect(page.locator('#cust')).toHaveAttribute('data-printcraft-redact', '');
   await expect(menu).toHaveCount(0);
-
-  await page.evaluate(() => (window as unknown as { __off?: () => void }).__off?.());
 });
 
 test('draw-to-print waits for confirmation before it captures anything', async ({ page }) => {

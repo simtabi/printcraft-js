@@ -51,6 +51,14 @@ export function buildPageCss(options: ResolvedOptions): string {
   avoidBreak.forEach((s) => css.push(s + ' { break-inside: avoid; page-break-inside: avoid; }'));
   css.push('[data-' + NS + '-reveal] { display: revert !important; }');
 
+  css.push(
+    '.pc-heading { margin: 0 0 18px; padding-bottom: 12px;' +
+      ' border-bottom: 1px solid currentColor; break-after: avoid; page-break-after: avoid; }' +
+      '.pc-heading-title { font: 600 20px/1.25 inherit; margin: 0; }' +
+      '.pc-heading-desc { font: 13px/1.5 inherit; margin: 6px 0 0; opacity: .8; }' +
+      '.pc-heading-meta { font: 11px/1.4 inherit; margin: 8px 0 0; opacity: .55; }'
+  );
+
   css.push(REDACTION_CSS);
   css.push(
     '.pc-note { display: inline-block; background: #fef9c3; border: 1px solid #ca8a04;' +
@@ -104,6 +112,46 @@ export function buildWatermarkNode(options: ResolvedOptions, doc: Document): Ele
     width: sheet.width,
     height: sheet.height
   });
+}
+
+/**
+ * The block that opens a printed document.
+ *
+ * Only drawn when there is something to say. `printHeading: false` turns it off
+ * for a caller who wants the title for the filename alone.
+ */
+export function buildHeading(options: ResolvedOptions, doc: Document): Element | null {
+  if (options.printHeading === false) return null;
+
+  const title = options.documentTitle || '';
+  const description = options.documentDescription || '';
+  if (!title && !description) return null;
+
+  const box = doc.createElement('header');
+  box.className = 'pc-heading';
+  box.setAttribute('data-pc-heading', '');
+
+  if (title) {
+    const h1 = doc.createElement('h1');
+    h1.className = 'pc-heading-title';
+    h1.textContent = title;
+    box.appendChild(h1);
+  }
+  if (description) {
+    const p = doc.createElement('p');
+    p.className = 'pc-heading-desc';
+    p.textContent = description;
+    box.appendChild(p);
+  }
+
+  const stamp = options.printHeadingMeta;
+  if (stamp) {
+    const meta = doc.createElement('p');
+    meta.className = 'pc-heading-meta';
+    meta.textContent = stamp === true ? new Date().toLocaleString() : String(stamp);
+    box.appendChild(meta);
+  }
+  return box;
 }
 
 export function collectSourceCss(srcDoc: Document): Element[] {
@@ -205,6 +253,15 @@ export function assemblePrintDocument(
       body.appendChild(f);
     }
   }
+
+  // The title and description, if there are any, open the document.
+  //
+  // Somewhere to put them is the point: a title that only reaches the browser's
+  // save-as-PDF filename is invisible on the paper, and a description typed into
+  // the region dialog had nowhere to go at all. Printed first, above the content,
+  // so a person holding the sheet knows what they are holding.
+  const heading = buildHeading(options, doc);
+  if (heading) contentHost.appendChild(heading);
 
   clones.forEach((clone) => {
     const slot = doc.createElement('div');

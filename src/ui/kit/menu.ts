@@ -13,11 +13,16 @@ export interface MenuItem<Ctx = unknown> {
   id: string;
   label: string;
   icon?: string;
-  /** a keyboard hint shown on the right. purely a label. */
-  kbd?: string;
+  /** keyboard hint shown on the right, as key caps */
+  kbd?: string | string[];
   /** secondary text under the label */
   hint?: string;
-  disabled?: boolean;
+  /** colours the row */
+  tone?: string;
+  /** shown with a tick, for a toggle */
+  checked?: boolean;
+  /** true disables it; a string disables it and says why in a tooltip */
+  disabled?: boolean | string;
   /** hide the item entirely unless this returns true */
   when?: (ctx: Ctx) => boolean;
   /** a submenu; `run` is ignored when present */
@@ -42,6 +47,12 @@ export interface MenuSpec<Ctx = unknown> {
   anchor: Anchor;
   /** aria label for the menu itself */
   label?: string;
+  /** a heading at the top of the menu, so it says whose menu it is */
+  title?: string;
+  /** one line under the title */
+  description?: string;
+  /** an icon beside the title */
+  icon?: string;
   onClose?: () => void;
 }
 
@@ -69,6 +80,18 @@ class Menu<Ctx> extends Surface {
       attrs: { role: 'menu', 'data-pc-menu': '', 'aria-label': this.spec.label || 'Actions' }
     });
 
+    if (this.spec.title) {
+      const head = h(doc, 'div', { class: 'pc-k-menu-head' });
+      const title = h(doc, 'div', { class: 'pc-k-menu-title' });
+      if (this.spec.icon) title.appendChild(iconNode(doc, this.spec.icon));
+      title.appendChild(doc.createTextNode(this.spec.title));
+      head.appendChild(title);
+      if (this.spec.description) {
+        head.appendChild(h(doc, 'div', { class: 'pc-k-menu-desc', text: this.spec.description }));
+      }
+      menu.appendChild(head);
+    }
+
     const ctx = this.spec.context as Ctx;
     const visible = this.spec.entries.filter((e) => !isItem(e) || !e.when || e.when(ctx));
 
@@ -94,30 +117,47 @@ class Menu<Ctx> extends Surface {
     const doc = this.doc;
     const hasSub = !!item.items?.length;
 
+    const off = !!item.disabled;
     const row = h(doc, 'button', {
       class: 'pc-k-item',
       attrs: {
         type: 'button',
-        role: hasSub ? 'menuitem' : 'menuitem',
+        role: item.checked === undefined ? 'menuitem' : 'menuitemcheckbox',
         'data-pc-item': item.id,
+        ...(item.tone ? { 'data-tone': item.tone } : {}),
+        ...(item.checked === undefined ? {} : { 'aria-checked': item.checked ? 'true' : 'false' }),
         'aria-haspopup': hasSub ? 'menu' : undefined,
         'aria-expanded': hasSub ? 'false' : undefined,
-        disabled: item.disabled,
+        // the reason a row is off is worth reading, and a disabled button has
+        // no tooltip of its own, so it goes in the title
+        title: typeof item.disabled === 'string' ? item.disabled : undefined,
+        disabled: off,
         tabindex: -1
       }
     });
 
-    if (item.icon) row.appendChild(iconNode(doc, item.icon));
+    const glyph = item.checked ? 'check' : item.icon;
+    if (glyph) {
+      row.appendChild(
+        h(doc, 'span', { class: 'pc-k-item-icon', children: [iconNode(doc, glyph)] })
+      );
+    }
 
-    const label = h(doc, 'span', { class: 'pc-k-item-label' });
-    label.appendChild(doc.createTextNode(item.label));
-    if (item.hint) label.appendChild(h(doc, 'span', { class: 'pc-k-hint', text: item.hint }));
-    row.appendChild(label);
+    const text = h(doc, 'span', { class: 'pc-k-item-text' });
+    text.appendChild(h(doc, 'span', { class: 'pc-k-item-label', text: item.label }));
+    if (item.hint) text.appendChild(h(doc, 'span', { class: 'pc-k-item-hint', text: item.hint }));
+    row.appendChild(text);
 
-    if (item.kbd) row.appendChild(h(doc, 'span', { class: 'pc-k-item-kbd', text: item.kbd }));
+    if (item.kbd) {
+      const caps = h(doc, 'span', { class: 'pc-k-item-kbd' });
+      for (const cap of Array.isArray(item.kbd) ? item.kbd : [item.kbd]) {
+        caps.appendChild(h(doc, 'kbd', { class: 'pc-k-kbd', text: cap }));
+      }
+      row.appendChild(caps);
+    }
     if (hasSub) row.appendChild(h(doc, 'span', { class: 'pc-k-item-more', text: '›' }));
 
-    if (!item.disabled) {
+    if (!off) {
       row.addEventListener('click', (ev) => {
         ev.stopPropagation();
         if (hasSub) this.openSubmenu(item, row);

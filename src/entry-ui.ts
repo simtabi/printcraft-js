@@ -12,8 +12,9 @@ attachment.Printcraft.ui = makeUiSurface(attachment);
 
 // the test seam gains what only exists once the ui is loaded
 Object.assign(attachment.Printcraft._internals, {
-  buildMenuItems: uiModule.buildMenuItems,
-  computeRect: uiModule.computeRect
+  buildActions: uiModule.buildActions,
+  computeRect: uiModule.computeRect,
+  ActionRegistry: uiModule.ActionRegistry
 });
 
 export * from './index';

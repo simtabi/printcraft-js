@@ -1,3 +1,4 @@
+import type { ToneName } from './dom';
 // Yes or no, with the stakes spelled out.
 //
 // Every destructive step in this library goes through here: printing a drawn
@@ -16,7 +17,7 @@ export interface ConfirmSpec {
   detail?: string | string[];
   confirmLabel?: string;
   cancelLabel?: string;
-  tone?: 'primary' | 'danger';
+  tone?: ToneName;
   /** extra nodes between the message and the buttons, such as a preview */
   body?: Node;
 }
@@ -57,7 +58,7 @@ export async function confirm(spec: ConfirmSpec, env?: Env): Promise<boolean> {
 
 /** Says something and waits for acknowledgement. What `window.alert` was for. */
 export async function notify(
-  spec: { title: string; message: string; tone?: 'primary' | 'danger'; okLabel?: string },
+  spec: { title: string; message: string; tone?: ToneName; okLabel?: string },
   env?: Env
 ): Promise<void> {
   await modal(

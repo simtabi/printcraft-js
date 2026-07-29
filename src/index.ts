@@ -464,6 +464,17 @@ class Printcraft {
   static _bus = bus;
   static autoInit = true;
 
+  /**
+   * Install the right-click menu and the keyboard commands at boot.
+   *
+   * On by default. A print library whose features can only be reached by writing
+   * code is a library most of a team never finds; the menu is where they are.
+   * `data-menu="false"` on the script tag, or setting this before load, turns it
+   * off, and a page that wants its own scope or actions calls
+   * `Printcraft.ui.create()` instead.
+   */
+  static autoMenu = true;
+
   static get defaults(): PrintcraftOptions {
     return defaultsRef.current;
   }
@@ -637,6 +648,9 @@ class Printcraft {
     if (script instanceof Element && script.getAttribute('data-auto-init') === 'false') {
       Printcraft.autoInit = false;
     }
+    if (script instanceof Element && script.getAttribute('data-menu') === 'false') {
+      Printcraft.autoMenu = false;
+    }
     const configUrl = script instanceof Element ? script.getAttribute('data-config') : null;
 
     const go = (): void => {
@@ -652,6 +666,20 @@ class Printcraft {
         }
       }
       const scope: Env = { document: doc, window: win as Window & typeof globalThis };
+
+      // the interface, unless the page asked for none. `ui` is only there when
+      // the interaction layer was loaded, which the script-tag build always is
+      // and a core-only import never is.
+      if (Printcraft.autoMenu) {
+        try {
+          const surface = Printcraft.ui as unknown as { instance?: unknown };
+          if (surface && typeof surface === 'object' && 'instance' in surface)
+            void surface.instance;
+        } catch {
+          // reaching `ui` without importing it throws by design; a page that did
+          // not load the interaction layer simply has no menu to install
+        }
+      }
 
       // A page opened from disk can never fetch its own files. Nothing the author
       // writes changes that, so booting stays quiet about it and says so on the

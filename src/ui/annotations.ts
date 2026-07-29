@@ -84,3 +84,55 @@ export async function askForNote(target: Element, env?: Env): Promise<string | n
   if (text == null) return null;
   return annotate(target, text);
 }
+
+export interface Mark {
+  element: Element;
+  kind: 'note' | 'redaction';
+  /** the note's text; empty for a redaction */
+  text: string;
+  /** a short, readable pointer back to the element */
+  where: string;
+}
+
+/** A readable description of where an element is, for a list. */
+export function describeElement(el: Element): string {
+  const tag = el.tagName.toLowerCase();
+  const id = el.id ? '#' + el.id : '';
+  const cls = el.classList.length ? '.' + [...el.classList].slice(0, 2).join('.') : '';
+  const text = (el.textContent || '').trim().replace(/\s+/g, ' ').slice(0, 40);
+  return tag + id + cls + (text ? ' · ' + text + (text.length >= 40 ? '…' : '') : '');
+}
+
+/**
+ * Every note and redaction currently marked on the page.
+ *
+ * Both are stored as attributes on the live element, which is what makes them
+ * survive between jobs. It also means this is the only way to see them all:
+ * without it, a note added twenty minutes ago is invisible until something
+ * prints.
+ */
+export function annotations(doc: Document): Mark[] {
+  const out: Mark[] = [];
+
+  for (const el of doc.querySelectorAll('[data-' + NS + '-note]')) {
+    out.push({
+      element: el,
+      kind: 'note',
+      text: el.getAttribute('data-' + NS + '-note') || '',
+      where: describeElement(el)
+    });
+  }
+  for (const el of doc.querySelectorAll('[data-' + NS + '-redact]')) {
+    out.push({ element: el, kind: 'redaction', text: '', where: describeElement(el) });
+  }
+  return out;
+}
+
+/** Removes every note and redaction. Returns how many went. */
+export function clearAnnotations(doc: Document): number {
+  const marks = annotations(doc);
+  for (const mark of marks) {
+    mark.element.removeAttribute('data-' + NS + (mark.kind === 'note' ? '-note' : '-redact'));
+  }
+  return marks.length;
+}

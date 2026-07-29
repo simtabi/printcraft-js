@@ -37,7 +37,7 @@ export interface Action {
    */
   keys?: string;
   /** colours the entry, and the button it becomes */
-  tone?: 'default' | 'primary' | 'danger' | 'warn';
+  tone?: 'default' | 'primary' | 'danger' | 'warn' | 'success' | 'info';
   /** extra words the palette should match on */
   keywords?: string[];
   /** false hides it; a string disables it and says why */

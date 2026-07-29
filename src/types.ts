@@ -295,6 +295,18 @@ export interface PrintcraftOptions {
    * or `'tile'` turns `paginate` on, because `position: fixed` prints on the
    * first page only and a mark on every page needs sheets to sit in.
    */
+  /**
+   * Printed under the title at the top of the document.
+   *
+   * The title alone only reaches the browser's save-as-PDF filename, which is
+   * invisible on the paper. Both are drawn as a heading block instead.
+   */
+  documentDescription?: string | null;
+  /** false prints neither, leaving the title for the filename alone */
+  printHeading?: boolean;
+  /** a line under the description: `true` stamps the date, a string prints it */
+  printHeadingMeta?: boolean | string;
+
   watermark?: Watermark | string | null;
   printerMarks?: PrinterMarks | boolean | null;
 
@@ -410,6 +422,9 @@ export interface ResolvedOptions extends PrintcraftOptions {
   watermarkText: string | null;
   watermarkOpacity: number;
   watermarkAngle: number;
+  documentDescription: string | null;
+  printHeading: boolean;
+  printHeadingMeta: boolean | string;
   watermark: ResolvedWatermark | null;
   printerMarks: ResolvedPrinterMarks | null;
   backend: PrintBackend | null;
