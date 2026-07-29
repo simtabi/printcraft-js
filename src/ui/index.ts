@@ -16,6 +16,7 @@ export * from './kit';
 export { pickSections, type PickResult } from './picker';
 export { drawArea, type DrawResult, type DrawOptions } from './draw';
 export { redactArea, type RedactResult, type RedactOptions } from './redact';
+export { composeEmail, type ComposeOptions } from './share';
 export {
   printDialog,
   optionsFromForm,

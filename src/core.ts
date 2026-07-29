@@ -97,7 +97,7 @@ export type { RasterizeOptions, Raster } from './share/rasterize';
 
 export { devtools } from './pipeline/devtools';
 
-export { Job, runJob } from './pipeline/job';
+export { Job, runJob, renderJob } from './pipeline/job';
 
 export type {
   Annotation,

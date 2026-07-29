@@ -338,6 +338,59 @@ export class Job {
   }
 
   /**
+   * Clone, transform, and stop.
+   *
+   * No frame, no printer, no assets waited for. The share layer uses this so a
+   * screenshot or a clipboard copy carries exactly what the printer would have
+   * been given, redaction and all.
+   */
+  renderOnly(): { element: Element; title: string; redactions: number; width: number } {
+    // the layout width the content was measured at, so a raster of it is the
+    // width it had on screen rather than whatever a detached div collapses to
+    const sourceWidth = this.sourceWidth();
+    const clones = this.buildClones().map((c) => this.transformClone(c));
+    const holder = this.env.document.createElement('div');
+    holder.className = 'pc-render';
+    holder.setAttribute('data-pc-ui', '');
+    for (const clone of clones) holder.appendChild(clone);
+
+    if (this.options.redactionPolicy !== 'off' && this.secrets.length) {
+      // the same guarantee the print path gets: nothing leaves with content
+      // redaction was told to destroy
+      const scratch = this.env.document.implementation.createHTMLDocument('');
+      scratch.body.appendChild(scratch.importNode(holder, true));
+      const report = verifyRedaction(scratch, this.secrets);
+      this.fire('redact:verify', { ...report });
+      if (report.leaked.length) {
+        this.fire('redact:leak', { ...report });
+        if (this.options.redactionPolicy === 'strict') throw new RedactionLeakError(report);
+        this.log.warn('redacted content survived into the rendered copy:', report.leaked.length);
+      }
+    }
+
+    return {
+      element: holder,
+      title: this.options.documentTitle || this.env.document.title || '',
+      redactions: this.record.redactions,
+      width: sourceWidth
+    };
+  }
+
+  /** How wide the content is on screen, falling back to the sheet. */
+  private sourceWidth(): number {
+    const { options, env } = this;
+    if (options.clipRect) return Math.round(options.clipRect.width);
+    try {
+      const first = resolveTargets(options.target, env.document)[0];
+      const width = first?.getBoundingClientRect().width;
+      if (width && width > 1) return Math.round(width);
+    } catch {
+      // an unresolvable target fails properly later, in buildClones
+    }
+    return resolveSheet(options.setPrintSize).width;
+  }
+
+  /**
    * The job as a backend sees it.
    *
    * `html` is the assembled document, which has already been through every
@@ -538,4 +591,20 @@ export function runJob(
   mode?: JobMode
 ): Promise<JobRecord | InspectController> {
   return new Job(options, env, emitter || new Emitter(), bus, mode).run();
+}
+
+/**
+ * The transformed content, without mounting or printing anything.
+ *
+ * This is what the share layer photographs and copies. It has to be the same
+ * clones the printer would get: a screenshot of the live page would put back
+ * everything redaction was asked to destroy.
+ */
+export function renderJob(
+  options: ResolvedOptions,
+  env: Env,
+  bus: Emitter
+): { element: Element; title: string; redactions: number; width: number } {
+  const job = new Job(options, env, new Emitter(), bus);
+  return job.renderOnly();
 }

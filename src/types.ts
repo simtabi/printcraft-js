@@ -209,7 +209,10 @@ export type PrintcraftEvent =
   | 'redact:mark'
   | 'redact:review'
   | 'redact:verify'
-  | 'redact:leak';
+  | 'redact:leak'
+  | 'share:screenshot'
+  | 'share:copy'
+  | 'share:email';
 
 export type JobStatus = 'running' | 'done' | 'cancelled' | 'inspected' | 'error';
 
