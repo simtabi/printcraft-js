@@ -2,7 +2,7 @@
 //
 // The old watermark was one `position: fixed` element on the body. Measured on a
 // 5089px document: box 794×1123, so it marked the first page and nothing else,
-// and under pagination it sat outside `.pc-pages` entirely, belonging to no
+// and under pagination it sat outside `.prjs-pages` entirely, belonging to no
 // sheet at all. Six sheets, one mark.
 //
 // Two constraints shape the rebuild. First, `position: fixed` prints on the
@@ -232,8 +232,8 @@ export function buildWatermarkLayer(
   target: MarkTarget
 ): Element {
   const layer = doc.createElement('div');
-  layer.className = 'pc-watermark';
-  layer.setAttribute('data-pc-watermark', wm.repeat);
+  layer.className = 'prjs-watermark';
+  layer.setAttribute('data-prjs-watermark', wm.repeat);
   layer.setAttribute('aria-hidden', 'true');
 
   const width = toPixels(wm.size, target.width);
@@ -283,7 +283,7 @@ export function buildWatermarkLayer(
 export function watermarkCss(wm: ResolvedWatermark): string {
   const behind = wm.layer === 'behind';
   return [
-    '.pc-watermark {',
+    '.prjs-watermark {',
     '  position: absolute;',
     '  inset: 0;',
     '  overflow: hidden;',
@@ -293,9 +293,9 @@ export function watermarkCss(wm: ResolvedWatermark): string {
     '}',
     // the sheet has to establish a containing block, or the layer escapes to the
     // page box and we are back to marking one page
-    '.pc-page-sheet, .pc-watermark-host { position: relative; }',
+    '.prjs-page-sheet, .prjs-watermark-host { position: relative; }',
     behind
-      ? '.pc-page-inner, .pc-watermark-host > :not(.pc-watermark) { position: relative; z-index: 1; }'
+      ? '.prjs-page-inner, .prjs-watermark-host > :not(.prjs-watermark) { position: relative; z-index: 1; }'
       : ''
   ]
     .filter(Boolean)
@@ -308,7 +308,7 @@ export function watermarkCss(wm: ResolvedWatermark): string {
  */
 export function firstPageCss(wm: ResolvedWatermark): string {
   return [
-    '.pc-watermark {',
+    '.prjs-watermark {',
     '  position: fixed;',
     '  inset: 0;',
     '  overflow: hidden;',

@@ -12,7 +12,7 @@ test.use({ permissions: ['clipboard-read', 'clipboard-write'] });
 
 test.beforeEach(async ({ page }) => {
   await page.goto(DEMO);
-  await expect(page.locator('#tickets .pc-ticket').first()).toBeVisible();
+  await expect(page.locator('#tickets .prjs-ticket').first()).toBeVisible();
 
   await page.evaluate(() => {
     const p = document.createElement('p');
@@ -154,23 +154,23 @@ test('the compose window validates before it sends', async ({ page }) => {
     });
   });
 
-  const modal = page.locator('[data-pc-modal]');
+  const modal = page.locator('[data-prjs-modal]');
   await expect(modal).toBeVisible();
-  await expect(modal.locator('.pc-k-title')).toHaveText('Send this');
+  await expect(modal.locator('.prjs-title')).toHaveText('Send this');
   // the attachment is named and sized before anyone commits to sending it
   await expect(modal).toContainText('.png');
 
-  await modal.locator('#pc-f-to').fill('not an address');
-  await modal.locator('[data-pc-action="send"]').click();
+  await modal.locator('#prjs-f-to').fill('not an address');
+  await modal.locator('[data-prjs-action="send"]').click();
   await expect(modal, 'still open').toBeVisible();
-  await expect(modal.locator('.pc-k-field:has(#pc-f-to) .pc-k-error')).toContainText(
+  await expect(modal.locator('.prjs-field:has(#prjs-f-to) .prjs-error')).toContainText(
     'Not an email address'
   );
 
-  await modal.locator('#pc-f-to').fill('ops@example.com');
-  await modal.locator('[data-pc-action="send"]').click();
+  await modal.locator('#prjs-f-to').fill('ops@example.com');
+  await modal.locator('[data-prjs-action="send"]').click();
 
-  await expect(page.locator('[data-pc-modal]')).toHaveCount(0);
+  await expect(page.locator('[data-prjs-modal]')).toHaveCount(0);
   const sent = await page.evaluate(
     () => (window as unknown as { __sent: Array<Record<string, unknown>> }).__sent
   );
@@ -191,7 +191,7 @@ test('cancelling the compose window sends nothing', async ({ page }) => {
       }
     });
     await new Promise((r) => setTimeout(r, 800));
-    document.querySelector<HTMLElement>('[data-pc-action="cancel"]')!.click();
+    document.querySelector<HTMLElement>('[data-prjs-action="cancel"]')!.click();
     const result = await pending;
     return { calls, status: result.status };
   });

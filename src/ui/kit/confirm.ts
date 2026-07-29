@@ -29,7 +29,7 @@ export async function confirm(spec: ConfirmSpec, env?: Env): Promise<boolean> {
   let body: Node | undefined;
   if (spec.body || lines.length) {
     const wrap = doc.createElement('div');
-    wrap.setAttribute('data-pc-ui', '');
+    wrap.setAttribute('data-prjs-ui', '');
     for (const line of lines) {
       const p = doc.createElement('p');
       p.textContent = line;

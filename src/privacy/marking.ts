@@ -163,7 +163,7 @@ export function applyRuns(clone: Element, runs: TextRun[], ch: string): number {
 
     // mark the element holding it, so the redaction stylesheet paints a bar
     const owner = node.parentElement;
-    if (owner) owner.classList.add('pc-redacted-run');
+    if (owner) owner.classList.add('prjs-redacted-run');
   }
   return applied;
 }

@@ -60,7 +60,7 @@ rmSync(sassOut);
 if (!css.includes('--color-process-c')) {
   throw new Error('the compiled stylesheet is missing its theme tokens — did @source resolve?');
 }
-if (!css.includes('.pc-ticket')) {
+if (!css.includes('.prjs-ticket')) {
   throw new Error('the compiled stylesheet is missing the sass component layer');
 }
 

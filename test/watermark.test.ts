@@ -218,7 +218,7 @@ test('a paginated job positions the mark against each sheet', () => {
   expect(css).toContain('position: absolute');
   // without a containing block the layer escapes to the page box, and we are
   // back to marking one page
-  expect(css).toContain('.pc-page-sheet, .pc-watermark-host { position: relative; }');
+  expect(css).toContain('.prjs-page-sheet, .prjs-watermark-host { position: relative; }');
 });
 
 test('layer: behind puts the content in front of the mark', () => {
@@ -234,7 +234,7 @@ test('layer: behind puts the content in front of the mark', () => {
 
   expect(over).toContain('z-index: 5');
   expect(behind).toContain('z-index: 0');
-  expect(behind).toContain('.pc-page-inner');
+  expect(behind).toContain('.prjs-page-inner');
 });
 
 test('the builder takes a string or the whole spec', () => {

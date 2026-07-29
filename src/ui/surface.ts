@@ -7,6 +7,17 @@
 
 import * as ui from './index';
 import { icon } from './icons';
+import {
+  LAYERS,
+  customStore,
+  explain,
+  httpStore,
+  localStore,
+  memoryStore,
+  resolveConfig,
+  sessionStore,
+  type Session
+} from '../state';
 import type { Env, PrintcraftOptions } from '../types';
 
 export interface Attachment {
@@ -39,6 +50,15 @@ export function makeUiSurface({ deps: uiDeps }: Attachment) {
     get actions(): ui.ActionRegistry {
       return iface().actions;
     },
+    /**
+     * The stock catalogue, as a plain array.
+     *
+     * The pair to `contributeActions`: that adds to what ships, this is what
+     * ships. Useful for building a registry from a subset, and for asserting
+     * things about the catalogue that a registry cannot — it keys by id, so a
+     * duplicate is invisible by the time it becomes one.
+     */
+    buildActions: (): ui.Action[] => ui.buildActions(uiDeps),
     palette: (env?: Env) => iface(env).palette(),
     notes: (env?: Env) => iface(env).notes(),
     run: (id: string, target?: Element) => iface().run(id, target),
@@ -63,8 +83,12 @@ export function makeUiSurface({ deps: uiDeps }: Attachment) {
     pickSections(base?: PrintcraftOptions, env?: Env) {
       return ui.pickSections(uiDeps, base, env);
     },
-    drawArea(base?: PrintcraftOptions, env?: Env) {
-      return ui.drawArea(uiDeps, base, env);
+    drawArea(base?: ui.DrawOptions, env?: Env) {
+      // the registry, so a right-click inside the selection has actions to
+      // offer. Without it the tool opened fine and its context menu silently
+      // fell through to the browser's own — which is what a user sees, and it
+      // looks like nothing works.
+      return ui.drawArea(uiDeps, { registry: iface(env).actions, ...base }, env);
     },
     redactArea(base?: ui.RedactOptions, env?: Env) {
       return ui.redactArea(uiDeps, base, env);
@@ -96,7 +120,26 @@ export function makeUiSurface({ deps: uiDeps }: Attachment) {
     notesPanel: (o?: ui.NotesPanelOptions, env?: Env) => ui.notesPanel(uiDeps, o, env),
     annotations: ui.annotations,
     clearAnnotations: ui.clearAnnotations,
-    theme: { set: ui.setTheme, get: ui.getTheme, reset: ui.resetTheme, defaults: ui.DEFAULT_THEME }
+    theme: { set: ui.setTheme, get: ui.getTheme, reset: ui.resetTheme, defaults: ui.DEFAULT_THEME },
+
+    /**
+     * What is remembered, and where it goes.
+     *
+     * `memory` is the shared interface's session, so `Printcraft.ui.memory
+     * .export()` is everything this page has saved. The store constructors are
+     * here so `create({ persist: httpStore({ url }) })` needs no second import.
+     */
+    get memory(): Session {
+      return iface().memory;
+    },
+    stores: {
+      memory: memoryStore,
+      local: localStore,
+      session: sessionStore,
+      http: httpStore,
+      custom: customStore
+    },
+    config: { resolve: resolveConfig, explain, layers: LAYERS }
   };
 }
 

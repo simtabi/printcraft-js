@@ -40,9 +40,9 @@ export function marksCss(m: ResolvedPrinterMarks): string {
   if (m.crop) {
     css.push(
       [
-        '.pc-mark { position: fixed; width: ' + m.markLength + '; height: ' + m.markLength + ';',
+        '.prjs-mark { position: fixed; width: ' + m.markLength + '; height: ' + m.markLength + ';',
         'pointer-events: none; z-index: 2147483646; }',
-        '.pc-mark-tl { top: 0; left: 0; border-right: 0.5pt solid ' +
+        '.prjs-mark-tl { top: 0; left: 0; border-right: 0.5pt solid ' +
           m.markColor +
           '; border-bottom: 0.5pt solid ' +
           m.markColor +
@@ -56,7 +56,7 @@ export function marksCss(m: ResolvedPrinterMarks): string {
           ' - ' +
           m.markLength +
           ')); }',
-        '.pc-mark-tr { top: 0; right: 0; border-left: 0.5pt solid ' +
+        '.prjs-mark-tr { top: 0; right: 0; border-left: 0.5pt solid ' +
           m.markColor +
           '; border-bottom: 0.5pt solid ' +
           m.markColor +
@@ -70,7 +70,7 @@ export function marksCss(m: ResolvedPrinterMarks): string {
           ' - ' +
           m.markLength +
           ')); }',
-        '.pc-mark-bl { bottom: 0; left: 0; border-right: 0.5pt solid ' +
+        '.prjs-mark-bl { bottom: 0; left: 0; border-right: 0.5pt solid ' +
           m.markColor +
           '; border-top: 0.5pt solid ' +
           m.markColor +
@@ -84,7 +84,7 @@ export function marksCss(m: ResolvedPrinterMarks): string {
           ' - ' +
           m.bleed +
           ')); }',
-        '.pc-mark-br { bottom: 0; right: 0; border-left: 0.5pt solid ' +
+        '.prjs-mark-br { bottom: 0; right: 0; border-left: 0.5pt solid ' +
           m.markColor +
           '; border-top: 0.5pt solid ' +
           m.markColor +
@@ -110,7 +110,7 @@ export function marksMarkup(doc: Document, m: ResolvedPrinterMarks): Element | n
   wrap.setAttribute('aria-hidden', 'true');
   ['tl', 'tr', 'bl', 'br'].forEach((corner) => {
     const el = doc.createElement('i');
-    el.className = 'pc-mark pc-mark-' + corner;
+    el.className = 'prjs-mark prjs-mark-' + corner;
     wrap.appendChild(el);
   });
   return wrap;

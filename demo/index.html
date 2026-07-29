@@ -16,47 +16,47 @@
 <link rel="stylesheet" href="../dist/assets/css/demo.css">
 <!-- /PRINTCRAFT:CSS -->
 </head>
-<body class="pc-page">
+<body class="prjs-page">
 
-<header class="pc-masthead">
-  <div class="pc-rule" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
-  <div class="pc-band pt-10 pb-8">
-    <p class="pc-masthead__eyebrow">Job ticket · vanilla js · zero dependencies</p>
-    <h1 class="pc-masthead__title">Printcraft <sup>1.2</sup></h1>
-    <p class="pc-masthead__lede">Pick a job below and hit run. Each button prints the sample sheet
+<header class="prjs-masthead">
+  <div class="prjs-rule" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+  <div class="prjs-band pt-10 pb-8">
+    <p class="prjs-masthead__eyebrow">Job ticket · vanilla js · zero dependencies</p>
+    <h1 class="prjs-masthead__title">Printcraft <sup>1.2</sup></h1>
+    <p class="prjs-masthead__lede">Pick a job below and hit run. Each button prints the sample sheet
     at the bottom of this page through a different pipeline. Ctrl+P / Cmd+P is remapped to a clean
     print of the sample.</p>
   </div>
 </header>
 
 <main>
-  <div class="pc-band py-8">
+  <div class="prjs-band py-8">
 
-    <div class="pc-ticket-grid" id="tickets"></div>
+    <div class="prjs-ticket-grid" id="tickets"></div>
 
-    <section class="pc-sheet mt-12" id="report">
+    <section class="prjs-sheet mt-12" id="report">
       <h2>Quarterly production report</h2>
       <p>This block is the print target for every demo.
-        <span class="pc-chip">.no-print elements vanish</span></p>
+        <span class="prjs-chip">.no-print elements vanish</span></p>
 
       <p class="no-print">You should never see this sentence on paper (excluded via
-        <code class="pc-code">excludeSelectorList</code>).</p>
+        <code class="prjs-code">excludeSelectorList</code>).</p>
 
-      <div class="pc-hidden-note hidden-note">
-        Surprise! This note is <code class="pc-code">display:none</code> on screen and only
+      <div class="prjs-hidden-note hidden-note">
+        Surprise! This note is <code class="prjs-code">display:none</code> on screen and only
         appears with <em>revealHiddenElements</em>.
       </div>
 
       <h3>Reference links</h3>
       <p class="links">
-        Read the <a class="pc-link" href="/docs/spec">internal spec</a>, the
-        <a class="pc-link" href="https://developer.mozilla.org/en-US/docs/Web/CSS/@page">MDN @page docs</a>, and the
-        <a class="pc-link" href="https://example.org/whitepaper">external whitepaper</a>.
+        Read the <a class="prjs-link" href="/docs/spec">internal spec</a>, the
+        <a class="prjs-link" href="https://developer.mozilla.org/en-US/docs/Web/CSS/@page">MDN @page docs</a>, and the
+        <a class="prjs-link" href="https://example.org/whitepaper">external whitepaper</a>.
       </p>
 
       <h3>Run log (scrollable on screen, expandable on paper)</h3>
-      <div class="pc-scrollbox scrollbox">
-        <table class="pc-table">
+      <div class="prjs-scrollbox scrollbox">
+        <table class="prjs-table">
           <thead><tr>
             <th scope="col">Run</th>
             <th scope="col">Sheets</th>
@@ -67,11 +67,11 @@
       </div>
 
       <h3>Live chart (canvas)</h3>
-      <canvas id="chart" class="pc-chart" width="600" height="140"
+      <canvas id="chart" class="prjs-chart" width="600" height="140"
               aria-label="Sample production chart"></canvas>
 
       <h3>Order form (state survives to paper)</h3>
-      <div class="pc-form">
+      <div class="prjs-form">
         <label>Customer <input type="text" id="cust" value=""></label>
         <label><input type="checkbox" id="rush"> Rush job</label>
         <label>Stock
@@ -82,9 +82,9 @@
       </div>
     </section>
 
-    <section class="pc-sheet" id="memo">
-      <h2>Field memo <span class="pc-chip pc-chip--ink">Sample PII · all fake</span></h2>
-      <p class="pc-prose">This block exists so the redaction and privacy jobs have something
+    <section class="prjs-sheet" id="memo">
+      <h2>Field memo <span class="prjs-chip prjs-chip--ink">Sample PII · all fake</span></h2>
+      <p class="prjs-prose">This block exists so the redaction and privacy jobs have something
       juicy to censor. Every identifier below is invented.</p>
       <p>Officer <span class="codename"><strong>R. VELVET</strong></span> met the contact
       (<span class="codename"><strong>NIGHTJAR</strong></span>) at the drop point. Reach the desk at
@@ -95,50 +95,50 @@
       arrives Thursday. Recommend continued surveillance.</p>
     </section>
 
-    <section class="pc-sheet">
+    <section class="prjs-sheet">
       <h2>Declarative triggers (no js written)</h2>
-      <p class="pc-prose">These buttons carry their whole job in data attributes. The library's
+      <p class="prjs-prose">These buttons carry their whole job in data attributes. The library's
       delegated listener picks them up at boot, so they work for content added later too.</p>
-      <div class="pc-controls">
-        <button type="button" class="pc-run" data-printcraft="#report"
+      <div class="prjs-controls">
+        <button type="button" class="btn btn-sm btn-primary prjs-run" data-printcraft="#report"
                 data-printcraft-job-name="declarative-basic">data-printcraft="#report"</button>
-        <button type="button" class="pc-run" data-printcraft="#report"
+        <button type="button" class="btn btn-sm btn-primary prjs-run" data-printcraft="#report"
                 data-printcraft-watermark-text="DRAFT"
                 data-printcraft-footer-text="Declared in html"
                 data-printcraft-exclude-selector-list=".no-print, .links">with attr options</button>
-        <button type="button" class="pc-run" data-printcraft
+        <button type="button" class="btn btn-sm btn-primary prjs-run" data-printcraft
                 data-printcraft-options='{"target":"#report","headerText":"From JSON blob","setPrintSize":"A4 landscape"}'>with json blob</button>
       </div>
-      <p class="pc-prose mt-4">Content can self-describe too: mark elements with
-      <code class="pc-code">data-printcraft-exclude</code>,
-      <code class="pc-code">data-printcraft-break-before</code>,
-      <code class="pc-code">data-printcraft-avoid-break</code>, or
-      <code class="pc-code">data-printcraft-reveal</code>
+      <p class="prjs-prose mt-4">Content can self-describe too: mark elements with
+      <code class="prjs-code">data-printcraft-exclude</code>,
+      <code class="prjs-code">data-printcraft-break-before</code>,
+      <code class="prjs-code">data-printcraft-avoid-break</code>, or
+      <code class="prjs-code">data-printcraft-reveal</code>
       and every job honors them.</p>
     </section>
 
-    <section class="pc-sheet">
+    <section class="prjs-sheet">
       <h2>Interaction layer</h2>
-      <p class="pc-prose mb-4"><strong>Right-click anywhere on this page.</strong> The menu installs
+      <p class="prjs-prose mb-4"><strong>Right-click anywhere on this page.</strong> The menu installs
       itself at load, so nothing below is needed to use it. Every entry is a registered action, which
       is also why the same things appear in the command palette and on the keyboard.</p>
 
-      <div class="pc-controls mb-4">
-        <button type="button" class="pc-run" id="btn-palette"
+      <div class="prjs-controls mb-4">
+        <button type="button" class="btn btn-sm btn-primary prjs-run" id="btn-palette"
           data-tip="Everything this page can print, searchable">Command palette</button>
-        <button type="button" class="pc-run" id="btn-notes"
+        <button type="button" class="btn btn-sm btn-primary prjs-run" id="btn-notes"
           data-tip="Every note and redaction on the page">All notes…</button>
-        <button type="button" class="pc-run" id="btn-pick"
+        <button type="button" class="btn btn-sm btn-primary prjs-run" id="btn-pick"
           data-tip="Click several sections, print them together">Pick sections…</button>
-        <button type="button" class="pc-run" id="btn-draw"
+        <button type="button" class="btn btn-sm btn-primary prjs-run" id="btn-draw"
           data-tip="Drag a rectangle; only that region prints">Draw print area…</button>
-        <button type="button" class="pc-run" id="btn-redact-area"
+        <button type="button" class="btn btn-sm btn-primary prjs-run" id="btn-redact-area"
           data-tip="Destroys the characters a box covers">Redact by dragging…</button>
-        <button type="button" class="pc-run" id="btn-menu" aria-pressed="true"
+        <button type="button" class="btn btn-sm btn-primary prjs-run" id="btn-menu" aria-pressed="true"
           data-tip="Give the browser its own menu back">Disable right-click menu</button>
       </div>
 
-      <table class="pc-keys">
+      <table class="prjs-keys">
         <caption class="sr-only">Keyboard commands</caption>
         <tbody>
           <tr><td><kbd>Mod</kbd><kbd>K</kbd></td><td>All commands</td></tr>
@@ -151,73 +151,100 @@
         </tbody>
       </table>
 
-      <p class="pc-prose">Mod is <kbd>⌘</kbd> on a Mac and <kbd>Ctrl</kbd> elsewhere; either works.
-      Notes and redactions are stored as <code class="pc-code">data-printcraft-*</code> attributes on
+      <p class="prjs-prose">Mod is <kbd>⌘</kbd> on a Mac and <kbd>Ctrl</kbd> elsewhere; either works.
+      Notes and redactions are stored as <code class="prjs-code">data-printcraft-*</code> attributes on
       the live element, so every later job honours them, and
-      <code class="pc-code">Printcraft.ui.notes()</code> lists them all before anything prints.</p>
+      <code class="prjs-code">Printcraft.ui.notes()</code> lists them all before anything prints.</p>
     </section>
 
-    <section class="pc-sheet">
+    <section class="prjs-sheet">
+      <h2>The proof sheet</h2>
+      <p class="prjs-prose mb-4">Choosing what to print no longer prints it. It opens the
+      assembled document — the real one, from the same paginator a job runs — with the page
+      count, annotation tools and the settings that change what the paper looks like.
+      <strong>Right-click above and choose Print the page</strong>, or use a button.</p>
+
+      <div class="prjs-controls mb-4">
+        <button type="button" class="btn btn-sm btn-primary prjs-run" id="btn-proof"
+          data-tip="The assembled document, before it prints">Open the proof</button>
+        <button type="button" class="btn btn-sm btn-primary prjs-run" id="btn-proof-paginated"
+          data-tip="Real sheets, numbered, with a cover and a notes page">Proof the whole page</button>
+        <button type="button" class="btn btn-sm btn-primary prjs-run" id="btn-annotate"
+          data-tip="Pen, highlighter, arrows, boxes, text and images">Annotate this page…</button>
+        <button type="button" class="btn btn-sm btn-primary prjs-run" id="btn-pen"
+          data-tip="An rgba picker with opacity, and a stroke slider">Pen settings…</button>
+      </div>
+
+      <p class="prjs-prose">Inside the proof: <strong>Annotate</strong> draws on the sheet and
+      writes every mark back to this page, so <strong>Settings</strong> can rebuild it at a
+      different paper size without losing any of them. The pen is
+      <a class="prjs-link" href="https://github.com/steveruizok/perfect-freehand">perfect-freehand</a>,
+      so a fast stroke is thinner than a slow one; the colour picker is
+      <a class="prjs-link" href="https://github.com/melloware/coloris">Coloris</a>. Paste or drop
+      an image while the tools are open and it lands where the pointer last was.</p>
+    </section>
+
+    <section class="prjs-sheet">
       <h2>Two interfaces, one page</h2>
-      <div class="pc-controls mb-4">
-        <button type="button" class="pc-run" id="btn-scoped"
+      <div class="prjs-controls mb-4">
+        <button type="button" class="btn btn-sm btn-primary prjs-run" id="btn-scoped"
           data-tip="Each panel gets its own menu, actions and title">Scope a menu to each panel</button>
-        <button type="button" class="pc-run" id="btn-scoped-off"
+        <button type="button" class="btn btn-sm btn-primary prjs-run" id="btn-scoped-off"
           data-tip="Back to one menu for the whole page">Back to one</button>
       </div>
-      <div class="pc-split">
-        <div class="pc-pane" id="pane-invoice">
+      <div class="prjs-split">
+        <div class="prjs-pane" id="pane-invoice">
           <h3>Invoice pane</h3>
-          <p class="pc-prose">Right-click here after scoping: printing and previewing only.</p>
+          <p class="prjs-prose">Right-click here after scoping: printing and previewing only.</p>
         </div>
-        <div class="pc-pane" id="pane-legal">
+        <div class="prjs-pane" id="pane-legal">
           <h3>Legal pane</h3>
-          <p class="pc-prose">And here: redaction only, with its own heading.</p>
+          <p class="prjs-prose">And here: redaction only, with its own heading.</p>
         </div>
       </div>
-      <p class="pc-prose">Each pane owns a registry, a menu, a keymap and a scope.
-      <code class="pc-code">destroy()</code> takes one down completely, which is what an app that
+      <p class="prjs-prose">Each pane owns a registry, a menu, a keymap and a scope.
+      <code class="prjs-code">destroy()</code> takes one down completely, which is what an app that
       mounts and unmounts a panel needs.</p>
     </section>
 
-    <section class="pc-sheet">
+    <section class="prjs-sheet">
       <h2>Backends</h2>
-      <div class="pc-controls mb-4">
-        <button type="button" class="pc-run" id="btn-backend-http"
+      <div class="prjs-controls mb-4">
+        <button type="button" class="btn btn-sm btn-primary prjs-run" id="btn-backend-http"
           data-tip="Posts the finished document to an endpoint">Send to a print server</button>
-        <button type="button" class="pc-run" id="btn-backend-caps"
+        <button type="button" class="btn btn-sm btn-primary prjs-run" id="btn-backend-caps"
           data-tip="Ask the current backend what it can do">Backend capabilities</button>
-        <button type="button" class="pc-run" id="btn-backend-reset"
+        <button type="button" class="btn btn-sm btn-primary prjs-run" id="btn-backend-reset"
           data-tip="Back to the browser's own dialog">Use the browser again</button>
       </div>
-      <p class="pc-prose">The browser's dialog is one backend among several. This page has no print
+      <p class="prjs-prose">The browser's dialog is one backend among several. This page has no print
       server, so <strong>Send to a print server</strong> fails on purpose and shows you the error it
       gives: the url it tried and what to do. A real one takes
-      <code class="pc-code">httpBackend({ url })</code> or
-      <code class="pc-code">socketBackend({ url })</code> and everything else is unchanged.</p>
+      <code class="prjs-code">httpBackend({ url })</code> or
+      <code class="prjs-code">socketBackend({ url })</code> and everything else is unchanged.</p>
     </section>
 
-    <section class="pc-sheet">
+    <section class="prjs-sheet">
       <h2>Devtools</h2>
-      <div class="pc-controls mb-4">
-        <button type="button" class="pc-run" id="btn-inspect">Open inspector</button>
-        <button type="button" class="pc-run" id="btn-debug" aria-pressed="false">Toggle debug logging</button>
-        <button type="button" class="pc-run" id="btn-report">devtools.report()</button>
+      <div class="prjs-controls mb-4">
+        <button type="button" class="btn btn-sm btn-primary prjs-run" id="btn-inspect">Open inspector</button>
+        <button type="button" class="btn btn-sm btn-primary prjs-run" id="btn-debug" aria-pressed="false">Toggle debug logging</button>
+        <button type="button" class="btn btn-sm btn-primary prjs-run" id="btn-report">devtools.report()</button>
       </div>
-      <p class="pc-prose">The inspector shows the assembled print document in an overlay before any
+      <p class="prjs-prose">The inspector shows the assembled print document in an overlay before any
       dialog. Debug logging prints per-stage timings for every job.
-      <code class="pc-code">Printcraft.devtools.jobs</code> keeps
+      <code class="prjs-code">Printcraft.devtools.jobs</code> keeps
       the last 20 job records. You can also enable debug with
-      <code class="pc-code">?printcraft-debug</code> in the url or
-      <code class="pc-code">localStorage.setItem('printcraft:debug','1')</code>.</p>
+      <code class="prjs-code">?printcraft-debug</code> in the url or
+      <code class="prjs-code">localStorage.setItem('printcraft:debug','1')</code>.</p>
     </section>
 
   </div>
 </main>
 
-<footer class="pc-colophon">
-  <div class="pc-rule" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
-  <p class="pc-colophon__line">Printcraft 1.2 · MIT · open devtools to watch the promise lifecycle</p>
+<footer class="prjs-colophon">
+  <div class="prjs-rule" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+  <p class="prjs-colophon__line">Printcraft 1.2 · MIT · open devtools to watch the promise lifecycle</p>
 </footer>
 
 <!-- page-wide defaults. the repo demo fetches them via the script tag's

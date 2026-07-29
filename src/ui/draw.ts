@@ -8,6 +8,9 @@
 // and description.
 
 import { h as node, modal, openToolbar, toast, type ToolbarHandle } from './kit';
+import { openRegionMenu } from './menu';
+import { holdRegion } from './region';
+import type { ActionRegistry } from './actions';
 import { computeRect } from './annotations';
 import { defaultEnv, el, Z, type UiDeps } from './shared';
 import type { ClipRect, Env, InspectController, JobRecord, PrintcraftOptions } from '../types';
@@ -21,6 +24,15 @@ export interface DrawOptions extends PrintcraftOptions {
   describe?: boolean;
   /** smallest selection worth printing, in css pixels */
   minSize?: number;
+  /**
+   * The actions offered when the selection is right-clicked.
+   *
+   * The tool is opened by an action, which knows the registry it came from; the
+   * tool itself does not, and a menu over the rectangle has to come from
+   * somewhere. Without it the right-click simply does nothing, which is what it
+   * did before.
+   */
+  registry?: ActionRegistry;
 }
 
 type Handle = 'nw' | 'n' | 'ne' | 'e' | 'se' | 's' | 'sw' | 'w';
@@ -75,6 +87,7 @@ export function drawArea(
   const win = scope.window;
   const opts: DrawOptions = base || {};
   const minSize = opts.minSize ?? 16;
+  const registry = opts.registry;
 
   return new Promise((resolve) => {
     let box: Box | null = null;
@@ -92,7 +105,7 @@ export function drawArea(
       'div',
       'position:fixed;inset:0;z-index:' + Z + ';cursor:crosshair;touch-action:none;'
     );
-    layer.setAttribute('data-pc-draw', '');
+    layer.setAttribute('data-prjs-draw', '');
 
     // four panels dim everything outside the selection, so the chosen area reads
     // as a hole cut in the page rather than a rectangle drawn on top of it
@@ -107,7 +120,7 @@ export function drawArea(
       'position:fixed;display:none;border:1px solid #fff;' +
         'box-shadow:0 0 0 1px rgba(0,0,0,.5);cursor:move;'
     );
-    frame.setAttribute('data-pc-region', '');
+    frame.setAttribute('data-prjs-region', '');
     layer.appendChild(frame);
 
     const grips = new Map<Handle, HTMLElement>();
@@ -120,7 +133,7 @@ export function drawArea(
           CURSORS[name] +
           ';'
       );
-      grip.setAttribute('data-pc-handle', name);
+      grip.setAttribute('data-prjs-handle', name);
       grips.set(name, grip);
       layer.appendChild(grip);
     }
@@ -132,7 +145,7 @@ export function drawArea(
         'border-radius:4px;font:12px/1.4 ui-monospace,Consolas,Menlo,monospace;' +
         'pointer-events:none;white-space:nowrap;'
     );
-    readout.setAttribute('data-pc-dims', '');
+    readout.setAttribute('data-prjs-dims', '');
     layer.appendChild(readout);
 
     doc.body.appendChild(layer);
@@ -208,7 +221,7 @@ export function drawArea(
 
     function onPointerDown(ev: PointerEvent): void {
       const target = ev.target as HTMLElement;
-      const handle = target.getAttribute('data-pc-handle') as Handle | null;
+      const handle = target.getAttribute('data-prjs-handle') as Handle | null;
       origin = { x: ev.clientX, y: ev.clientY };
 
       if (handle && box) {
@@ -367,7 +380,7 @@ export function drawArea(
       if (details.description) {
         jobOptions.annotations = [
           ...(Array.isArray(opts.annotations) ? opts.annotations : []),
-          { selector: '.pc-capture', text: details.description }
+          { selector: '.prjs-capture', text: details.description }
         ];
       }
 
@@ -404,7 +417,7 @@ export function drawArea(
 
         blank = raster.uniform === true;
         const shot = node(doc, 'img', {
-          class: 'pc-k-media',
+          class: 'prjs-media',
           attrs: { alt: 'The area you selected' },
           style: 'max-height:240px;'
         }) as HTMLImageElement;
@@ -476,9 +489,84 @@ export function drawArea(
 
     function teardown(): void {
       doc.removeEventListener('keydown', onKey, true);
+      layer.removeEventListener('contextmenu', onRegionMenu as EventListener);
+      releaseRegion?.();
+      regionMenu?.close();
       bar?.close();
       if (layer.parentNode) layer.parentNode.removeChild(layer);
     }
+
+    /* the menu over the selection ---------------------------------------- */
+
+    let regionMenu: { close(): void } | null = null;
+    let releaseRegion: (() => void) | null = null;
+
+    function startOver(): void {
+      box = null;
+      paint();
+      bar?.setStatus('Drag to select an area');
+      bar?.setDisabled('print', true);
+    }
+
+    /**
+     * Right-clicking the rectangle asks about the rectangle.
+     *
+     * The page's own menu never fires here — the overlay is above everything and
+     * `contextMenu` skips anything under `[data-prjs-ui]` — so without this a
+     * right-click mid-selection did nothing at all.
+     */
+    function onRegionMenu(ev: MouseEvent): void {
+      // The overlay covers the page, so the browser's own menu here is always
+      // wrong: its entries are about a document the user cannot see, over a
+      // selection it knows nothing about. Suppressed first and unconditionally,
+      // before any question of what to show instead.
+      ev.preventDefault();
+      ev.stopPropagation();
+
+      if (!box || !registry) return;
+      const inside =
+        ev.clientX >= box.x &&
+        ev.clientX <= box.x + box.w &&
+        ev.clientY >= box.y &&
+        ev.clientY <= box.y + box.h;
+      if (!inside) return;
+
+      regionMenu?.close();
+
+      const rect = toPageRect(box);
+      regionMenu = openRegionMenu(
+        registry,
+        {
+          target: null,
+          env: scope,
+          base: opts,
+          region: { x: rect.x, y: rect.y, width: rect.width, height: rect.height }
+        },
+        { x: ev.clientX, y: ev.clientY },
+        {
+          onClose: () => {
+            regionMenu = null;
+          }
+        }
+      );
+    }
+    layer.addEventListener('contextmenu', onRegionMenu as EventListener);
+
+    releaseRegion = holdRegion({
+      rect: () => toPageRect(box || { x: 0, y: 0, w: 0, h: 0 }),
+      viewportBox: () => box || { x: 0, y: 0, w: 0, h: 0 },
+      confirm: () => void commit(),
+      reset: startOver,
+      cancel: () => finish('cancel'),
+
+      hide: () => {
+        layer.style.display = 'none';
+      },
+      show: () => {
+        layer.style.display = 'block';
+        paint();
+      }
+    });
 
     function finish(action: 'cancel'): void {
       if (settled) return;
@@ -499,6 +587,9 @@ export function drawArea(
       {
         label: 'Print area',
         status: 'Drag to select an area',
+        // the bar used to sit over the very selection it was describing. given
+        // the box, the stack moves to the opposite edge instead of covering it.
+        avoid: () => (box ? new DOMRect(box.x, box.y, box.w, box.h) : null),
         actions: [
           {
             id: 'print',

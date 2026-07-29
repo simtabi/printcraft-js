@@ -25,7 +25,11 @@ export const CODES = {
   PC_CLIPBOARD_DENIED: 'The clipboard refused the write',
   PC_REDACTION_LEAK: 'Redacted content was still in the print document',
   PC_EMAIL_INVALID: 'The message could not be sent as addressed',
-  PC_BACKEND_UNSUPPORTED: 'The backend cannot do what was asked of it'
+  PC_BACKEND_UNSUPPORTED: 'The backend cannot do what was asked of it',
+  PC_NO_STORAGE: 'The browser will not give us somewhere to remember things',
+  PC_STORE_FULL: 'The store would not take another record',
+  PC_STORE_FAILED: 'The state service could not be reached',
+  PC_MARK_LOST: 'A remembered mark no longer has an element to sit on'
 } as const;
 
 export type ErrorCode = keyof typeof CODES;
@@ -54,7 +58,17 @@ const HINTS: Record<ErrorCode, string> = {
     'Something after redaction put the content back. Check any transform, hook or backend ' +
     'that re-reads the page. redactionPolicy: "warn" prints anyway.',
   PC_EMAIL_INVALID: 'Check the addresses, and the allowedRecipients list if you set one.',
-  PC_BACKEND_UNSUPPORTED: 'Ask the backend what it can do with capabilities() first.'
+  PC_BACKEND_UNSUPPORTED: 'Ask the backend what it can do with capabilities() first.',
+  PC_NO_STORAGE:
+    'Private browsing, a sandboxed frame or a blocked origin. Pass persist: memoryStore() to ' +
+    'carry on without remembering anything.',
+  PC_STORE_FULL:
+    'The origin is out of storage. The oldest records were dropped and it still would not fit; ' +
+    'clear the origin, lower the limit, or use httpStore().',
+  PC_STORE_FAILED: 'Check the url, the methods it allows, and its cors headers.',
+  PC_MARK_LOST:
+    'The page changed under a saved mark. Nothing was applied to the wrong element; the mark is ' +
+    'reported in restore().lost so you can decide.'
 };
 
 export interface ErrorContext {

@@ -74,7 +74,7 @@ export function pickSections(
 
     function pickable(t: Element | null): Element | null {
       if (!t || typeof t.closest !== 'function') return null;
-      if (t.closest('[data-pc-ui]')) return null;
+      if (t.closest('[data-prjs-ui]')) return null;
       if (t === doc.body || t === doc.documentElement) return null;
       return t;
     }

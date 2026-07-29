@@ -1,5 +1,5 @@
 // reading the live tree. detached clones have no layout and no canvas pixels, so
-// anything measurable is captured here first, keyed by a temporary data-pc-id,
+// anything measurable is captured here first, keyed by a temporary data-prjs-id,
 // and applied to the clone later.
 
 import { DATA_ID, FORBIDDEN_TAGS, isElement, selfAndMatches, toArray } from '../support';
@@ -66,7 +66,9 @@ export function resolveTargets(target: PrintTarget, doc: Document): Element[] {
 export function measureLiveTree(
   targets: Element[],
   options: ResolvedOptions,
-  win: Window
+  win: Window,
+  /** tag every element, not only the ones being measured. see below. */
+  tagAll = false
 ): Measurement {
   const meta: MetaMap = {};
   let counter = 0;
@@ -84,6 +86,16 @@ export function measureLiveTree(
     const all = [rootEl].concat(toArray(rootEl.querySelectorAll('*')));
     all.forEach((el) => {
       const tn = el.tagName;
+
+      // The proof sheet needs every element identifiable, not only the ones with
+      // something to measure.
+      //
+      // A mark made on the proof is written back to the page element behind it,
+      // and `data-prjs-id` is the only thing the two documents share. Tagging
+      // the whole subtree is a few thousand setAttribute calls on a large page,
+      // which is why it happens for the one mode that needs it rather than for
+      // every job.
+      if (tagAll) tag(el);
 
       if (tn === 'CANVAS' && options.printCanvas) {
         const canvas = el as HTMLCanvasElement;
@@ -218,7 +230,7 @@ export function buildClipClone(
   const bodyClone = body.cloneNode(true) as Element;
   if (options.preserveFormState) snapshotFormState(body, bodyClone);
 
-  ['script', 'noscript', '[data-pc-frame]', '[data-pc-inspector]', '[data-pc-ui]'].forEach(
+  ['script', 'noscript', '[data-prjs-frame]', '[data-prjs-inspector]', '[data-prjs-ui]'].forEach(
     (sel) => {
       const list = bodyClone.querySelectorAll(sel);
       for (let i = list.length - 1; i >= 0; i--) {
@@ -244,7 +256,7 @@ export function buildClipClone(
   const scale = options.clipMode === 'capture' ? 1 : Math.min(1, sheet.width / rect.width);
 
   const viewport = srcDoc.createElement('div');
-  viewport.className = 'pc-clip-viewport';
+  viewport.className = 'prjs-clip-viewport';
   viewport.setAttribute(
     'style',
     'position:relative;overflow:hidden;' +
@@ -258,7 +270,7 @@ export function buildClipClone(
 
   // the stage carries the scale so the viewport keeps a truthful printed size
   const stage = srcDoc.createElement('div');
-  stage.className = 'pc-clip-stage';
+  stage.className = 'prjs-clip-stage';
   stage.setAttribute(
     'style',
     'position:absolute;left:0;top:0;transform-origin:top left;' +
@@ -271,7 +283,7 @@ export function buildClipClone(
   );
 
   const inner = srcDoc.createElement('div');
-  inner.className = 'pc-clip-inner';
+  inner.className = 'prjs-clip-inner';
   inner.setAttribute(
     'style',
     'position:absolute;left:' + -rect.x + 'px;top:' + -rect.y + 'px;width:' + sourceWidth + 'px;'

@@ -10,7 +10,7 @@ test('printing an <img> directly with removeImages does not crash on the detache
   const d = dom('<img id="solo" src="a.png" alt="photo">');
   const doc = d.window.document;
   const clone = doc.getElementById('solo')!.cloneNode(true) as Element;
-  clone.setAttribute('data-pc-id', '1');
+  clone.setAttribute('data-prjs-id', '1');
 
   const out = I.applyImageHandling(
     clone,
@@ -19,7 +19,7 @@ test('printing an <img> directly with removeImages does not crash on the detache
     doc
   );
   // the root itself was swapped, so the caller gets the replacement back
-  expect(out.className).toBe('pc-img-placeholder');
+  expect(out.className).toBe('prjs-img-placeholder');
   expect(out.getAttribute('style')).toMatch(/width:40px/);
 });
 
@@ -27,7 +27,7 @@ test('printing a <canvas> directly swaps the detached root for the captured imag
   const d = dom('<canvas id="c" width="10" height="10"></canvas>');
   const doc = d.window.document;
   const clone = doc.getElementById('c')!.cloneNode(true) as Element;
-  clone.setAttribute('data-pc-id', '1');
+  clone.setAttribute('data-prjs-id', '1');
 
   const meta = { 1: { canvasData: 'data:image/png;base64,AAA', canvasW: 10, canvasH: 10 } };
   const out = I.applyCanvasCapture(clone, meta, doc);
@@ -199,14 +199,14 @@ test('overlapping target selectors resolve to one element, not two', () => {
 /* 10. measurement never leaves tags on the live page ------------------ */
 
 test('measurement cleanup sweeps ids left behind by an earlier failed job', () => {
-  const d = dom('<div id="r"><p data-pc-id="99">stale</p><img src="a.png"></div>');
+  const d = dom('<div id="r"><p data-prjs-id="99">stale</p><img src="a.png"></div>');
   const doc = d.window.document;
   const target = doc.getElementById('r')!;
 
   const measured = I.measureLiveTree([target], I.normalizeOptions({ target: '#r' }), d.window);
   measured.cleanup();
 
-  expect(doc.querySelectorAll('[data-pc-id]').length, 'live dom is left clean').toBe(0);
+  expect(doc.querySelectorAll('[data-prjs-id]').length, 'live dom is left clean').toBe(0);
 });
 
 /* 11. privacy patterns without the global flag ------------------------ */
@@ -234,7 +234,7 @@ test('an invalid redact selector raises instead of silently printing the content
 
 test('pageBreakBetweenTargets false emits no rule at all', () => {
   const css = I.buildPageCss(I.normalizeOptions({ target: '#x', pageBreakBetweenTargets: false }));
-  expect(css).not.toMatch(/\.pc-target \+ \.pc-target/);
+  expect(css).not.toMatch(/\.prjs-target \+ \.prjs-target/);
 });
 
 /* 14. the delegated trigger listener ---------------------------------- */

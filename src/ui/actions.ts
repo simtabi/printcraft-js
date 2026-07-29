@@ -12,6 +12,27 @@
 
 import type { Env, PrintcraftOptions } from '../types';
 
+/**
+ * Where an action belongs.
+ *
+ * `group` says which heading an action appears under; this says which *surface*
+ * it appears on at all. Without it every menu offered everything: a drawn region
+ * had no menu of its own because there was no way to ask for the handful of
+ * actions that are about a region, and the page menu carried entries that make
+ * no sense until something is selected.
+ *
+ * - `page`       the document as a whole
+ * - `element`    whatever was right-clicked
+ * - `region`     a drawn rectangle
+ * - `selection`  a text selection
+ * - `proof`      the proof sheet, before it prints
+ * - `annotation` inside the drawing tools
+ */
+export type ActionScope = 'page' | 'element' | 'region' | 'selection' | 'proof' | 'annotation';
+
+/** What an unscoped action means. Nothing a host registered disappears. */
+export const DEFAULT_SCOPE: readonly ActionScope[] = ['page', 'element'];
+
 /** What an action is handed when it runs. */
 export interface ActionContext {
   /** what was right-clicked, or the last element the user aimed at */
@@ -20,7 +41,26 @@ export interface ActionContext {
   /** options every job from this instance starts with */
   base: PrintcraftOptions;
   /** how it was invoked, so an action can behave differently in the palette */
-  via: 'menu' | 'palette' | 'keyboard' | 'api';
+  via: 'menu' | 'palette' | 'keyboard' | 'api' | 'toolbar';
+  /**
+   * What the asking surface shows.
+   *
+   * A set rather than one name, because a right-click on the page legitimately
+   * offers both page-level and element-level actions. Left out entirely by the
+   * palette, which is the one surface that should reach everything — it is how
+   * you get at a capability whose usual surface is not open.
+   */
+  scopes?: readonly ActionScope[];
+  /** the rectangle, when a region is what is being acted on */
+  region?: { x: number; y: number; width: number; height: number } | null;
+  /**
+   * The registry the action came from.
+   *
+   * So an action can open a menu of other actions — which is what the region
+   * tool needs, since its menu is built while a selection is live and the
+   * catalogue was built at boot.
+   */
+  registry?: ActionRegistry;
 }
 
 export interface Action {
@@ -31,6 +71,13 @@ export interface Action {
   icon?: string;
   /** the group it appears under */
   group?: string;
+  /**
+   * Which surfaces offer it. `['page', 'element']` when not given.
+   *
+   * A surface asks for one scope and gets the actions that claim it, so the
+   * region menu is region actions and nothing else.
+   */
+  scope?: ActionScope[];
   /**
    * A keybinding, written as it is read: `mod+p`, `shift+alt+r`, `?`.
    * `mod` is Command on a Mac and Control everywhere else.
@@ -45,6 +92,11 @@ export interface Action {
   /** shown with a tick when true */
   checked?: (ctx: ActionContext) => boolean;
   run: (ctx: ActionContext) => unknown;
+}
+
+/** An action's scopes, with the default filled in. */
+export function scopeOf(action: Action): readonly ActionScope[] {
+  return action.scope?.length ? action.scope : DEFAULT_SCOPE;
 }
 
 export interface ResolvedAction extends Action {
@@ -127,7 +179,12 @@ export class ActionRegistry {
       let visible = true;
       let disabledReason: string | null = null;
 
-      if (action.when) {
+      // scope first: an action that does not belong on this surface was never a
+      // candidate, rather than something `when` hid. the palette passes no
+      // scopes and so reaches everything.
+      if (ctx.scopes && !scopeOf(action).some((s) => ctx.scopes!.includes(s))) visible = false;
+
+      if (visible && action.when) {
         const verdict = action.when(ctx);
         if (verdict === false) visible = false;
         else if (typeof verdict === 'string') disabledReason = verdict;

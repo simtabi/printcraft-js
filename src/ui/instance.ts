@@ -15,6 +15,7 @@ import { buildActions } from './catalogue';
 import { contextMenu, openActionMenu, openActionPalette } from './menu';
 import { notesPanel } from './notes';
 import { defaultEnv, type UiDeps } from './shared';
+import { Session, defaultStore, scopeFor, type RestoreReport, type Store } from '../state';
 import type { Env, PrintcraftOptions } from '../types';
 
 export interface InterfaceOptions {
@@ -41,6 +42,23 @@ export interface InterfaceOptions {
   actions?: Action[];
   /** replace the catalogue outright */
   registry?: ActionRegistry;
+
+  /**
+   * Remember marks, options and activity between visits.
+   *
+   * `true` uses the browser's own storage under a `printcraft:` prefix. Pass a
+   * `Store` to put it somewhere else — a server, IndexedDB, your own state tree.
+   * Off by default: writing somebody's redactions into their browser without
+   * being asked is not a default worth having.
+   */
+  persist?: boolean | Store;
+  /** what counts as "this page" for persistence. the path by default. */
+  scopeKey?: string;
+  /**
+   * Called once marks have been put back, including the ones that could not be.
+   * Without it, a lost mark is only in the log.
+   */
+  onRestore?: (report: RestoreReport) => void;
 }
 
 /**
@@ -53,11 +71,14 @@ export interface InterfaceOptions {
 export class PrintcraftInterface {
   readonly actions: ActionRegistry;
   readonly env: Env;
+  /** What this interface remembers. Present even when nothing is persisted. */
+  readonly memory: Session;
 
   private base: PrintcraftOptions;
   private readonly cleanups: Array<() => void> = [];
   private lastTarget: Element | null = null;
   private live = true;
+  private restoring: Promise<RestoreReport> | null = null;
 
   constructor(
     private readonly deps: UiDeps,
@@ -91,22 +112,79 @@ export class PrintcraftInterface {
       });
     }
 
+    this.memory = new Session({
+      store: options.persist
+        ? options.persist === true
+          ? defaultStore(this.env.window)
+          : options.persist
+        : undefined,
+      scope: options.scopeKey || scopeFor(this.env.window),
+      bus: deps
+    });
+    if (options.persist) this.rememberFromNowOn();
+
     if (options.contextMenu !== false) this.enableContextMenu();
     if (options.keyboard !== false) this.enableKeyboard();
     this.watchTarget();
   }
 
+  /**
+   * Puts saved marks back, and starts writing new ones.
+   *
+   * Saving is driven by the DOM rather than by every call site that could make a
+   * mark. A `MutationObserver` on the three attributes catches a note added from
+   * the menu, a redaction toggled by a keybinding and a drawing finished in the
+   * studio, without any of them having to know persistence exists.
+   */
+  private rememberFromNowOn(): void {
+    const doc = this.env.document;
+
+    this.restoring = this.memory.restoreMarks(doc);
+    void this.restoring.then((report) => {
+      if (report.lost.length) {
+        this.deps.emit('state:lost', { marks: report.lost });
+      }
+      this.options.onRestore?.(report);
+    });
+
+    if (typeof this.env.window.MutationObserver !== 'function') return;
+
+    // marks arrive in bursts — a drag over six paragraphs is six mutations — so
+    // the write is coalesced rather than run once per attribute
+    let pending: ReturnType<typeof setTimeout> | undefined;
+    const watcher = new this.env.window.MutationObserver(() => {
+      clearTimeout(pending);
+      pending = setTimeout(() => void this.memory.saveMarks(doc), 250);
+    });
+
+    watcher.observe(doc.documentElement, {
+      subtree: true,
+      attributes: true,
+      attributeFilter: ['data-printcraft-note', 'data-printcraft-redact', 'data-printcraft-drawing']
+    });
+
+    this.cleanups.push(() => {
+      clearTimeout(pending);
+      watcher.disconnect();
+    });
+  }
+
+  /** Resolves once saved marks have been put back. Immediate when off. */
+  restored(): Promise<RestoreReport> {
+    return this.restoring || Promise.resolve({ restored: [], lost: [] });
+  }
+
   /* what an action is handed ------------------------------------------- */
 
   context(via: ActionContext['via'] = 'api'): ActionContext {
-    return { target: this.lastTarget, env: this.env, base: this.base, via };
+    return { target: this.lastTarget, env: this.env, base: this.base, via, registry: this.actions };
   }
 
   /** Remembers what the user last aimed at, so the palette knows too. */
   private watchTarget(): void {
     const remember = (e: Event): void => {
       const t = e.target as Element | null;
-      if (!t || (typeof t.closest === 'function' && t.closest('[data-pc-ui]'))) return;
+      if (!t || (typeof t.closest === 'function' && t.closest('[data-prjs-ui]'))) return;
       if (!this.inScope(t)) return;
       this.lastTarget = t;
     };

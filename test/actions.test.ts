@@ -248,7 +248,7 @@ test('a title and description are printed as a heading, not just used as a filen
     env(d)
   );
 
-  expect(printed).toContain('pc-heading');
+  expect(printed).toContain('prjs-heading');
   expect(printed).toContain('Quarterly report');
   expect(printed).toContain('Prepared for the board');
   expect(printed.indexOf('Quarterly report'), 'above the content').toBeLessThan(
@@ -273,7 +273,7 @@ test('no title and no description prints no heading at all', async () => {
     },
     env(d)
   );
-  expect(printed).not.toContain('pc-heading');
+  expect(printed).not.toContain('prjs-heading');
 });
 
 test('printHeading: false leaves the title for the filename alone', async () => {
@@ -298,7 +298,7 @@ test('printHeading: false leaves the title for the filename alone', async () => 
     env(d)
   );
 
-  expect(printed).not.toContain('pc-heading');
+  expect(printed).not.toContain('prjs-heading');
   expect(title, 'the browser still names the pdf after it').toBe('Invoice 4417');
 });
 
@@ -572,4 +572,28 @@ test('afterPaginate does not fire for a job that did not paginate', async () => 
     env(d)
   );
   expect(fired).toBe(false);
+});
+
+test('no two stock actions share an id', () => {
+  // `add()` replaces by id, which is what lets a host override an entry. It also
+  // means a duplicate inside our own catalogue silently deletes the first one:
+  // a second action registered as `draw` removed the region tool from the menu
+  // and from the palette, and nothing failed.
+  const ids = Printcraft.ui.buildActions().map((a: { id: string }) => a.id);
+  const seen = new Set<string>();
+  const doubled = ids.filter((id: string) => (seen.has(id) ? true : (seen.add(id), false)));
+
+  expect(doubled, 'these ids appear twice and the later one wins').toEqual([]);
+});
+
+test('no two stock actions claim the same keys', () => {
+  const bound = Printcraft.ui
+    .buildActions()
+    .filter((a: { keys?: string }) => a.keys)
+    .map((a: { keys: string }) => a.keys.toLowerCase());
+
+  const seen = new Set<string>();
+  const doubled = bound.filter((k: string) => (seen.has(k) ? true : (seen.add(k), false)));
+
+  expect(doubled, 'one binding, two actions: only one of them can ever run').toEqual([]);
 });

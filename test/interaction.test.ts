@@ -47,11 +47,11 @@ test('redactElement destroys text, media, and identifying attributes', () => {
   expect_eq(/[A-Za-z0-9]/.test(text), false, 'no readable characters remain');
   expect_ok(text.indexOf(BLOCK) !== -1);
   expect_eq(clone.querySelectorAll('img').length, 0, 'image replaced');
-  const media = clone.querySelector('.pc-redacted-media');
+  const media = clone.querySelector('.prjs-redacted-media');
   expect_match(media.getAttribute('style'), /width:120px/);
   expect_eq(clone.getAttribute('title'), null, 'root attrs scrubbed');
   expect_eq(clone.querySelector('a').getAttribute('href'), null, 'href scrubbed');
-  expect_ok(clone.classList.contains('pc-redacted'));
+  expect_ok(clone.classList.contains('prjs-redacted'));
 });
 
 test('applyRedaction covers selectors and the data attribute', () => {
@@ -70,7 +70,7 @@ test('applyRedaction covers selectors and the data attribute', () => {
 
 test('redaction css paints bars black', () => {
   const css = I.buildPageCss(I.normalizeOptions({ target: '#x' }));
-  expect_match(css, /\.pc-redacted, \.pc-redacted \* \{ background: #000 !important/);
+  expect_match(css, /\.prjs-redacted, \.prjs-redacted \* \{ background: #000 !important/);
 });
 
 /* privacy auto-redaction */
@@ -107,13 +107,13 @@ test('printerMarks: true normalizes to crop + 3mm bleed, css and markup emitted'
   expect_eq(o.printerMarks.bleed, '3mm');
   const css = I.buildPageCss(o);
   expect_match(css, /body \{ padding: 3mm/);
-  expect_match(css, /\.pc-mark-tl/);
+  expect_match(css, /\.prjs-mark-tl/);
 
   const src = dom('<div id="r">x</div>');
   const out = dom('');
   const clone = src.window.document.getElementById('r').cloneNode(true);
   I.assemblePrintDocument(out.window.document, [clone], o, src.window.document);
-  expect_eq(out.window.document.querySelectorAll('.pc-mark').length, 4);
+  expect_eq(out.window.document.querySelectorAll('.prjs-mark').length, 4);
 });
 
 test('printerMarks custom bleed and color pass through', () => {
@@ -137,11 +137,11 @@ test('annotations render note chips from options and data attributes', () => {
     annotations: [{ selector: '#total', text: 'verify with finance' }]
   });
   I.applyAnnotations(clone, o, doc);
-  const notes = clone.querySelectorAll('.pc-note');
+  const notes = clone.querySelectorAll('.prjs-note');
   expect_eq(notes.length, 2);
   expect_eq(notes[0].textContent, 'verify with finance');
   expect_eq(notes[1].textContent, 'check with legal');
-  expect_match(I.buildPageCss(o), /\.pc-note \{ display: inline-block/);
+  expect_match(I.buildPageCss(o), /\.prjs-note \{ display: inline-block/);
 });
 
 /* clip rect */
@@ -155,16 +155,16 @@ test('clipRect validates and builds a clipped whole-body clone', () => {
   const o = I.normalizeOptions({ clipRect: { x: 40, y: 100, width: 300, height: 200 } });
   expect_eq(o.keepSourceCSS, true, 'clip jobs keep page css by default');
 
-  const d = dom(`<div id="a">alpha</div><div data-pc-ui>toolbar</div><script>x()</script>
+  const d = dom(`<div id="a">alpha</div><div data-prjs-ui>toolbar</div><script>x()</script>
     <input id="f" type="text">`);
   d.window.document.getElementById('f').value = 'typed';
   const clip = I.buildClipClone(d.window.document, o.clipRect, o);
-  expect_eq(clip.className, 'pc-clip-viewport');
+  expect_eq(clip.className, 'prjs-clip-viewport');
   expect_match(clip.getAttribute('style'), /width:300px;height:200px/);
-  const inner = clip.querySelector('.pc-clip-inner');
+  const inner = clip.querySelector('.prjs-clip-inner');
   expect_match(inner.getAttribute('style'), /left:-40px;top:-100px/);
   expect_ok(inner.querySelector('#a'), 'page content present');
-  expect_eq(inner.querySelectorAll('[data-pc-ui], script').length, 0, 'ui and scripts stripped');
+  expect_eq(inner.querySelectorAll('[data-prjs-ui], script').length, 0, 'ui and scripts stripped');
   expect_eq(inner.querySelector('#f').getAttribute('value'), 'typed', 'form state preserved');
 });
 
@@ -180,7 +180,7 @@ test('a clipRect job runs end-to-end and cancels cleanly via hook', async () => 
       assetTimeout: 100,
       hooks: {
         beforePrint(ctx) {
-          sawViewport = !!ctx.document.querySelector('.pc-clip-viewport');
+          sawViewport = !!ctx.document.querySelector('.prjs-clip-viewport');
           return false; // cancel, no dialog under jsdom
         }
       }
@@ -308,12 +308,12 @@ test('context menu opens on right-click with all items and tabler icons', () => 
     });
     p.dispatchEvent(ev);
     expect_eq(ev.defaultPrevented, true, 'native menu suppressed');
-    const menu = d.window.document.querySelector('[data-pc-menu]');
+    const menu = d.window.document.querySelector('[data-prjs-menu]');
     expect_ok(menu, 'menu rendered');
     // asserted by id, not by count: the catalogue grows, and a number here
     // would only ever record how many there were the day it was written
     const present = new Set(
-      [...menu.querySelectorAll('[data-pc-item]')].map((n) => n.getAttribute('data-pc-item'))
+      [...menu.querySelectorAll('[data-prjs-item]')].map((n) => n.getAttribute('data-prjs-item'))
     );
     for (const id of [
       'print-element',
@@ -328,13 +328,13 @@ test('context menu opens on right-click with all items and tabler icons', () => 
     }
     expect_ok(menu.querySelectorAll('svg').length >= 8, 'icons present');
     // the heading says whose menu it is
-    expect_ok(menu.querySelector('.pc-k-menu-title'), 'menu has a title');
-    expect_ok(menu.querySelector('.pc-k-menu-desc'), 'and a one-line description');
+    expect_ok(menu.querySelector('.prjs-menu-title'), 'menu has a title');
+    expect_ok(menu.querySelector('.prjs-menu-desc'), 'and a one-line description');
     // escape closes
     d.window.document.dispatchEvent(
       new d.window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true })
     );
-    expect_eq(d.window.document.querySelector('[data-pc-menu]'), null);
+    expect_eq(d.window.document.querySelector('[data-prjs-menu]'), null);
   } finally {
     disable();
   }
@@ -357,11 +357,11 @@ test('context menu redact item toggles the attribute on the clicked element', ()
         clientY: 5
       })
     );
-    const item = d.window.document.querySelector('[data-pc-item="redact"]');
+    const item = d.window.document.querySelector('[data-prjs-item="redact"]');
     expect_ok(item, 'filtered menu shows only requested item');
     // the palette is added by the interface itself, so `items` leaves two
-    const shown = [...d.window.document.querySelectorAll('[data-pc-item]')].map((n) =>
-      n.getAttribute('data-pc-item')
+    const shown = [...d.window.document.querySelectorAll('[data-prjs-item]')].map((n) =>
+      n.getAttribute('data-prjs-item')
     );
     expect_deep(shown, ['redact', 'palette']);
     item.dispatchEvent(new d.window.MouseEvent('click', { bubbles: true }));
@@ -376,7 +376,7 @@ test('picker selects elements and redact action stamps them', async () => {
   const doc = d.window.document;
   const done = Printcraft.ui.pickSections({}, env(d));
   // toolbar present
-  expect_ok(doc.querySelector('[data-pc-act="print"]'));
+  expect_ok(doc.querySelector('[data-prjs-act="print"]'));
   // click both sections
   doc
     .querySelector('#a p')
@@ -385,25 +385,25 @@ test('picker selects elements and redact action stamps them', async () => {
     .querySelector('#b p')
     .dispatchEvent(new d.window.MouseEvent('click', { bubbles: true, cancelable: true }));
   doc
-    .querySelector('[data-pc-act="redact"]')
+    .querySelector('[data-prjs-act="redact"]')
     .dispatchEvent(new d.window.MouseEvent('click', { bubbles: true }));
   const result = await done;
   expect_eq(result.action, 'redact');
   expect_eq(result.elements.length, 2);
   expect_ok(doc.querySelector('#a p').hasAttribute('data-printcraft-redact'));
   // toolbar cleaned up
-  expect_eq(doc.querySelector('[data-pc-act="print"]'), null);
+  expect_eq(doc.querySelector('[data-prjs-act="print"]'), null);
 });
 
 test('draw overlay cancels on escape and cleans up', async () => {
   const d = dom('<div>page</div>');
   const doc = d.window.document;
   const done = Printcraft.ui.drawArea({}, env(d));
-  expect_ok(doc.querySelector('[data-pc-draw]'), 'overlay mounted');
+  expect_ok(doc.querySelector('[data-prjs-draw]'), 'overlay mounted');
   doc.dispatchEvent(new d.window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
   const result = await done;
   expect_eq(result.action, 'cancel');
-  expect_eq(doc.querySelector('[data-pc-draw]'), null, 'overlay removed');
+  expect_eq(doc.querySelector('[data-prjs-draw]'), null, 'overlay removed');
 });
 
 /* pipeline integration of security defaults */

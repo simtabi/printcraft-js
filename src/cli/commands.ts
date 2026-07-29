@@ -164,7 +164,7 @@ export async function print(ctx: Context, parsed: Parsed): Promise<number> {
         hooks: {
           beforePrint(context: { document: Document }) {
             html = context.document.documentElement.outerHTML;
-            pages = context.document.querySelectorAll('.pc-page-sheet').length || null;
+            pages = context.document.querySelectorAll('.prjs-page-sheet').length || null;
             return false;
           }
         }
@@ -309,7 +309,7 @@ export async function doctor(ctx: Context, parsed: Parsed): Promise<number> {
       }
 
       return {
-        sheets: d.querySelectorAll('.pc-page-sheet').length,
+        sheets: d.querySelectorAll('.prjs-page-sheet').length,
         elements: d.querySelectorAll('*').length,
         characters: text.trim().length,
         images: d.querySelectorAll('img').length,

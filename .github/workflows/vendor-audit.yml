@@ -1,0 +1,83 @@
+# Is our mirror of daisyUI's design tokens still accurate?
+#
+# The library cannot ship daisyUI — its class names are global, and injecting
+# `.btn` into a host page would restyle that page's own buttons. It mirrors the
+# token names instead, under `--prjs-`. This is what stops that mirror going
+# quietly out of date: daisyUI renamed `--rounded-box` to `--radius-box` between
+# 4 and 5, and nothing would have told us.
+name: Vendor audit
+
+on:
+  schedule:
+    # Mondays at 06:00 America/New_York, matching dependabot
+    - cron: '0 11 * * 1'
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'package.json'
+      - 'src/ui/kit/theme.ts'
+      - 'tools/vendor-audit.mjs'
+      - 'vendor.lock.json'
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+      - run: npm install
+
+      # the latest daisyUI, not the one the lock happens to resolve: the point is
+      # to find out about a change before it reaches us
+      - name: Take the newest daisyUI
+        if: github.event_name != 'pull_request'
+        run: npm install -D daisyui@latest --no-save
+
+      - name: Compare their tokens with ours
+        id: audit
+        run: |
+          node tools/vendor-audit.mjs | tee audit.txt
+        continue-on-error: true
+
+      - name: Open an issue when they have drifted apart
+        if: steps.audit.outcome == 'failure' && github.event_name != 'pull_request'
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const fs = require('fs');
+            const body = fs.readFileSync('audit.txt', 'utf8');
+            const title = 'daisyUI tokens have moved';
+
+            const open = await github.rest.issues.listForRepo({
+              owner: context.repo.owner, repo: context.repo.repo,
+              state: 'open', labels: 'vendor-audit'
+            });
+            // one issue, updated, rather than a new one every Monday
+            if (open.data.length) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner, repo: context.repo.repo,
+                issue_number: open.data[0].number,
+                body: '```\n' + body + '\n```'
+              });
+              return;
+            }
+            await github.rest.issues.create({
+              owner: context.repo.owner, repo: context.repo.repo,
+              title,
+              labels: ['vendor-audit'],
+              body: 'The design tokens the kit mirrors no longer match the ones daisyUI '
+                + 'declares. Until this is dealt with, the kit describes a system that has '
+                + 'moved on.\n\n```\n' + body + '\n```\n\n'
+                + 'Fix in `src/ui/kit/theme.ts`, then `node tools/vendor-audit.mjs --write`.'
+            });
+
+      # a pull request that breaks the mirror should fail, not open an issue
+      - name: Fail the pull request
+        if: steps.audit.outcome == 'failure' && github.event_name == 'pull_request'
+        run: exit 1

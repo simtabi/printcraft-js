@@ -53,7 +53,7 @@ export function saveBlob(blob: Blob, filename: string, env: Env): void {
   const link = env.document.createElement('a');
   link.href = url;
   link.download = filename;
-  link.setAttribute('data-pc-ui', '');
+  link.setAttribute('data-prjs-ui', '');
   env.document.body.appendChild(link);
   link.click();
   link.remove();
@@ -85,7 +85,7 @@ export async function screenshot(
   // comes out 1px square. Park it off-screen at the width the content had, let
   // the browser lay it out, then take the picture and clear up.
   const stage = scope.document.createElement('div');
-  stage.setAttribute('data-pc-ui', '');
+  stage.setAttribute('data-prjs-ui', '');
   const layoutWidth = options.width ?? width;
   stage.setAttribute(
     'style',

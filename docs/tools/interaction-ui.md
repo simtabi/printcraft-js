@@ -197,7 +197,7 @@ Printcraft.ui.theme.set({
 
 Tones are `primary`, `danger`, `warn`, `success` and `info`. Dark mode follows `prefers-color-scheme` unless `colorScheme` pins it, because a print tool sitting on a dark app should not be the one white rectangle on the page.
 
-Everything is a CSS custom property under `.pc-k`, so a host stylesheet can override without fighting inline styles.
+Everything is a CSS custom property under `.prjs`, so a host stylesheet can override without fighting inline styles.
 
 ## Events
 

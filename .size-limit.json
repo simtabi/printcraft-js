@@ -1,8 +1,8 @@
 [
   {
-    "name": "core \u2014 import { Printcraft }",
+    "name": "core — import { Printcraft }",
     "path": ["dist/printcraft.mjs", "dist/printcraft-core.mjs"],
-    "limit": "26 kB"
+    "limit": "28 kB"
   },
   {
     "name": "core + /ui",
@@ -12,7 +12,7 @@
       "dist/printcraft-ui.mjs",
       "dist/printcraft.ui.mjs"
     ],
-    "limit": "52 kB"
+    "limit": "60 kB"
   },
   {
     "name": "core + /ui + /share",
@@ -23,11 +23,11 @@
       "dist/printcraft.ui.mjs",
       "dist/printcraft.share.mjs"
     ],
-    "limit": "60 kB"
+    "limit": "64 kB"
   },
   {
-    "name": "umd \u2014 one script tag",
+    "name": "umd — one script tag",
     "path": "dist/printcraft.umd.js",
-    "limit": "60 kB"
+    "limit": "80 kB"
   }
 ]

@@ -12,12 +12,13 @@ of the print dialog:
 const ctl = await Printcraft.inspect({ target: '#invoice', watermarkText: 'PREVIEW' });
 ```
 
-The overlay carries the assembled print document in an iframe, with Print,
-Log HTML and Close controls. The resolved controller gives you the same thing
-programmatically:
+It opens the [proof sheet](../proof.md), read-only: the assembled print document
+in an iframe, with a page rail and a zoom. There used to be a separate inspector
+overlay with Print / Log HTML / Close; it answered the same question worse and is
+gone. The resolved controller gives you the same thing programmatically:
 
 ```js
-ctl.document.querySelector('.pc-target'); // the assembled document
+ctl.document.querySelector('.prjs-target'); // the assembled document
 ctl.job.status; // 'inspected'
 ctl.job.documentHTML; // the full html, captured
 ctl.print(); // open the real dialog

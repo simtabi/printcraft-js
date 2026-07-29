@@ -4,6 +4,7 @@
 // redaction review, which is the point: a new dialog is a data structure, not
 // another pile of createElement calls.
 
+import { buildColorField, validateColor } from './color';
 import { h } from './dom';
 
 export type FieldValue = string | number | boolean | string[];
@@ -25,7 +26,23 @@ export type Field =
   | (BaseField & { type: 'textarea'; value?: string; placeholder?: string; rows?: number })
   | (BaseField & { type: 'number'; value?: number; min?: number; max?: number; step?: number })
   | (BaseField & { type: 'checkbox'; value?: boolean })
-  | (BaseField & { type: 'color'; value?: string })
+  | (BaseField & {
+      type: 'color';
+      value?: string;
+      /** offer an opacity channel. on by default. */
+      alpha?: boolean;
+      /** one-click colours under the field */
+      swatches?: string[];
+    })
+  | (BaseField & {
+      type: 'range';
+      value?: number;
+      min?: number;
+      max?: number;
+      step?: number;
+      /** printed after the live readout: px, mm, % */
+      unit?: string;
+    })
   | (BaseField & { type: 'length'; value?: string; placeholder?: string })
   | (BaseField & {
       type: 'select' | 'radio';
@@ -47,7 +64,7 @@ const TEXTUAL = new Set(['text', 'email', 'url', 'length']);
 const LENGTH = /^-?\d*\.?\d+(px|pt|pc|in|cm|mm|q|em|rem|%)?$/i;
 
 export function buildForm(doc: Document, fields: Field[]): FormHandle {
-  const form = h(doc, 'div', { class: 'pc-k-form' });
+  const form = h(doc, 'div', { class: 'prjs-form' });
   const inputs = new Map<string, HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>();
   const wrappers = new Map<string, HTMLElement>();
   const errors = new Map<string, HTMLElement>();
@@ -95,38 +112,40 @@ export function buildForm(doc: Document, fields: Field[]): FormHandle {
   };
 
   for (const field of fields) {
-    const id = 'pc-f-' + field.name;
-    const wrapper = h(doc, 'div', { class: 'pc-k-field' });
+    const id = 'prjs-f-' + field.name;
+    const wrapper = h(doc, 'div', { class: 'prjs-field' });
     const errorSlot = h(doc, 'span', {
-      class: 'pc-k-error',
+      class: 'prjs-error',
       attrs: { hidden: true, role: 'alert' }
     });
 
     if (field.type === 'checkbox') {
       const input = h(doc, 'input', {
+        class: 'prjs-checkbox',
         attrs: { type: 'checkbox', id, disabled: field.disabled }
       }) as HTMLInputElement;
       input.checked = !!field.value;
       inputs.set(field.name, input);
 
-      const label = h(doc, 'label', { class: 'pc-k-label pc-k-check', attrs: { for: id } });
+      const label = h(doc, 'label', { class: 'prjs-label prjs-check', attrs: { for: id } });
       label.appendChild(input);
       label.appendChild(doc.createTextNode(field.label));
       wrapper.appendChild(label);
     } else if (field.type === 'radio') {
       const group = h(doc, 'div', { attrs: { role: 'radiogroup', 'aria-label': field.label } });
-      group.appendChild(h(doc, 'span', { class: 'pc-k-label', text: field.label }));
+      group.appendChild(h(doc, 'span', { class: 'prjs-label', text: field.label }));
       const buttons: HTMLInputElement[] = [];
 
       field.choices.forEach((choice, i) => {
         const rid = id + '-' + i;
         const input = h(doc, 'input', {
+          class: 'prjs-radio',
           attrs: { type: 'radio', id: rid, name: field.name, value: choice.value }
         }) as HTMLInputElement;
         input.checked = field.value === choice.value;
         buttons.push(input);
 
-        const label = h(doc, 'label', { class: 'pc-k-check', attrs: { for: rid } });
+        const label = h(doc, 'label', { class: 'prjs-check', attrs: { for: rid } });
         label.appendChild(input);
         label.appendChild(doc.createTextNode(choice.label));
         group.appendChild(label);
@@ -135,13 +154,13 @@ export function buildForm(doc: Document, fields: Field[]): FormHandle {
       wrapper.appendChild(group);
     } else {
       wrapper.appendChild(
-        h(doc, 'label', { class: 'pc-k-label', text: field.label, attrs: { for: id } })
+        h(doc, 'label', { class: 'prjs-label', text: field.label, attrs: { for: id } })
       );
 
       let input: HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement;
       if (field.type === 'textarea') {
         input = h(doc, 'textarea', {
-          class: 'pc-k-textarea',
+          class: 'prjs-textarea',
           attrs: {
             id,
             rows: field.rows || 4,
@@ -151,16 +170,71 @@ export function buildForm(doc: Document, fields: Field[]): FormHandle {
         });
         input.value = field.value || '';
       } else if (field.type === 'select') {
-        input = h(doc, 'select', { class: 'pc-k-select', attrs: { id, disabled: field.disabled } });
+        input = h(doc, 'select', { class: 'prjs-select', attrs: { id, disabled: field.disabled } });
         for (const choice of field.choices) {
           const option = h(doc, 'option', { text: choice.label, attrs: { value: choice.value } });
           input.appendChild(option);
         }
         input.value = field.value || field.choices[0]?.value || '';
-      } else {
-        const type = field.type === 'number' ? 'number' : field.type === 'color' ? 'color' : 'text';
+      } else if (field.type === 'color') {
+        // Coloris takes over a text input, so the field keeps the label, the
+        // hint and the error slot every other field has
+        const built = buildColorField(doc, id, {
+          value: field.value ?? '',
+          ...(field.alpha === undefined ? {} : { alpha: field.alpha }),
+          ...(field.swatches ? { swatches: field.swatches } : {}),
+          label: field.label
+        });
+        input = built.input;
+        inputs.set(field.name, input);
+        wrapper.appendChild(built.element);
+        if (field.hint)
+          wrapper.appendChild(h(doc, 'span', { class: 'prjs-hint', text: field.hint }));
+        wrapper.appendChild(errorSlot);
+        errors.set(field.name, errorSlot);
+        wrappers.set(field.name, wrapper);
+        form.appendChild(wrapper);
+        continue;
+      } else if (field.type === 'range') {
+        const row = h(doc, 'div', { class: 'prjs-range-row' });
         input = h(doc, 'input', {
-          class: field.type === 'color' ? 'pc-k-input pc-k-color' : 'pc-k-input',
+          class: 'prjs-range',
+          attrs: {
+            id,
+            type: 'range',
+            min: field.min ?? 0,
+            max: field.max ?? 100,
+            step: field.step ?? 1,
+            disabled: field.disabled
+          }
+        });
+        input.value = String(field.value ?? field.min ?? 0);
+        row.appendChild(input);
+
+        // a slider with no number is a slider you cannot describe to anyone
+        const readout = h(doc, 'output', {
+          class: 'prjs-range-value',
+          attrs: { for: id },
+          text: input.value + (field.unit || '')
+        });
+        input.addEventListener('input', () => {
+          readout.textContent = (input as HTMLInputElement).value + (field.unit || '');
+        });
+        row.appendChild(readout);
+
+        inputs.set(field.name, input);
+        wrapper.appendChild(row);
+        if (field.hint)
+          wrapper.appendChild(h(doc, 'span', { class: 'prjs-hint', text: field.hint }));
+        wrapper.appendChild(errorSlot);
+        errors.set(field.name, errorSlot);
+        wrappers.set(field.name, wrapper);
+        form.appendChild(wrapper);
+        continue;
+      } else {
+        const type = field.type === 'number' ? 'number' : 'text';
+        input = h(doc, 'input', {
+          class: 'prjs-input',
           attrs: {
             id,
             type: field.type === 'email' ? 'email' : field.type === 'url' ? 'url' : type,
@@ -178,7 +252,7 @@ export function buildForm(doc: Document, fields: Field[]): FormHandle {
       wrapper.appendChild(input);
     }
 
-    if (field.hint) wrapper.appendChild(h(doc, 'span', { class: 'pc-k-hint', text: field.hint }));
+    if (field.hint) wrapper.appendChild(h(doc, 'span', { class: 'prjs-hint', text: field.hint }));
     wrapper.appendChild(errorSlot);
     errors.set(field.name, errorSlot);
     wrappers.set(field.name, wrapper);
@@ -219,6 +293,10 @@ export function buildForm(doc: Document, fields: Field[]): FormHandle {
             message = 'That is not an email address';
         } else if (!empty && field.type === 'length' && !LENGTH.test(String(value))) {
           message = 'Use a css length, like 18mm or 24px';
+        } else if (!empty && field.type === 'color') {
+          // a colour can be typed as well as picked, and a typo should be caught
+          // here rather than by an svg silently drawing nothing
+          message = validateColor(value, field.label);
         }
         if (!message && field.validate) message = field.validate(value as FieldValue, values);
 

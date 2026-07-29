@@ -2,7 +2,8 @@
 // header/footer, printer marks, and the target slots. built with dom apis rather
 // than document.write, which is deprecated and would re-open the stream.
 
-import { NS, toArray } from '../support';
+import { NS, describeElement, toArray } from '../support';
+import { PAGE_CSS, buildCoverPage, buildNotesPage, collectNotes } from './pages';
 import { REDACTION_CSS } from '../privacy/redact';
 import { marksCss, marksMarkup } from '../production/marks';
 import { resolveSheet } from '../production/sheets';
@@ -40,7 +41,7 @@ export function buildPageCss(options: ResolvedOptions): string {
   }
 
   if (options.pageBreakBetweenTargets) {
-    css.push('.pc-target + .pc-target{ break-before: page; page-break-before: always; }');
+    css.push('.prjs-target + .prjs-target{ break-before: page; page-break-before: always; }');
   }
 
   const breakBefore = options.pageBreakBeforeSelectors.concat(['[data-' + NS + '-break-before]']);
@@ -52,16 +53,20 @@ export function buildPageCss(options: ResolvedOptions): string {
   css.push('[data-' + NS + '-reveal] { display: revert !important; }');
 
   css.push(
-    '.pc-heading { margin: 0 0 18px; padding-bottom: 12px;' +
+    '.prjs-heading { margin: 0 0 18px; padding-bottom: 12px;' +
       ' border-bottom: 1px solid currentColor; break-after: avoid; page-break-after: avoid; }' +
-      '.pc-heading-title { font: 600 20px/1.25 inherit; margin: 0; }' +
-      '.pc-heading-desc { font: 13px/1.5 inherit; margin: 6px 0 0; opacity: .8; }' +
-      '.pc-heading-meta { font: 11px/1.4 inherit; margin: 8px 0 0; opacity: .55; }'
+      '.prjs-heading-title { font: 600 20px/1.25 inherit; margin: 0; }' +
+      '.prjs-heading-desc { font: 13px/1.5 inherit; margin: 6px 0 0; opacity: .8; }' +
+      '.prjs-heading-meta { font: 11px/1.4 inherit; margin: 8px 0 0; opacity: .55; }'
   );
+
+  // only when one of the two sheets was asked for: a receipt should not carry
+  // the css for a cover page it will never print
+  if (options.coverPage || options.notesPage) css.push(PAGE_CSS);
 
   css.push(REDACTION_CSS);
   css.push(
-    '.pc-note { display: inline-block; background: #fef9c3; border: 1px solid #ca8a04;' +
+    '.prjs-note { display: inline-block; background: #fef9c3; border: 1px solid #ca8a04;' +
       ' color: #713f12; font: 11px/1.4 sans-serif; padding: 1px 6px; margin: 0 4px; vertical-align: middle;' +
       ' break-inside: avoid; }'
   );
@@ -80,17 +85,17 @@ export function buildPageCss(options: ResolvedOptions): string {
       // browsers repeat thead/tfoot on every printed page; absolute positioning does not
       css.push(
         [
-          'table.pc-sheet { width: 100%; border-collapse: collapse; }',
-          'table.pc-sheet > thead td, table.pc-sheet > tfoot td { text-align: center;',
+          'table.prjs-sheet { width: 100%; border-collapse: collapse; }',
+          'table.prjs-sheet > thead td, table.prjs-sheet > tfoot td { text-align: center;',
           'font-size: 11px; color: #444; padding: 4px 0; }',
-          'table.pc-sheet > tbody td { padding: 0; }'
+          'table.prjs-sheet > tbody td { padding: 0; }'
         ].join(' ')
       );
     } else {
       css.push(
         [
-          '.pc-header { position: fixed; top: 0; left: 0; right: 0; text-align: center; font-size: 11px; color: #444; }',
-          '.pc-footer { position: fixed; bottom: 0; left: 0; right: 0; text-align: center; font-size: 11px; color: #444; }',
+          '.prjs-header { position: fixed; top: 0; left: 0; right: 0; text-align: center; font-size: 11px; color: #444; }',
+          '.prjs-footer { position: fixed; bottom: 0; left: 0; right: 0; text-align: center; font-size: 11px; color: #444; }',
           'body { padding-top: 24px; padding-bottom: 24px; }'
         ].join(' ')
       );
@@ -128,18 +133,18 @@ export function buildHeading(options: ResolvedOptions, doc: Document): Element |
   if (!title && !description) return null;
 
   const box = doc.createElement('header');
-  box.className = 'pc-heading';
-  box.setAttribute('data-pc-heading', '');
+  box.className = 'prjs-heading';
+  box.setAttribute('data-prjs-heading', '');
 
   if (title) {
     const h1 = doc.createElement('h1');
-    h1.className = 'pc-heading-title';
+    h1.className = 'prjs-heading-title';
     h1.textContent = title;
     box.appendChild(h1);
   }
   if (description) {
     const p = doc.createElement('p');
-    p.className = 'pc-heading-desc';
+    p.className = 'prjs-heading-desc';
     p.textContent = description;
     box.appendChild(p);
   }
@@ -147,7 +152,7 @@ export function buildHeading(options: ResolvedOptions, doc: Document): Element |
   const stamp = options.printHeadingMeta;
   if (stamp) {
     const meta = doc.createElement('p');
-    meta.className = 'pc-heading-meta';
+    meta.className = 'prjs-heading-meta';
     meta.textContent = stamp === true ? new Date().toLocaleString() : String(stamp);
     box.appendChild(meta);
   }
@@ -159,12 +164,12 @@ export function buildHeading(options: ResolvedOptions, doc: Document): Element |
  *
  * The interface's own sheet is skipped. It styles surfaces that are stripped
  * from the copy before this runs, so carrying it would put several kilobytes of
- * dead rules in every printed document, and leave a `data-pc-ui` node in a copy
+ * dead rules in every printed document, and leave a `data-prjs-ui` node in a copy
  * that is supposed to have none.
  */
 export function collectSourceCss(srcDoc: Document): Element[] {
   return toArray(srcDoc.querySelectorAll('style, link[rel~="stylesheet"]'))
-    .filter((n) => !n.hasAttribute('data-' + NS + '-ui') && !n.hasAttribute('data-pc-ui'))
+    .filter((n) => !n.hasAttribute('data-' + NS + '-ui') && !n.hasAttribute('data-prjs-ui'))
     .map((n) => n.cloneNode(true) as Element);
 }
 
@@ -215,7 +220,7 @@ export function assemblePrintDocument(
   // a paginated job puts everything in one host the paginator then deals out
   if (options.paginate) {
     const pages = doc.createElement('div');
-    pages.className = 'pc-pages';
+    pages.className = 'prjs-pages';
     body.appendChild(pages);
     contentHost = pages;
   }
@@ -227,7 +232,7 @@ export function assemblePrintDocument(
 
   if (useSheet) {
     const table = doc.createElement('table');
-    table.className = 'pc-sheet';
+    table.className = 'prjs-sheet';
     const makeBand = (section: 'thead' | 'tfoot', text: string): Element => {
       const band = doc.createElement(section);
       const tr = doc.createElement('tr');
@@ -250,19 +255,25 @@ export function assemblePrintDocument(
   } else if (!options.paginate && (options.headerText || options.footerText)) {
     if (options.headerText) {
       const h = doc.createElement('div');
-      h.className = 'pc-header';
+      h.className = 'prjs-header';
       h.textContent = options.headerText;
       body.appendChild(h);
     }
     if (options.footerText) {
       const f = doc.createElement('div');
-      f.className = 'pc-footer';
+      f.className = 'prjs-footer';
       f.textContent = options.footerText;
       body.appendChild(f);
     }
   }
 
-  // The title and description, if there are any, open the document.
+  // A cover sheet, if one was asked for. Before the heading, because a document
+  // can reasonably have both: a cover for the reader and a heading for whoever
+  // finds sheet two on a printer tray.
+  const cover = buildCoverPage(options, doc);
+  if (cover) contentHost.appendChild(cover);
+
+  // The title and description, if there are any, open the content.
   //
   // Somewhere to put them is the point: a title that only reaches the browser's
   // save-as-PDF filename is invisible on the paper, and a description typed into
@@ -273,10 +284,18 @@ export function assemblePrintDocument(
 
   clones.forEach((clone) => {
     const slot = doc.createElement('div');
-    slot.className = 'pc-target';
+    slot.className = 'prjs-target';
     slot.appendChild(doc.importNode(clone, true));
     contentHost.appendChild(slot);
   });
+
+  // The marks, listed, on a sheet of their own at the end.
+  //
+  // Gathered from the source document rather than the clones: redaction has
+  // already destroyed the content by the time a clone exists, which is what
+  // redaction is for and why this reads the original.
+  const notesPage = buildNotesPage(options, doc, collectNotes(srcDoc, describeElement));
+  if (notesPage) contentHost.appendChild(notesPage);
 
   // a paginated job gets its mark from the paginator, once per sheet
   if (!options.paginate) {

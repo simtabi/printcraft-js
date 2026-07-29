@@ -12,7 +12,7 @@ const BLOCK = '█';
 
 test.beforeEach(async ({ page }) => {
   await page.goto(DEMO);
-  await expect(page.locator('#tickets .pc-ticket').first()).toBeVisible();
+  await expect(page.locator('#tickets .prjs-ticket').first()).toBeVisible();
 
   // a known paragraph with known text, so the character maths is checkable
   await page.evaluate(() => {
@@ -54,7 +54,7 @@ async function openRedact(page: Page): Promise<void> {
       target: '#subject'
     });
   });
-  await expect(page.locator('[data-pc-redact-layer]')).toBeVisible();
+  await expect(page.locator('[data-prjs-redact-layer]')).toBeVisible();
 }
 
 async function dragOver(
@@ -75,23 +75,23 @@ test('a box over part of a line marks exactly that part', async ({ page }) => {
   await openRedact(page);
   await dragOver(page, box);
 
-  await expect(page.locator('[data-pc-mark]')).toHaveCount(1);
-  await expect(page.locator('[data-pc-toolbar]')).toContainText('1 mark');
+  await expect(page.locator('[data-prjs-mark]')).toHaveCount(1);
+  await expect(page.locator('[data-prjs-toolbar]')).toContainText('1 mark');
   // 14 characters of name, plus whatever spaces the box also covered
-  await expect(page.locator('[data-pc-toolbar]')).toContainText(/1[4-6] characters/);
+  await expect(page.locator('[data-prjs-toolbar]')).toContainText(/1[4-6] characters/);
 });
 
 test('the review step shows what will be destroyed', async ({ page }) => {
   const box = await rangeBox(page, 13, 27);
   await openRedact(page);
   await dragOver(page, box);
-  await page.locator('[data-pc-act="review"]').click();
+  await page.locator('[data-prjs-act="review"]').click();
 
-  const modal = page.locator('[data-pc-modal]');
+  const modal = page.locator('[data-prjs-modal]');
   await expect(modal).toBeVisible();
-  await expect(modal.locator('.pc-k-title')).toHaveText('Destroy this text?');
+  await expect(modal.locator('.prjs-title')).toHaveText('Destroy this text?');
   await expect(modal, 'the exact text, before anything happens').toContainText('Jane Marie Doe');
-  await expect(page.locator('[data-pc-action="back"]')).toBeVisible();
+  await expect(page.locator('[data-prjs-action="back"]')).toBeVisible();
 });
 
 test('half a paragraph redacts as half a paragraph', async ({ page }) => {
@@ -121,7 +121,7 @@ test('half a paragraph redacts as half a paragraph', async ({ page }) => {
     range.setEnd(node, 27);
     const r = range.getBoundingClientRect();
 
-    const layer = document.querySelector<HTMLElement>('[data-pc-redact-layer]');
+    const layer = document.querySelector<HTMLElement>('[data-prjs-redact-layer]');
     if (layer) layer.style.display = 'none';
     const found = runsInRect(
       document.querySelector('#subject')!,
@@ -163,21 +163,21 @@ test('a box over nothing says so rather than marking an empty run', async ({ pag
   await page.mouse.move(400, 800, { steps: 5 });
   await page.mouse.up();
 
-  await expect(page.locator('[data-pc-mark]')).toHaveCount(0);
-  await expect(page.locator('[data-pc-toast]')).toContainText('nothing to destroy');
+  await expect(page.locator('[data-prjs-mark]')).toHaveCount(0);
+  await expect(page.locator('[data-prjs-toast]')).toContainText('nothing to destroy');
 });
 
 test('marks can be undone, and the review button follows', async ({ page }) => {
   const box = await rangeBox(page, 13, 27);
   await openRedact(page);
 
-  await expect(page.locator('[data-pc-act="review"]')).toBeDisabled();
+  await expect(page.locator('[data-prjs-act="review"]')).toBeDisabled();
   await dragOver(page, box);
-  await expect(page.locator('[data-pc-act="review"]')).toBeEnabled();
+  await expect(page.locator('[data-prjs-act="review"]')).toBeEnabled();
 
-  await page.locator('[data-pc-act="undo"]').click();
-  await expect(page.locator('[data-pc-mark]')).toHaveCount(0);
-  await expect(page.locator('[data-pc-act="review"]')).toBeDisabled();
+  await page.locator('[data-prjs-act="undo"]').click();
+  await expect(page.locator('[data-prjs-mark]')).toHaveCount(0);
+  await expect(page.locator('[data-prjs-act="review"]')).toBeDisabled();
 });
 
 test('cancelling leaves the page exactly as it was', async ({ page }) => {
@@ -186,13 +186,13 @@ test('cancelling leaves the page exactly as it was', async ({ page }) => {
 
   await openRedact(page);
   await dragOver(page, box);
-  await page.locator('[data-pc-act="cancel"]').click();
+  await page.locator('[data-prjs-act="cancel"]').click();
 
   // marks exist, so it asks first
-  await expect(page.locator('[data-pc-modal]')).toContainText('Discard');
-  await page.locator('[data-pc-action="yes"]').click();
+  await expect(page.locator('[data-prjs-modal]')).toContainText('Discard');
+  await page.locator('[data-prjs-action="yes"]').click();
 
-  await expect(page.locator('[data-pc-redact-layer]')).toHaveCount(0);
+  await expect(page.locator('[data-prjs-redact-layer]')).toHaveCount(0);
   expect(await page.locator('#subject').textContent()).toBe(before);
   expect(before).toContain('Jane Marie Doe');
 });

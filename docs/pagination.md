@@ -78,7 +78,7 @@ Printcraft.print({
 });
 ```
 
-A section broken across two sheets keeps its own box on the second: the paginator rebuilds the chain of containers it was inside and marks each with `data-pc-continued`, so a bordered panel does not lose its border halfway down.
+A section broken across two sheets keeps its own box on the second: the paginator rebuilds the chain of containers it was inside and marks each with `data-prjs-continued`, so a bordered panel does not lose its border halfway down.
 
 ## Limits
 

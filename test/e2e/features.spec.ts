@@ -56,7 +56,7 @@ async function probe(
       hooks: {
         beforePrint(ctx: { window: Window; document: Document }) {
           const d = ctx.document;
-          const target = d.querySelector('.pc-target');
+          const target = d.querySelector('.prjs-target');
           const styles = [...d.querySelectorAll('style')]
             .map((s) => s.textContent || '')
             .join('\n');
@@ -68,11 +68,11 @@ async function probe(
             targetChars: (target?.textContent || '').replace(/\s+/g, ' ').trim().length,
             bodyHeight: Math.round(d.body.scrollHeight),
             canvasPng: d.querySelectorAll('img[src^="data:image/png"]').length,
-            marks: d.querySelectorAll('.pc-mark').length,
-            notes: d.querySelectorAll('.pc-note').length,
-            redacted: d.querySelectorAll('.pc-redacted').length,
-            watermark: d.querySelectorAll('.pc-watermark').length,
-            sheetTable: d.querySelectorAll('table.pc-sheet').length,
+            marks: d.querySelectorAll('.prjs-mark').length,
+            notes: d.querySelectorAll('.prjs-note').length,
+            redacted: d.querySelectorAll('.prjs-redacted').length,
+            watermark: d.querySelectorAll('.prjs-watermark').length,
+            sheetTable: d.querySelectorAll('table.prjs-sheet').length,
             baseHref: d.querySelector('base')?.getAttribute('href') ?? null,
             pageCss: styles
           };
@@ -86,7 +86,7 @@ async function probe(
 
 test.beforeEach(async ({ page }) => {
   await page.goto(DEMO);
-  await expect(page.locator('#tickets .pc-ticket').first()).toBeVisible();
+  await expect(page.locator('#tickets .prjs-ticket').first()).toBeVisible();
 });
 
 /* the defect this file was written for -------------------------------------- */
@@ -156,8 +156,8 @@ test('a clipped region reaches the page as a capture that fits it', async ({ pag
       hooks: {
         beforePrint(ctx: { window: Window; document: Document }) {
           out = {
-            captured: !!ctx.document.querySelector('img.pc-capture'),
-            liveClip: ctx.document.querySelectorAll('.pc-clip-viewport').length,
+            captured: !!ctx.document.querySelector('img.prjs-capture'),
+            liveClip: ctx.document.querySelectorAll('.prjs-clip-viewport').length,
             scrollWidth: ctx.document.documentElement.scrollWidth,
             frameWidth: ctx.window.innerWidth
           };
@@ -186,8 +186,8 @@ test('reflow mode keeps live markup for callers who want selectable text', async
       hooks: {
         beforePrint(ctx: { document: Document }) {
           out = {
-            captured: !!ctx.document.querySelector('img.pc-capture'),
-            liveClip: ctx.document.querySelectorAll('.pc-clip-viewport').length
+            captured: !!ctx.document.querySelector('img.prjs-capture'),
+            liveClip: ctx.document.querySelectorAll('.prjs-clip-viewport').length
           };
           return false;
         }
@@ -268,6 +268,6 @@ test('the inspector previews at true paper size, not panel size', async ({ page 
   const width = await frame!.evaluate(() => window.innerWidth);
   expect(width, 'the preview frame is the sheet').toBe(A4.width);
 
-  await expect(page.locator('[data-pc-inspector]')).toContainText('A4');
+  await expect(page.locator('[data-prjs-proof]')).toContainText('A4');
   await page.evaluate(() => (window as unknown as { __ctl?: { close(): void } }).__ctl?.close());
 });

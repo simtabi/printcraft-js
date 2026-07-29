@@ -6,7 +6,7 @@
 @use 'tokens' as *;
 @use 'mixins' as *;
 
-.pc-ticket-grid {
+.prjs-ticket-grid {
   display: grid;
   gap: 1rem;
 
@@ -15,7 +15,7 @@
   }
 }
 
-.pc-ticket {
+.prjs-ticket {
   position: relative;
   background: $paper;
   border: 1px solid $rule;
@@ -45,11 +45,11 @@
     @include crop-tick(top, right);
   }
 
-  .pc-crop::before {
+  .prjs-crop::before {
     @include crop-tick(bottom, left);
   }
 
-  .pc-crop::after {
+  .prjs-crop::after {
     @include crop-tick(bottom, right);
   }
 

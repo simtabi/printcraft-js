@@ -6,6 +6,7 @@
 // than one value.
 
 import { button, h, root, type ButtonSpec } from './dom';
+import { tooltip } from './floating';
 import { buildForm, type Field, type FieldValue, type FormHandle } from './form';
 import { Surface, type SurfaceOptions } from './surface';
 import type { Env } from '../../types';
@@ -53,10 +54,10 @@ class Modal extends Surface {
   protected build(): HTMLElement {
     const doc = this.doc;
     const spec = this.spec;
-    const titleId = 'pc-m-title-' + Math.random().toString(36).slice(2, 8);
+    const titleId = 'prjs-m-title-' + Math.random().toString(36).slice(2, 8);
 
     const panel = h(doc, 'div', {
-      class: 'pc-k-panel',
+      class: 'prjs-modal-box',
       attrs: {
         'data-size': spec.size || 'md',
         role: 'dialog',
@@ -65,47 +66,72 @@ class Modal extends Surface {
       }
     });
 
-    const heading = h(doc, 'div', { class: 'pc-k-head' });
+    const heading = h(doc, 'div', { class: 'prjs-modal-head' });
     const titles = h(doc, 'div', { style: 'flex:1' });
     titles.appendChild(
-      h(doc, 'h2', { class: 'pc-k-title', text: spec.title, attrs: { id: titleId } })
+      h(doc, 'h2', { class: 'prjs-title', text: spec.title, attrs: { id: titleId } })
     );
     if (spec.description) {
-      titles.appendChild(h(doc, 'p', { class: 'pc-k-sub', text: spec.description }));
+      titles.appendChild(h(doc, 'p', { class: 'prjs-sub', text: spec.description }));
     }
     heading.appendChild(titles);
 
+    // an icon-only corner button, not a second text button. a modal that offered
+    // "Close" up here and "OK" down there read as two different things and was
+    // one thing.
     if (spec.dismissible !== false) {
-      heading.appendChild(
-        button(doc, {
-          label: 'Close',
-          tone: 'ghost',
-          attrs: { 'aria-label': 'Close', 'data-pc-modal-close': '' },
-          onClick: () => this.finish(null)
-        })
+      const dismiss = button(doc, {
+        label: '',
+        tone: 'ghost',
+        icon: 'close',
+        attrs: {
+          'aria-label': 'Close',
+          'data-size': 'sm',
+          'data-icon-only': '',
+          'data-prjs-modal-close': ''
+        },
+        onClick: () => this.finish(null)
+      });
+      heading.appendChild(dismiss);
+      this.addCleanup(
+        tooltip(dismiss, { text: 'Close', keys: 'Esc', side: 'left' }, this.options.env)
       );
     }
     panel.appendChild(heading);
 
-    const body = h(doc, 'div', { class: 'pc-k-body' });
+    // built either way, appended only if it took something. an empty body is a
+    // 36px band of nothing between the title and the buttons.
+    const body = h(doc, 'div', { class: 'prjs-modal-body' });
+    let filled = false;
+
     if (typeof spec.body === 'string') {
-      body.appendChild(h(doc, 'p', { text: spec.body }));
+      if (spec.body.trim()) {
+        body.appendChild(h(doc, 'p', { text: spec.body }));
+        filled = true;
+      }
     } else if (Array.isArray(spec.body)) {
-      for (const line of spec.body) body.appendChild(h(doc, 'p', { text: line }));
+      for (const line of spec.body) {
+        if (!line.trim()) continue;
+        body.appendChild(h(doc, 'p', { text: line }));
+        filled = true;
+      }
     } else if (spec.body) {
       body.appendChild(spec.body);
+      filled = true;
     }
+
     if (spec.fields?.length) {
       this.form = buildForm(doc, spec.fields);
       body.appendChild(this.form.element);
+      filled = true;
     }
-    panel.appendChild(body);
+    if (filled) panel.appendChild(body);
 
     const actions = spec.actions?.length
       ? spec.actions
       : ([{ id: 'ok', label: 'OK', tone: 'primary' }] as ModalAction[]);
 
-    const foot = h(doc, 'div', { class: 'pc-k-foot' });
+    const foot = h(doc, 'div', { class: 'prjs-modal-action' });
     for (const action of actions) {
       foot.appendChild(
         button(doc, {
@@ -113,14 +139,14 @@ class Modal extends Surface {
           tone: action.tone,
           icon: action.icon,
           disabled: action.disabled,
-          attrs: { 'data-pc-action': action.id },
+          attrs: { 'data-prjs-action': action.id },
           onClick: () => this.choose(action)
         })
       );
     }
     panel.appendChild(foot);
 
-    const scrim = root(doc, 'div', { class: 'pc-k-scrim', attrs: { 'data-pc-modal': '' } });
+    const scrim = root(doc, 'div', { class: 'prjs-scrim', attrs: { 'data-prjs-modal': '' } });
     scrim.appendChild(panel);
 
     if (spec.dismissible !== false) {

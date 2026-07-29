@@ -196,7 +196,7 @@ test('a run destroys exactly its own characters', () => {
 
   expect(applied).toBe(1);
   expect(p.textContent).toBe('Officer: ' + BLOCK.repeat(14) + ', badge 42');
-  expect(p.classList.contains('pc-redacted-run')).toBe(true);
+  expect(p.classList.contains('prjs-redacted-run')).toBe(true);
 });
 
 test('overlapping runs in one node all land', () => {

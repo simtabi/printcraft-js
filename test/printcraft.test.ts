@@ -150,11 +150,11 @@ test('removeImages swaps img for a bordered placeholder sized from live layout',
   const d = dom('<div id="r"><img src="a.png" alt="photo"></div>');
   const doc = d.window.document;
   const clone = doc.getElementById('r').cloneNode(true);
-  clone.querySelector('img').setAttribute('data-pc-id', '1');
+  clone.querySelector('img').setAttribute('data-prjs-id', '1');
   const meta = { 1: { imgW: 120, imgH: 90 } };
   I.applyImageHandling(clone, I.normalizeOptions({ target: '#r', removeImages: true }), meta, doc);
   expect_eq(clone.querySelectorAll('img').length, 0);
-  const ph = clone.querySelector('.pc-img-placeholder');
+  const ph = clone.querySelector('.prjs-img-placeholder');
   expect_ok(ph);
   expect_match(ph.getAttribute('style'), /width:120px/);
   expect_match(ph.getAttribute('style'), /border:1px solid/);
@@ -165,7 +165,7 @@ test('forceLazyImages pins currentSrc and drops srcset', () => {
   const d = dom('<div id="r"><img src="a.png" srcset="a2.png 2x" loading="lazy"></div>');
   const doc = d.window.document;
   const clone = doc.getElementById('r').cloneNode(true);
-  clone.querySelector('img').setAttribute('data-pc-id', '1');
+  clone.querySelector('img').setAttribute('data-prjs-id', '1');
   const meta = { 1: { currentSrc: 'https://example.com/a2.png' } };
   I.applyImageHandling(clone, I.normalizeOptions({ target: '#r' }), meta, doc);
   const img = clone.querySelector('img');
@@ -177,7 +177,7 @@ test('forceLazyImages pins currentSrc and drops srcset', () => {
 /* scrollable expansion */
 
 test('scrollable expansion sets overflow visible, or max-height cap when configured', () => {
-  const d = dom('<div id="r"><div data-pc-id="1" style="height:100px"></div></div>');
+  const d = dom('<div id="r"><div data-prjs-id="1" style="height:100px"></div></div>');
   const doc = d.window.document;
   const clone = doc.getElementById('r').cloneNode(true);
   const meta = { 1: { scrollable: true } };
@@ -332,10 +332,10 @@ test('assemblePrintDocument wires header/footer table, targets, and custom style
   });
   I.assemblePrintDocument(doc, [clone], o, src.window.document);
   expect_eq(doc.title, 'My print');
-  expect_ok(doc.querySelector('table.pc-sheet thead td'));
+  expect_ok(doc.querySelector('table.prjs-sheet thead td'));
   expect_eq(doc.querySelector('thead td').textContent, 'TOP');
   expect_eq(doc.querySelector('tfoot td').textContent, 'BOTTOM');
-  expect_ok(doc.querySelector('tbody .pc-target #r'));
+  expect_ok(doc.querySelector('tbody .prjs-target #r'));
   const styles = Array.from(doc.querySelectorAll('style'))
     .map((s) => s.textContent)
     .join('\n');
@@ -353,8 +353,8 @@ test('multiple targets each get their own slot and page break css by default', (
   ];
   const o = I.normalizeOptions({ target: ['#a', '#b'] });
   I.assemblePrintDocument(doc, clones, o, src.window.document);
-  expect_eq(doc.querySelectorAll('.pc-target').length, 2);
-  expect_match(I.buildPageCss(o), /\.pc-target \+ \.pc-target\{ break-before: page/);
+  expect_eq(doc.querySelectorAll('.prjs-target').length, 2);
+  expect_match(I.buildPageCss(o), /\.prjs-target \+ \.prjs-target\{ break-before: page/);
 });
 
 /* full lifecycle with stubbed print */

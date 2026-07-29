@@ -38,7 +38,7 @@ test('the library never calls prompt, confirm or alert', () => {
 
   expect(called, 'a blocking native dialog is never the answer').toEqual([]);
   expect(
-    d.window.document.querySelector('[data-pc-modal]'),
+    d.window.document.querySelector('[data-prjs-modal]'),
     'a kit modal opened instead'
   ).toBeTruthy();
 });
@@ -64,13 +64,13 @@ test('a modal renders its spec and resolves with the action taken', async () => 
 
   const panel = doc.querySelector('[role="dialog"]')!;
   expect(panel.getAttribute('aria-modal')).toBe('true');
-  expect(panel.querySelector('.pc-k-title')!.textContent).toBe('Print this region?');
-  expect(panel.querySelector('.pc-k-sub')!.textContent).toBe('520 × 220, A4');
-  expect(panel.querySelectorAll('.pc-k-body p')).toHaveLength(2);
+  expect(panel.querySelector('.prjs-title')!.textContent).toBe('Print this region?');
+  expect(panel.querySelector('.prjs-sub')!.textContent).toBe('520 × 220, A4');
+  expect(panel.querySelectorAll('.prjs-modal-body p')).toHaveLength(2);
 
-  doc.querySelector<HTMLElement>('[data-pc-action="print"]')!.click();
+  doc.querySelector<HTMLElement>('[data-prjs-action="print"]')!.click();
   expect((await result).action).toBe('print');
-  expect(doc.querySelector('[data-pc-modal]'), 'and it closes itself').toBeNull();
+  expect(doc.querySelector('[data-prjs-modal]'), 'and it closes itself').toBeNull();
 });
 
 test('escape and the backdrop both dismiss, resolving with no action', async () => {
@@ -80,7 +80,7 @@ test('escape and the backdrop both dismiss, resolving with no action', async () 
   expect((await byEscape).action).toBeNull();
 
   const byBackdrop = ui.modal({ title: 'B' }, env(d));
-  const scrim = d.window.document.querySelector('.pc-k-scrim')!;
+  const scrim = d.window.document.querySelector('.prjs-scrim')!;
   scrim.dispatchEvent(new d.window.MouseEvent('mousedown', { bubbles: true }));
   expect((await byBackdrop).action).toBeNull();
 });
@@ -94,8 +94,8 @@ test('a non-dismissible modal ignores escape', async () => {
   key(d, 'Escape');
   await tick();
 
-  expect(d.window.document.querySelector('[data-pc-modal]'), 'still open').toBeTruthy();
-  d.window.document.querySelector<HTMLElement>('[data-pc-action="ok"]')!.click();
+  expect(d.window.document.querySelector('[data-prjs-modal]'), 'still open').toBeTruthy();
+  d.window.document.querySelector<HTMLElement>('[data-prjs-action="ok"]')!.click();
   expect((await result).action).toBe('ok');
 });
 
@@ -114,7 +114,7 @@ test('tab is held inside the modal rather than walking into the page', () => {
     env(d)
   );
 
-  const stops = [...doc.querySelectorAll<HTMLElement>('[data-pc-modal] button')];
+  const stops = [...doc.querySelectorAll<HTMLElement>('[data-prjs-modal] button')];
   const last = stops[stops.length - 1]!;
   last.focus();
   key(d, 'Tab');
@@ -143,15 +143,15 @@ test('prompt collects a value and cancel yields null', async () => {
   const doc = d.window.document;
 
   const asked = ui.prompt({ title: 'Note', label: 'Text', value: 'before' }, env(d));
-  const field = doc.querySelector<HTMLTextAreaElement>('.pc-k-textarea, .pc-k-input')!;
+  const field = doc.querySelector<HTMLTextAreaElement>('.prjs-textarea, .prjs-input')!;
   expect(field.value, 'seeded with the current value').toBe('before');
 
   field.value = 'after';
-  doc.querySelector<HTMLElement>('[data-pc-action="save"]')!.click();
+  doc.querySelector<HTMLElement>('[data-prjs-action="save"]')!.click();
   expect(await asked).toBe('after');
 
   const cancelled = ui.prompt({ title: 'Note', label: 'Text' }, env(d));
-  doc.querySelector<HTMLElement>('[data-pc-action="cancel"]')!.click();
+  doc.querySelector<HTMLElement>('[data-prjs-action="cancel"]')!.click();
   expect(await cancelled).toBeNull();
 });
 
@@ -161,8 +161,8 @@ test('askForNote writes the attribute the pipeline reads', async () => {
   const p = doc.getElementById('p')!;
 
   const asked = ui.askForNote(p, env(d));
-  doc.querySelector<HTMLTextAreaElement>('.pc-k-textarea')!.value = 'check with legal';
-  doc.querySelector<HTMLElement>('[data-pc-action="save"]')!.click();
+  doc.querySelector<HTMLTextAreaElement>('.prjs-textarea')!.value = 'check with legal';
+  doc.querySelector<HTMLElement>('[data-prjs-action="save"]')!.click();
 
   expect(await asked).toBe('check with legal');
   expect(p.getAttribute('data-printcraft-note')).toBe('check with legal');
@@ -183,14 +183,14 @@ test('confirm resolves true or false, and shows the stakes', async () => {
     },
     env(d)
   );
-  expect(doc.querySelector('.pc-k-body')!.textContent).toContain('cannot be undone');
-  expect(doc.querySelector('[data-pc-action="yes"]')!.getAttribute('data-tone')).toBe('danger');
+  expect(doc.querySelector('.prjs-modal-body')!.textContent).toContain('cannot be undone');
+  expect(doc.querySelector('[data-prjs-action="yes"]')!.getAttribute('data-tone')).toBe('danger');
 
-  doc.querySelector<HTMLElement>('[data-pc-action="yes"]')!.click();
+  doc.querySelector<HTMLElement>('[data-prjs-action="yes"]')!.click();
   expect(await yes).toBe(true);
 
   const no = ui.confirm({ title: 'Sure?', message: 'Really?' }, env(d));
-  doc.querySelector<HTMLElement>('[data-pc-action="no"]')!.click();
+  doc.querySelector<HTMLElement>('[data-prjs-action="no"]')!.click();
   expect(await no).toBe(false);
 });
 
@@ -225,8 +225,8 @@ test('a form renders every field type and reports its values', async () => {
     env(d)
   );
 
-  expect(doc.querySelectorAll('.pc-k-field')).toHaveLength(6);
-  doc.querySelector<HTMLElement>('[data-pc-action="save"]')!.click();
+  expect(doc.querySelectorAll('.prjs-field')).toHaveLength(6);
+  doc.querySelector<HTMLElement>('[data-prjs-action="save"]')!.click();
 
   const { values } = await result;
   expect(values).toMatchObject({
@@ -257,22 +257,22 @@ test('validation blocks the primary action and names the problem', async () => {
     env(d)
   );
 
-  doc.querySelector<HTMLElement>('[data-pc-action="send"]')!.click();
+  doc.querySelector<HTMLElement>('[data-prjs-action="send"]')!.click();
   await tick();
 
-  expect(doc.querySelector('[data-pc-modal]'), 'still open, nothing sent').toBeTruthy();
-  const errors = [...doc.querySelectorAll('.pc-k-error')].filter((e) => !(e as HTMLElement).hidden);
+  expect(doc.querySelector('[data-prjs-modal]'), 'still open, nothing sent').toBeTruthy();
+  const errors = [...doc.querySelectorAll('.prjs-error')].filter((e) => !(e as HTMLElement).hidden);
   expect(errors.map((e) => e.textContent).join(' ')).toContain('To is required');
 
   // fix both and it goes through
-  const to = doc.querySelector<HTMLInputElement>('#pc-f-to')!;
+  const to = doc.querySelector<HTMLInputElement>('#prjs-f-to')!;
   to.value = 'a@b.co';
   to.dispatchEvent(new d.window.Event('input', { bubbles: true }));
-  const margin = doc.querySelector<HTMLInputElement>('#pc-f-margin')!;
+  const margin = doc.querySelector<HTMLInputElement>('#prjs-f-margin')!;
   margin.value = '18mm';
   margin.dispatchEvent(new d.window.Event('input', { bubbles: true }));
 
-  doc.querySelector<HTMLElement>('[data-pc-action="send"]')!.click();
+  doc.querySelector<HTMLElement>('[data-prjs-action="send"]')!.click();
   expect((await result).action).toBe('send');
 });
 
@@ -297,10 +297,10 @@ test('a field with `when` appears only while its condition holds', () => {
     env(d)
   );
 
-  const bleed = doc.querySelector<HTMLElement>('#pc-f-bleed')!.closest('.pc-k-field')!;
+  const bleed = doc.querySelector<HTMLElement>('#prjs-f-bleed')!.closest('.prjs-field')!;
   expect((bleed as HTMLElement).hidden, 'hidden while the box is clear').toBe(true);
 
-  const box = doc.querySelector<HTMLInputElement>('#pc-f-marks')!;
+  const box = doc.querySelector<HTMLInputElement>('#prjs-f-marks')!;
   box.checked = true;
   box.dispatchEvent(new d.window.Event('change', { bubbles: true }));
   expect((bleed as HTMLElement).hidden).toBe(false);
@@ -326,16 +326,16 @@ test('a menu renders groups, separators, icons and keyboard hints', () => {
     env(d)
   );
 
-  const menu = doc.querySelector('[data-pc-menu]')!;
+  const menu = doc.querySelector('[data-prjs-menu]')!;
   expect(menu.getAttribute('role')).toBe('menu');
-  expect(menu.querySelectorAll('[data-pc-item]')).toHaveLength(2);
-  expect(menu.querySelector('.pc-k-group')!.textContent).toBe('Print');
-  expect(menu.querySelectorAll('.pc-k-sep')).toHaveLength(1);
-  expect(menu.querySelector('.pc-k-item-kbd')!.textContent).toBe('⌘P');
+  expect(menu.querySelectorAll('[data-prjs-item]')).toHaveLength(2);
+  expect(menu.querySelector('.prjs-group')!.textContent).toBe('Print');
+  expect(menu.querySelectorAll('.prjs-sep')).toHaveLength(1);
+  expect(menu.querySelector('.prjs-item-kbd')!.textContent).toBe('⌘P');
   expect(menu.querySelectorAll('svg').length).toBeGreaterThanOrEqual(2);
 
   handle.close();
-  expect(doc.querySelector('[data-pc-menu]')).toBeNull();
+  expect(doc.querySelector('[data-prjs-menu]')).toBeNull();
 });
 
 test('menu items run with the context they were given', () => {
@@ -352,9 +352,9 @@ test('menu items run with the context they were given', () => {
     env(d)
   );
 
-  doc.querySelector<HTMLElement>('[data-pc-item="go"]')!.click();
+  doc.querySelector<HTMLElement>('[data-prjs-item="go"]')!.click();
   expect(seen).toEqual(['ctx']);
-  expect(doc.querySelector('[data-pc-menu]'), 'and the menu closes').toBeNull();
+  expect(doc.querySelector('[data-prjs-menu]'), 'and the menu closes').toBeNull();
 });
 
 test('arrow keys walk the menu and escape closes it', () => {
@@ -373,12 +373,12 @@ test('arrow keys walk the menu and escape closes it', () => {
   );
 
   key(d, 'ArrowDown');
-  expect(doc.activeElement?.getAttribute('data-pc-item')).toBe('two');
+  expect(doc.activeElement?.getAttribute('data-prjs-item')).toBe('two');
   key(d, 'ArrowUp');
-  expect(doc.activeElement?.getAttribute('data-pc-item')).toBe('one');
+  expect(doc.activeElement?.getAttribute('data-prjs-item')).toBe('one');
 
   key(d, 'Escape');
-  expect(doc.querySelector('[data-pc-menu]')).toBeNull();
+  expect(doc.querySelector('[data-prjs-menu]')).toBeNull();
 });
 
 test('a disabled item cannot be reached or run', () => {
@@ -397,10 +397,10 @@ test('a disabled item cannot be reached or run', () => {
     env(d)
   );
 
-  doc.querySelector<HTMLElement>('[data-pc-item="off"]')!.click();
+  doc.querySelector<HTMLElement>('[data-prjs-item="off"]')!.click();
   expect(ran).toBe(false);
   key(d, 'ArrowDown');
-  expect(doc.activeElement?.getAttribute('data-pc-item'), 'skipped in the keyboard order').toBe(
+  expect(doc.activeElement?.getAttribute('data-prjs-item'), 'skipped in the keyboard order').toBe(
     'on'
   );
 });
@@ -422,16 +422,16 @@ test('a toolbar reports status and can disable its actions', () => {
     env(d)
   );
 
-  expect(doc.querySelector('[data-pc-status]')!.textContent).toBe('Nothing selected');
-  expect(doc.querySelector<HTMLButtonElement>('[data-pc-act="print"]')!.disabled).toBe(true);
+  expect(doc.querySelector('[data-prjs-status]')!.textContent).toBe('Nothing selected');
+  expect(doc.querySelector<HTMLButtonElement>('[data-prjs-act="print"]')!.disabled).toBe(true);
 
   bar.setStatus('2 selected');
   bar.setDisabled('print', false);
-  expect(doc.querySelector('[data-pc-status]')!.textContent).toBe('2 selected');
-  expect(doc.querySelector<HTMLButtonElement>('[data-pc-act="print"]')!.disabled).toBe(false);
+  expect(doc.querySelector('[data-prjs-status]')!.textContent).toBe('2 selected');
+  expect(doc.querySelector<HTMLButtonElement>('[data-prjs-act="print"]')!.disabled).toBe(false);
 
   bar.close();
-  expect(doc.querySelector('[data-pc-toolbar]')).toBeNull();
+  expect(doc.querySelector('[data-prjs-toolbar]')).toBeNull();
 });
 
 test('a toast shows, offers an action, and clears itself', async () => {
@@ -444,16 +444,16 @@ test('a toast shows, offers an action, and clears itself', async () => {
     env(d)
   );
 
-  const node = doc.querySelector('[data-pc-toast]')!;
+  const node = doc.querySelector('[data-prjs-toast]')!;
   expect(node.textContent).toContain('Marked for redaction');
 
-  node.querySelector<HTMLElement>('.pc-k-btn')!.click();
+  node.querySelector<HTMLElement>('.prjs-btn')!.click();
   expect(undone).toBe(true);
-  expect(doc.querySelector('[data-pc-toast]'), 'dismissed once acted on').toBeNull();
+  expect(doc.querySelector('[data-prjs-toast]'), 'dismissed once acted on').toBeNull();
 
   ui.toast({ message: 'Gone shortly', duration: 20 }, env(d));
   await tick(40);
-  expect(doc.querySelector('[data-pc-toast]')).toBeNull();
+  expect(doc.querySelector('[data-prjs-toast]')).toBeNull();
 });
 
 /* theming --------------------------------------------------------------- */
@@ -462,14 +462,51 @@ test('the theme is one set of tokens a host can override', () => {
   const d = dom('');
   const doc = d.window.document;
 
-  ui.theme.set({ accent: '#ff00aa', radius: '2px' }, doc);
+  ui.theme.set({ accent: '#ff00aa', radiusField: '2px' }, doc);
   ui.toast({ message: 'themed' }, env(d));
 
-  const sheet = doc.getElementById('pc-kit-style')!.textContent || '';
-  expect(sheet).toContain('--pc-radius: 2px');
-  // `accent` predates the tone objects and still works
-  expect(sheet).toContain('--pc-accent: #ff00aa');
-  expect(sheet, 'and feeds the tone it is an alias for').toContain('--pc-primary: #ff00aa');
+  const sheet = doc.getElementById('prjs-kit-style')!.textContent || '';
+
+  // daisyUI's names are the ones to set, and the short names point at them
+  expect(sheet).toContain('--prjs-radius-field: 2px');
+  expect(sheet, 'the old radius name still resolves').toContain(
+    '--prjs-radius: var(--prjs-radius-field)'
+  );
+  expect(sheet).toContain('--prjs-color-accent: #ff00aa');
+  expect(sheet).toContain('--prjs-accent: var(--prjs-color-accent)');
+  expect(sheet, 'accent is its own colour, not a second name for primary').not.toContain(
+    '--prjs-color-primary: #ff00aa'
+  );
+
+  ui.theme.reset(doc);
+});
+
+test('all eight daisyUI tones are emitted, and the two old names still work', () => {
+  const d = dom('');
+  const doc = d.window.document;
+
+  ui.theme.set({ danger: '#ff0000', warn: '#ffaa00' }, doc);
+  const sheet = doc.getElementById('prjs-kit-style')!.textContent || '';
+
+  for (const tone of [
+    'primary',
+    'secondary',
+    'accent',
+    'neutral',
+    'info',
+    'success',
+    'warning',
+    'error'
+  ]) {
+    expect(sheet, tone + ' is missing').toContain('--prjs-color-' + tone + ':');
+    expect(sheet, tone + ' has no content colour').toContain('--prjs-color-' + tone + '-content:');
+  }
+
+  // `danger` and `warn` are what `error` and `warning` used to be called
+  expect(sheet).toContain('--prjs-color-error: #ff0000');
+  expect(sheet).toContain('--prjs-color-warning: #ffaa00');
+  expect(sheet).toContain('--prjs-danger: var(--prjs-error)');
+  expect(sheet).toContain('--prjs-warn: var(--prjs-warning)');
 
   ui.theme.reset(doc);
 });
@@ -479,12 +516,12 @@ test('a tone can be one colour, and the rest is worked out', () => {
   const doc = d.window.document;
 
   ui.theme.set({ primary: '#7c3aed' }, doc);
-  const sheet = doc.getElementById('pc-kit-style')!.textContent || '';
+  const sheet = doc.getElementById('prjs-kit-style')!.textContent || '';
 
-  expect(sheet).toContain('--pc-primary: #7c3aed');
-  expect(sheet, 'the border follows the background').toContain('--pc-primary-border: #7c3aed');
+  expect(sheet).toContain('--prjs-color-primary: #7c3aed');
+  expect(sheet, 'the border follows the background').toContain('--prjs-primary-border: #7c3aed');
   expect(sheet, 'and the soft variant is derived').toContain(
-    '--pc-primary-soft: rgba(124,58,237,.10)'
+    '--prjs-primary-soft: rgba(124,58,237,.10)'
   );
 
   ui.theme.reset(doc);
@@ -496,19 +533,21 @@ test('the kit follows the host into dark mode, and can be pinned', () => {
 
   const auto = (() => {
     ui.theme.set(ui.theme.defaults, doc);
-    return doc.getElementById('pc-kit-style')!.textContent || '';
+    return doc.getElementById('prjs-kit-style')!.textContent || '';
   })();
   expect(auto, 'a print tool on a dark app should not be the one white rectangle').toContain(
     '@media (prefers-color-scheme: dark)'
   );
 
   ui.theme.set({ colorScheme: 'light' }, doc);
-  expect(doc.getElementById('pc-kit-style')!.textContent).not.toContain('prefers-color-scheme');
+  expect(doc.getElementById('prjs-kit-style')!.textContent).not.toContain('prefers-color-scheme');
 
   ui.theme.set({ colorScheme: 'dark' }, doc);
-  const dark = doc.getElementById('pc-kit-style')!.textContent || '';
+  const dark = doc.getElementById('prjs-kit-style')!.textContent || '';
   expect(dark, 'pinned dark needs no media query').not.toContain('prefers-color-scheme');
-  expect(dark).toContain('--pc-paper: #1c1d21');
+  expect(dark).toContain('--prjs-color-base-100: #1c1d21');
+  // and the rest of the sheet follows from that one variable
+  expect(dark).toContain('--prjs-paper: var(--prjs-color-base-100)');
 
   ui.theme.reset(doc);
 });
@@ -521,10 +560,10 @@ test('every surface the kit builds is marked as printcraft ui', () => {
   ui.toast({ message: 'y' }, env(d));
   ui.menu({ anchor: { x: 1, y: 1 }, entries: [{ id: 'a', label: 'A' }] }, env(d));
 
-  // clip jobs strip [data-pc-ui], which is how the interface stays out of its
+  // clip jobs strip [data-prjs-ui], which is how the interface stays out of its
   // own screenshot
   const surfaces = doc.querySelectorAll('body > *');
   for (const el of surfaces) {
-    expect(el.hasAttribute('data-pc-ui'), el.className || el.tagName).toBe(true);
+    expect(el.hasAttribute('data-prjs-ui'), el.className || el.tagName).toBe(true);
   }
 });

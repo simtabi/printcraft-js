@@ -4,6 +4,235 @@ All notable changes to this project are documented here. This project adheres to
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased] — 3.0
+
+The class names and data attributes the kit renders are part of the public
+surface, and this renames all of them; the component css underneath is
+daisyUI's own; and choosing what to print now shows you the assembled
+document before anything reaches the printer.
+
+### Breaking
+
+- **Class and attribute prefixes.** `pc-k-*` and `pc-*` are now `prjs-*`;
+  `data-pc-*` is now `data-prjs-*`. **`data-printcraft-*` is unchanged** — it is
+  the declarative API in users' HTML, it was already unambiguous, and renaming it
+  would break every page using it for nothing.
+- **Modal part names** follow daisyUI's anatomy: `prjs-panel` → `prjs-modal-box`,
+  `prjs-head` → `prjs-modal-head`, `prjs-body` → `prjs-modal-body`, `prjs-foot` →
+  `prjs-modal-action`.
+- **Theme keys** are daisyUI's. `ink`/`paper`/`paperDim`/`rule` become
+  `baseContent`/`base100`/`base200`/`base300`; `radius`/`radiusSm`/`radiusLg`
+  become `radiusField`/`radiusSelector`/`radiusBox`. `danger` and `warn` still work
+  as aliases for `error` and `warning`. `accent` is now daisyUI's accent colour
+  rather than a second name for `primary`.
+- The `draw` action is the region tool, as before. Drawn annotations are
+  `annotate`, on `mod+shift+a`.
+
+### The flow changed
+
+Choosing what to print now shows you the assembled document before anything
+reaches the printer. Right-click, the palette, the keyboard and the demo buttons
+all open a **proof sheet**: the real document, the real page count, with Annotate,
+Cancel and Print.
+
+What it shows is not a rendering that resembles the output — it is the document,
+mounted from the same `assemblePrintDocument` and `paginate` a real job runs, and
+pressing Print continues _that job_ rather than starting a second one.
+
+`Printcraft.print()` called from code still prints directly. An unattended job
+must not sit waiting for somebody who is not there. `print({ proof: true })` and
+`Printcraft.proof()` opt in.
+
+### Added
+
+- **Drawn annotations** (`src/annotate/`). Pen, highlighter, arrow, box, circle and
+  text, as SVG rather than canvas so they print sharp and survive _Background
+  graphics_ being off. Coordinates are fractions of the element they mark, so a
+  circle round a total stays round that total on a narrower sheet. Undo, redo,
+  colour and stroke width. Drawings are marks: they appear in the notes panel, on
+  the notes page, and in the store, with no special-casing anywhere.
+- **Memory** (`src/state/`). Marks, options, configuration, recent actions and
+  unfinished work, over `memoryStore`, `localStore`, `sessionStore`, `httpStore` or
+  a store you write. Opt-in with `persist: true`. A mark whose element cannot be
+  found again is **reported, never guessed at**.
+- **Configuration layers.** `defaults → backend → file → attribute → session →
+call`, with `explain()` naming which layer set each value. A source can be an
+  object, a url, an async function or a store; a layer that throws is skipped
+  rather than fatal.
+- **`coverPage`** and **`notesPage`** — the title and description on a sheet of
+  their own at the front, and every mark listed at the back. Both take `true`, an
+  object, or a function that builds the sheet. An unmarked document prints no notes
+  sheet rather than an empty one.
+- **Triangle carets** on every tooltip and popover, facing the side the browser
+  actually drew on rather than the one that was asked for.
+- **daisyUI's design system**, mirrored under `--prjs-`: all eight semantic
+  colours, the base ramp, three radii, two sizes, border, depth and noise. The demo
+  uses real daisyUI; the library mirrors it, because `.btn` and `.modal` are global
+  names and a library must not take them.
+- **`npm run vendor:audit`** plus a weekly workflow, comparing the tokens daisyUI
+  declares with the ones the kit emits and opening an issue when they drift.
+- `Printcraft.ui.buildActions()`, the stock catalogue as a plain array.
+- **The demo shows the new work.** A proof section with four buttons: the proof
+  over the report, the whole page paginated with a cover and a notes sheet, the
+  annotation tools, and the colour picker. Its buttons predated all four, so
+  there was no way to reach any of them without opening the console.
+- **Two tests that guard against drift**: every event the code emits must be in
+  the public `PrintcraftEvent` union, and every option in `PrintcraftOptions`
+  must appear in `docs/tools/options.md`. Both failed when written — five events
+  had drifted out of the union, including the whole `state:*` family, and
+  `proof`, `coverPage` and `notesPage` shipped undocumented.
+
+- **The kit is drawn by daisyUI itself.** Not its tokens mirrored under our own
+  rules — its own component stylesheets, run through
+  `tools/vendor-daisyui.mjs`, which unwraps the `@layer` blocks and renames every
+  class to carry the `prjs-` prefix. Thirteen components: `button`, `input`,
+  `select`, `textarea`, `range`, `checkbox`, `radio`, `fieldset`, `label`,
+  `modal`, `card`, `badge`, `kbd`. About four hundred lines of our own component
+  css are gone in exchange.
+
+  Only components whose anatomy matches ours are taken. daisyUI's menu is
+  `ul.menu > li > a` and ours is buttons in a div; its tooltip is a `::before`
+  driven by `data-tip` and ours is a node in the top layer with a caret. Those
+  would be rules matching nothing.
+
+  The variables it reads are declared on `.prjs`, not `:root`, so they reach our
+  surfaces and nothing else. A test asserts every class in the injected sheet is
+  prefixed.
+
+- **`Printcraft.proof()`** and the `proof` option. `src/proof/`, loaded on demand.
+- **Settings on the proof.** Paper, orientation, margin, pagination, page
+  numbers, cover and notes sheets, changed while looking at the sheet. Applying
+  rebuilds it — and every annotation is still there afterwards, because a mark
+  made on the proof is written back to the page element behind it rather than
+  living on the copy. The link is `data-prjs-id`, which the pipeline already
+  writes and normally sweeps up; the proof holds it open, tags the whole subtree
+  rather than only what needed measuring, and sweeps it on close.
+- **Action scopes.** An action now says which surfaces offer it —
+  `page`, `element`, `region`, `selection`, `proof`, `annotation` — so a surface
+  shows what belongs on it instead of everything. Unscoped actions default to
+  `['page', 'element']`, so nothing a host registered disappears.
+- **A context menu on the drawn region.** Right-click inside a selection and get
+  the three things that are about a selection. The page menu no longer offers
+  them, and the region menu no longer offers the page's.
+- **A colour field with opacity**, on [Coloris](https://github.com/melloware/coloris)
+  — 5.4 kB, no dependencies, real alpha. It is a field in the form system, so it
+  gets the label, hint, validation and error slot every other field has. Its
+  stylesheet is generated into the bundle by `npm run vendor:css`, so there is
+  still no external request and the standalone build still opens from `file://`.
+- **A `range` field**, with a live readout, and **fieldsets** so a settings dialog
+  stops being one flat column.
+- **Images in annotations.** Paste, drop or pick. Downscaled to fit a byte budget,
+  stored as a data URI — never a remote URL, which would print as an empty box on
+  a slow connection and fine on a fast one.
+- The annotation toolbar's **Pen** button opens a form rather than cycling blindly
+  through six colours, and its status line is chips with a real swatch.
+
+### Changed
+
+- **Freehand drawing is freehand.** The pen ran every stroke through a 0.002
+  tolerance and then joined the survivors with quadratic curves, which flattened
+  a quick loop into an oval. It uses
+  [perfect-freehand](https://github.com/steveruizok/perfect-freehand) now — 2 kB,
+  no dependencies — for a real variable-width stroke that thins with speed and
+  honours pen pressure. The outline is a **filled** path, which is what lets the
+  width vary, and is computed in pixel space: a fill cannot use
+  `vector-effect: non-scaling-stroke`, so on a 900×40 heading a 3px nib was
+  coming out 27px across and 0.13px tall.
+- **Toolbars stack.** Every one was `position: fixed; bottom: 22px`, so two open
+  at once landed on top of each other. They share a lane now, and the lane moves
+  to the opposite edge when it would cover the selection it is describing.
+- **`perfect-freehand` and `coloris` are the first two runtime dependencies.**
+  Both MIT, both leaf, 8.5 kB together. The README's "zero dependencies" becomes
+  "two, both leaf".
+- The UMD budget is **80 kB**, up from 60. It measures 78.83, of which 8.6 kB is
+  daisyUI's own component css, 5.4 kB Coloris and 2 kB perfect-freehand. Roughly
+  four hundred lines of hand-written component css came out in exchange.
+
+### Fixed
+
+- **A menu taller than the viewport could not be scrolled.** The dismiss-on-scroll
+  listener was bound at the document in capture, so scrolling the menu's own
+  `overflow: auto` box closed it. Scrolling the page still dismisses it.
+- **A window resize threw the menu away.** It is put back in view instead.
+- **A modal with nothing to say rendered an empty band** between its title and its
+  buttons. `notify` maps `message` onto the header sub-line, so its body took
+  nothing and drew 36px of it.
+- **Two controls for one action.** The header offered a text button reading
+  "Close" beside a footer button reading "OK". The header is now an icon-only `×`.
+- **The command palette had no visible way out.** Escape worked and the footer said
+  so, which is not the same thing.
+- **A second action registered as `draw` silently replaced the region tool**,
+  removing it from the menu and the palette with nothing failing. Two tests now
+  guard the catalogue against duplicate ids and duplicate keybindings.
+- **The notes page would have reprinted redacted text.** An element's description
+  quotes its content, which for a redacted element is the secret. The leak verifier
+  caught it; redaction lines now carry the structural pointer alone.
+- Drawing on `<html>` is refused: it sits outside `<body>`, so no target selector
+  could reach it and the mark would be stored and then silently missing.
+
+- **Right-clicking a drawn region opened Chrome's menu, not ours.** The region
+  tool takes its actions from the registry, and `Printcraft.ui.drawArea()` — which
+  is what the demo's button and every documented call use — never passed one. The
+  handler returned before `preventDefault`, so the browser's own menu opened over
+  our overlay, and from there the tool looked entirely broken. The surface passes
+  the shared interface's registry now, and **no tool overlay lets the native menu
+  through under any circumstances**: its entries are about a document the overlay
+  is covering.
+
+  The test that was supposed to catch this drove `ui.run('draw')`, which carries
+  the registry in its action context. Every one of these paths now has a test
+  that clicks the demo's own button.
+
+- **`inspect` still mounted the old overlay.** The proof sheet was built to
+  replace it and the last release only stopped short of doing so, which left two
+  panels answering the same question and a stale one that intercepted clicks.
+  `Printcraft.inspect()` opens the proof read-only; `mountOverlay` and its two
+  hundred lines are deleted.
+- **The notes panel had two ways out** — a header `×` and a footer "Close".
+  The footer one is gone.
+- **Two toolbar actions could share an id**, which made the first one unreachable
+  from `setDisabled` and `setActive`. The annotation bar shipped with two `pen`s.
+  It warns now.
+- **The packaging test was reading the wrong file.** It checked
+  `printcraft-core.mjs`, which is a shared chunk that happens to be named like an
+  entry, and passed because that chunk once held the paginator. It follows the
+  static import graph from the real entry now — and immediately caught a static
+  edge from core into the component kit that the proof sheet had introduced.
+
+- **Four layers were collapsed into one by the 32-bit `z-index` ceiling.** The
+  base sat at 2147483600 with offsets running to +70, and anything over
+  2147483647 is clamped to it — so the toolbar, the modal scrim, the menu and the
+  toasts all resolved to the same number and their order was really the order
+  they happened to be appended in. The base is 2147483000 now, and a test
+  asserts no layer clamps.
+- **The region toolbar oscillated and could not be clicked.** It moves off the
+  selection it describes, which stopped it colliding, which moved it back, which
+  made it collide again — forever, at five hertz. It reads the band it _would_
+  occupy at the bottom rather than where it currently is, so the decision is
+  stable.
+- **A tool overlay covered its own toolbar.** The overlay's z-index was
+  hard-coded at 2147483645, outside the theme stack entirely, and only sat below
+  the toolbar because the toolbar's value clamped two higher. It derives from the
+  theme's base now, at +40, between the proof and the controls that drive it.
+- **A surface could open behind the surface that opened it.** The proof panel
+  shipped at `z + 60`, above the modal scrim at `z + 40`, so its own Settings
+  dialog rendered behind it: visible, and impossible to click. The stack now
+  follows what opens over what — proof 30, toolbar 50, modal 55, menu 60,
+  toast 70 — and a test asserts the order, because nothing about it is apparent
+  from reading either file.
+
+- **Six dead exports removed** — `srOnly`, `alphaOf`, `failColor`, `warnEmpty`,
+  `pullMarks` and `isProof`. Five were written this release and never called;
+  unused public surface still has to be maintained and documented.
+- **Three docs still described the removed inspector overlay** and its Print /
+  Log HTML / Close controls.
+
+### Not fixed
+
+- The ⊗ floating in the Description box in two of the screenshots is not ours.
+  Nothing in `form.ts` renders it and no absolutely-positioned node exists in that
+  modal; it is a browser extension.
+
 ## [2.0.0] — pages you can count, regions that print what you drew, and an interface
 
 The version says 2.0 because the option surface grew a great deal and two
@@ -182,7 +411,7 @@ a patch.
   `<base href>` from the source page — the popup path was outright broken without
   it.
 - **Overlapping target selectors printed the same element twice.**
-- **A crashed job left `data-pc-id` attributes on the live page permanently.**
+- **A crashed job left `data-prjs-id` attributes on the live page permanently.**
   Cleanup now sweeps the whole target subtree.
 - **A privacy pattern without the `/g` flag blanked only the first match** in each
   text node — a silent leak. Non-global patterns are re-created with the flag.

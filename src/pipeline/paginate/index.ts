@@ -96,22 +96,22 @@ export function paginate(
 
   const startPage = (): void => {
     const page = doc.createElement('section');
-    page.className = 'pc-page-sheet';
-    page.setAttribute('data-pc-page', String(pages.length + 1));
+    page.className = 'prjs-page-sheet';
+    page.setAttribute('data-prjs-page', String(pages.length + 1));
 
     const inner = doc.createElement('div');
-    inner.className = 'pc-page-inner';
+    inner.className = 'prjs-page-inner';
 
     const band = (kind: 'header' | 'footer'): HTMLElement => {
       const el = doc.createElement('div');
-      el.className = 'pc-page-' + kind;
-      el.setAttribute('data-pc-band', kind);
+      el.className = 'prjs-page-' + kind;
+      el.setAttribute('data-prjs-band', kind);
       return el;
     };
 
     if (hasHeaderBand) inner.appendChild(band('header'));
     const content = doc.createElement('div');
-    content.className = 'pc-page-content';
+    content.className = 'prjs-page-content';
     content.style.height = box.content.height + 'px';
     inner.appendChild(content);
     if (hasFooterBand) inner.appendChild(band('footer'));
@@ -139,7 +139,7 @@ export function paginate(
     let parent = flow as HTMLElement;
     for (let i = 0; i < chain.length; i++) {
       const fresh = chain[i]!.cloneNode(false) as HTMLElement;
-      fresh.setAttribute('data-pc-continued', '');
+      fresh.setAttribute('data-prjs-continued', '');
       parent.appendChild(fresh);
       chain[i] = fresh;
       parent = fresh;
@@ -216,7 +216,7 @@ export function paginate(
 
   // an empty trailing page is an artefact of the last break, not a real page
   const last = pages[pages.length - 1];
-  if (pages.length > 1 && last && !last.querySelector('.pc-page-content')?.childNodes.length) {
+  if (pages.length > 1 && last && !last.querySelector('.prjs-page-content')?.childNodes.length) {
     last.remove();
     pages.pop();
   }
@@ -232,13 +232,13 @@ export function paginate(
         : '';
 
     const setBand = (kind: 'header' | 'footer', text: string, withNumber: boolean): void => {
-      const band = page.querySelector('[data-pc-band="' + kind + '"]');
+      const band = page.querySelector('[data-prjs-band="' + kind + '"]');
       if (!band) return;
       band.textContent = text ? fill(text, number, pages.length, title) : '';
       if (withNumber && label) {
         const slot = doc.createElement('span');
-        slot.className = 'pc-page-number';
-        slot.setAttribute('data-pc-page-number', '');
+        slot.className = 'prjs-page-number';
+        slot.setAttribute('data-prjs-page-number', '');
         slot.textContent = label;
         band.appendChild(slot);
       }
@@ -276,7 +276,7 @@ export function paginationCss(options: ResolvedOptions): string {
     `@page { size: ${box.sheet.width}px ${box.sheet.height}px; margin: 0; }`,
     'html, body { margin: 0; padding: 0; background: #fff; }',
 
-    `.pc-page-sheet {
+    `.prjs-page-sheet {
       box-sizing: border-box;
       width: ${box.sheet.width}px;
       min-height: ${box.sheet.height}px;
@@ -285,9 +285,9 @@ export function paginationCss(options: ResolvedOptions): string {
       page-break-after: always;
       overflow: hidden;
     }`,
-    '.pc-page-sheet:last-child { break-after: auto; page-break-after: auto; }',
+    '.prjs-page-sheet:last-child { break-after: auto; page-break-after: auto; }',
 
-    `.pc-page-inner {
+    `.prjs-page-inner {
       box-sizing: border-box;
       min-height: ${box.sheet.height - box.margin.top - box.margin.bottom}px;
       border: ${box.border.width}px ${box.border.style} ${box.border.color};
@@ -297,9 +297,9 @@ export function paginationCss(options: ResolvedOptions): string {
       flex-direction: column;
     }`,
 
-    '.pc-page-content { flex: 1 1 auto; overflow: visible; }',
+    '.prjs-page-content { flex: 1 1 auto; overflow: visible; }',
 
-    `.pc-page-header, .pc-page-footer {
+    `.prjs-page-header, .prjs-page-footer {
       flex: none;
       display: flex;
       align-items: center;
@@ -308,14 +308,14 @@ export function paginationCss(options: ResolvedOptions): string {
       font-size: 11px;
       color: #444;
     }`,
-    `.pc-page-header { justify-content: ${align(numbers?.position || 'top-center')}; }`,
-    `.pc-page-footer { justify-content: ${align(numbers?.position || 'bottom-center')}; }`,
-    '.pc-page-number { white-space: nowrap; }',
+    `.prjs-page-header { justify-content: ${align(numbers?.position || 'top-center')}; }`,
+    `.prjs-page-footer { justify-content: ${align(numbers?.position || 'bottom-center')}; }`,
+    '.prjs-page-number { white-space: nowrap; }',
 
     // screen only: the inspector shows sheets as paper on a desk
     `@media screen {
       body { background: #3f4046; padding: 16px 0; }
-      .pc-page-sheet { margin: 0 auto 16px; background: #fff; box-shadow: 0 4px 18px rgba(0,0,0,.35); }
+      .prjs-page-sheet { margin: 0 auto 16px; background: #fff; box-shadow: 0 4px 18px rgba(0,0,0,.35); }
     }`
   ].join('\n');
 }

@@ -87,12 +87,13 @@ surface honours it:
 
 ## Previewing without paper
 
-`Printcraft.inspect()` runs the identical pipeline into a visible overlay instead
-of the print dialog, with Print / Log HTML / Close controls:
+`Printcraft.inspect()` runs the identical pipeline into the
+[proof sheet](proof.md) instead of the print dialog — the assembled document, its
+page count, and a zoom, opened to look at rather than to decide:
 
 ```js
 const ctl = await Printcraft.inspect('#invoice');
-ctl.document.querySelector('.pc-target'); // the assembled print document
+ctl.document.querySelector('.prjs-target'); // the assembled print document
 ctl.close();
 ```
 

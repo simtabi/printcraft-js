@@ -43,7 +43,7 @@ function copyByCommand(text: string, env: Env): boolean {
   const doc = env.document;
   const area = doc.createElement('textarea');
   area.value = text;
-  area.setAttribute('data-pc-ui', '');
+  area.setAttribute('data-prjs-ui', '');
   area.setAttribute('readonly', '');
   area.setAttribute('aria-hidden', 'true');
   area.style.cssText = 'position:fixed;left:-9999px;top:0;opacity:0;';

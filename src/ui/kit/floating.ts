@@ -27,6 +27,48 @@ const AREA: Record<Side, string> = {
 
 let uid = 0;
 
+/** Keeps a number inside a range. */
+function clamp(n: number, low: number, high: number): number {
+  return high < low ? low : n < low ? low : n > high ? high : n;
+}
+
+/**
+ * Adds the triangle, and returns the function that keeps it pointing at the
+ * anchor.
+ *
+ * The side is worked out from the rendered geometry rather than from what was
+ * asked for. With CSS anchor positioning the browser applies
+ * `position-try-fallbacks` itself, so a popover asked for `top` may well be
+ * drawn below, and nothing tells us. Comparing the two rectangles after paint
+ * is the only way to know which way the caret should face.
+ */
+function addCaret(floater: HTMLElement, anchor: Element, doc: Document): () => void {
+  const caret = h(doc, 'span', { class: 'prjs-caret', attrs: { 'aria-hidden': 'true' } });
+  floater.appendChild(caret);
+
+  return function orient(): void {
+    const f = floater.getBoundingClientRect();
+    const a = anchor.getBoundingClientRect();
+    if (!f.width || !f.height) return;
+
+    let side: Side;
+    if (f.bottom <= a.top + 1) side = 'top';
+    else if (f.top >= a.bottom - 1) side = 'bottom';
+    else if (f.right <= a.left + 1) side = 'left';
+    else side = 'right';
+    floater.setAttribute('data-side', side);
+
+    // point at the middle of the anchor, but never past the floater's own
+    // corner: a caret hanging off the end of the box looks like a rendering bug
+    const inset = 12;
+    const along =
+      side === 'top' || side === 'bottom'
+        ? clamp(a.left + a.width / 2 - f.left, inset, f.width - inset)
+        : clamp(a.top + a.height / 2 - f.top, inset, f.height - inset);
+    floater.style.setProperty('--prjs-caret-at', Math.round(along) + 'px');
+  };
+}
+
 /** Whether the browser can place this for us. */
 export function nativeAnchoring(win: Window): boolean {
   const css = (win as unknown as { CSS?: { supports(v: string): boolean } }).CSS;
@@ -55,17 +97,32 @@ function attach(floater: HTMLElement, anchor: Element, side: Side, env: Env): ()
   if (topLayer) floater.setAttribute('popover', 'manual');
   (doc.body || doc.documentElement).appendChild(floater);
 
+  const orient = addCaret(floater, anchor, doc);
   let cleanup = (): void => {};
 
   if (nativeAnchoring(win)) {
     // the browser does the maths, including the flip
-    const name = '--pc-a' + ++uid;
+    const name = '--prjs-a' + ++uid;
     const previous = (anchor as HTMLElement).style.anchorName;
     (anchor as HTMLElement).style.anchorName = name;
     floater.setAttribute('data-anchored', '');
-    floater.style.setProperty('--pc-anchor', name);
-    floater.style.setProperty('--pc-area', AREA[side]);
+    floater.style.setProperty('--prjs-anchor', name);
+    floater.style.setProperty('--prjs-area', AREA[side]);
+
+    // the browser has not laid it out yet, and may put it on the opposite side
+    // from the one asked for. read the answer back a frame later.
+    const frame = win.requestAnimationFrame(() => orient());
+    const watch =
+      typeof win.ResizeObserver === 'function' ? new win.ResizeObserver(() => orient()) : null;
+    watch?.observe(anchor);
+    win.addEventListener('scroll', orient, true);
+    win.addEventListener('resize', orient);
+
     cleanup = () => {
+      win.cancelAnimationFrame(frame);
+      watch?.disconnect();
+      win.removeEventListener('scroll', orient, true);
+      win.removeEventListener('resize', orient);
       (anchor as HTMLElement).style.anchorName = previous;
     };
   } else {
@@ -95,6 +152,9 @@ function attach(floater: HTMLElement, anchor: Element, side: Side, env: Env): ()
       );
       floater.style.left = fitted.left + 'px';
       floater.style.top = fitted.top + 'px';
+      // `place` may have clamped it away from the side we asked for, so the
+      // caret is oriented from the result, exactly as in the native path
+      orient();
     };
 
     reposition();
@@ -154,15 +214,15 @@ export function tooltip(el: HTMLElement, spec: TooltipSpec, env: Env): () => voi
   const named = el.getAttribute('aria-label') || el.textContent?.trim();
   if (!named) el.setAttribute('aria-label', spec.text);
 
-  const id = 'pc-tip-' + ++uid;
+  const id = 'prjs-tip-' + ++uid;
   let close: (() => void) | null = null;
   let timer: ReturnType<typeof setTimeout> | undefined;
 
   const show = (): void => {
     if (close) return;
-    const tip = root(doc, 'div', { class: 'pc-k pc-k-tip', attrs: { id, role: 'tooltip' } });
+    const tip = root(doc, 'div', { class: 'prjs prjs-tip', attrs: { id, role: 'tooltip' } });
     tip.append(doc.createTextNode(spec.text));
-    if (spec.keys) tip.appendChild(h(doc, 'span', { class: 'pc-k-kbd', text: spec.keys }));
+    if (spec.keys) tip.appendChild(h(doc, 'span', { class: 'prjs-kbd', text: spec.keys }));
 
     close = attach(tip, el, spec.side || 'top', env);
     el.setAttribute('aria-describedby', id);
@@ -226,16 +286,16 @@ export function popover(anchor: HTMLElement, spec: PopoverSpec, env: Env): Popov
   const { document: doc } = env;
   ensureStyles(doc);
 
-  const el = root(doc, 'div', { class: 'pc-k pc-k-pop', attrs: { role: 'dialog' } });
-  const body = h(doc, 'div', { class: 'pc-k-pop-body' });
+  const el = root(doc, 'div', { class: 'prjs prjs-pop', attrs: { role: 'dialog' } });
+  const body = h(doc, 'div', { class: 'prjs-pop-body' });
 
-  if (spec.title) body.appendChild(h(doc, 'div', { class: 'pc-k-pop-title', text: spec.title }));
+  if (spec.title) body.appendChild(h(doc, 'div', { class: 'prjs-pop-title', text: spec.title }));
 
   if (typeof spec.body === 'string') {
-    body.appendChild(h(doc, 'div', { class: 'pc-k-pop-text', text: spec.body }));
+    body.appendChild(h(doc, 'div', { class: 'prjs-pop-text', text: spec.body }));
   } else if (Array.isArray(spec.body)) {
     for (const line of spec.body) {
-      body.appendChild(h(doc, 'div', { class: 'pc-k-pop-text', text: line }));
+      body.appendChild(h(doc, 'div', { class: 'prjs-pop-text', text: line }));
     }
   } else {
     body.appendChild(spec.body);
@@ -245,14 +305,14 @@ export function popover(anchor: HTMLElement, spec: PopoverSpec, env: Env): Popov
   let close = (): void => {};
 
   if (spec.actions?.length) {
-    const foot = h(doc, 'div', { class: 'pc-k-pop-foot' });
+    const foot = h(doc, 'div', { class: 'prjs-pop-foot' });
     for (const action of spec.actions) {
       const btn = h(doc, 'button', {
-        class: 'pc-k-btn',
+        class: 'prjs-btn',
         text: action.label,
         attrs: {
           type: 'button',
-          'data-pc-action': action.id,
+          'data-prjs-action': action.id,
           ...(action.tone ? { 'data-tone': action.tone } : {})
         }
       });

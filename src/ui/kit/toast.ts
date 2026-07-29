@@ -19,7 +19,7 @@ export interface ToastHandle {
   dismiss(): void;
 }
 
-const STACK_ATTR = 'data-pc-toasts';
+const STACK_ATTR = 'data-prjs-toasts';
 
 function stackFor(doc: Document): HTMLElement {
   ensureStyles(doc);
@@ -27,7 +27,7 @@ function stackFor(doc: Document): HTMLElement {
   if (existing) return existing;
 
   const stack = root(doc, 'div', {
-    class: 'pc-k-toasts',
+    class: 'prjs-toasts',
     attrs: { [STACK_ATTR]: '', role: 'status', 'aria-live': 'polite' }
   });
   (doc.body || doc.documentElement).appendChild(stack);
@@ -39,8 +39,8 @@ export function toast(spec: ToastSpec, env?: Env): ToastHandle {
   const stack = stackFor(doc);
 
   const node = h(doc, 'div', {
-    class: 'pc-k-toast',
-    attrs: { 'data-tone': spec.tone || 'default', 'data-pc-toast': '' }
+    class: 'prjs-toast',
+    attrs: { 'data-tone': spec.tone || 'default', 'data-prjs-toast': '' }
   });
   node.appendChild(h(doc, 'span', { text: spec.message, style: 'flex:1' }));
 
@@ -66,12 +66,12 @@ export function toast(spec: ToastSpec, env?: Env): ToastHandle {
 
   node.appendChild(
     h(doc, 'button', {
-      class: 'pc-k-toast-close',
+      class: 'prjs-toast-close',
       text: '×',
       attrs: { type: 'button', 'aria-label': 'Dismiss' }
     })
   );
-  node.querySelector('.pc-k-toast-close')?.addEventListener('click', dismiss);
+  node.querySelector('.prjs-toast-close')?.addEventListener('click', dismiss);
 
   stack.appendChild(node);
 

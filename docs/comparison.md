@@ -15,9 +15,16 @@ not copyrightable; the original author's code was never used.
 
 ## What v1 got right
 
-Zero dependencies, no server side, selector-driven targeting, the exclusion list,
-watermarks, and the overall clone-transform-print-elsewhere pipeline are all
-sound, and all preserved.
+No server side, selector-driven targeting, the exclusion list, watermarks, and the
+overall clone-transform-print-elsewhere pipeline are all sound, and all preserved.
+
+Zero dependencies survived until 3.0, when two arrived and are worth naming:
+[`perfect-freehand`](https://github.com/steveruizok/perfect-freehand) for the pen
+and [`coloris`](https://github.com/melloware/coloris) for the colour picker. Both
+MIT, both with no dependencies of their own, 8.5 kB together. Each replaces
+something we had written worse — a stroke that flattened every curve, and a
+colour control with no opacity — and rewriting either would have been the
+reinvention the rest of this file argues against.
 
 ## What changed, and why
 

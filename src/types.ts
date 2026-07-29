@@ -112,6 +112,19 @@ export interface ResolvedWatermark {
   margin: string;
 }
 
+/** What a cover or a notes page can be given, beyond `true`. */
+export interface PageSheetSpec {
+  title?: string;
+  description?: string;
+  /** a line under the rest: `true` stamps the date, a string prints it */
+  meta?: string | true;
+  /** build the whole sheet yourself; the fields above are then ignored */
+  template?: (doc: Document, options: ResolvedOptions) => Node | null;
+}
+
+export type CoverOrNotesPage =
+  boolean | PageSheetSpec | ((doc: Document, options: ResolvedOptions) => Node | null);
+
 /** a note chip rendered next to every element matching `selector`. */
 export interface Annotation {
   selector: string;
@@ -224,6 +237,7 @@ export type PrintcraftEvent =
   | 'job:cancel'
   | 'job:error'
   | 'job:inspected'
+  | 'job:restart'
   | 'trigger'
   | 'hotkey'
   | 'config:loaded'
@@ -245,7 +259,11 @@ export type PrintcraftEvent =
   | 'redact:leak'
   | 'share:screenshot'
   | 'share:copy'
-  | 'share:email';
+  | 'share:email'
+  | 'state:save'
+  | 'state:load'
+  | 'state:clear'
+  | 'state:lost';
 
 export type JobStatus = 'running' | 'done' | 'cancelled' | 'inspected' | 'error';
 
@@ -335,10 +353,38 @@ export interface PrintcraftOptions {
    * invisible on the paper. Both are drawn as a heading block instead.
    */
   documentDescription?: string | null;
+  /**
+   * Show the assembled document and wait, instead of printing straight away.
+   *
+   * On for the menu, the palette, the keyboard and anywhere else a person is
+   * present. Off for `Printcraft.print()` called from code, so an unattended job
+   * does not sit waiting for somebody who is not there.
+   */
+  proof?: boolean;
+
   /** false prints neither, leaving the title for the filename alone */
   printHeading?: boolean;
   /** a line under the description: `true` stamps the date, a string prints it */
   printHeadingMeta?: boolean | string;
+
+  /**
+   * The title and description on a sheet of their own, at the front.
+   *
+   * `printHeading` puts the same words above the content on sheet one; this puts
+   * them on a sheet by themselves. A report wants a cover, an invoice wants a
+   * heading, and a receipt wants neither. Pass an object to override either
+   * line, or a function to build the whole sheet.
+   */
+  coverPage?: CoverOrNotesPage | null;
+
+  /**
+   * Every note, redaction and drawing, listed on a sheet at the end.
+   *
+   * Marks print where they were made and nowhere else, so twelve printed sheets
+   * give no way to see that three were annotated. This is the index. Skipped
+   * silently when nothing was marked, rather than printing an empty sheet.
+   */
+  notesPage?: CoverOrNotesPage | null;
 
   watermark?: Watermark | string | null;
   printerMarks?: PrinterMarks | boolean | null;
@@ -456,8 +502,11 @@ export interface ResolvedOptions extends PrintcraftOptions {
   watermarkOpacity: number;
   watermarkAngle: number;
   documentDescription: string | null;
+  proof: boolean;
   printHeading: boolean;
   printHeadingMeta: boolean | string;
+  coverPage: CoverOrNotesPage | null;
+  notesPage: CoverOrNotesPage | null;
   watermark: ResolvedWatermark | null;
   printerMarks: ResolvedPrinterMarks | null;
   backend: PrintBackend | null;

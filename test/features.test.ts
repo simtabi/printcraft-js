@@ -256,7 +256,7 @@ test('hooks: transformClone can swap the clone, beforePrint false cancels', asyn
             return repl;
           },
           beforePrint: (ctx) => {
-            expect_eq(ctx.document.querySelector('.pc-target article').textContent, 'swapped');
+            expect_eq(ctx.document.querySelector('.prjs-target article').textContent, 'swapped');
             return false; // and cancel so no dialog is needed
           }
         }
@@ -375,22 +375,26 @@ test('debug flag: option beats global, logger stays silent when off', () => {
 
 /* inspector */
 
-test('inspect mounts a visible overlay and resolves a controller', async () => {
+test('inspect opens the proof sheet, read-only, and resolves a controller', async () => {
+  // `inspect` used to mount an overlay of its own — a hand-inline-styled panel
+  // with Print, Log HTML and Close. The proof sheet answers the same question
+  // with a page rail, zoom and the kit's own styling, so there is one panel now
+  // and `inspect` is it opened to look rather than to decide.
   const d = dom('<div id="r"><p>preview me</p></div>');
   Printcraft.devtools.clear();
   const ctl = await Printcraft.inspect(
     { target: '#r', assetTimeout: 100, footerText: 'inspected' },
     { document: d.window.document, window: d.window }
   );
-  const overlay = d.window.document.querySelector('[data-pc-inspector]');
-  expect_ok(overlay, 'overlay is in the dom');
+  const overlay = d.window.document.querySelector('[data-prjs-proof]');
+  expect_ok(overlay, 'the proof sheet is in the dom');
   expect_ok(overlay.querySelector('iframe'));
   expect_eq(ctl.job.status, 'inspected');
-  expect_ok(ctl.document.querySelector('.pc-target #r'));
+  expect_ok(ctl.document.querySelector('.prjs-target #r'));
   expect_eq(ctl.document.querySelector('tfoot td').textContent, 'inspected');
   expect_ok(ctl.job.documentHTML.indexOf('preview me') !== -1);
   ctl.close();
-  expect_eq(d.window.document.querySelector('[data-pc-inspector]'), null);
+  expect_eq(d.window.document.querySelector('[data-prjs-proof]'), null);
   Printcraft.devtools.clear();
 });
 

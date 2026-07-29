@@ -6,6 +6,24 @@ The demo is a working test sheet: twenty-three job tickets, each printing the sa
 sample content through a different pipeline, plus the interaction layer and the
 devtools controls. It is also the fixture the browser test suite drives.
 
+## What it covers
+
+Seven sheets, each exercising a different part of the library:
+
+| Section                     | What to try                                                                |
+| --------------------------- | -------------------------------------------------------------------------- |
+| Quarterly production report | the print target every other section aims at                               |
+| Field memo                  | invented PII, for the redaction and privacy jobs to censor                 |
+| Declarative triggers        | buttons carrying their whole job in `data-printcraft-*`                    |
+| Interaction layer           | the right-click menu, the palette, and every keybinding                    |
+| **The proof sheet**         | the assembled document before it prints, annotation, and the colour picker |
+| Two interfaces, one page    | two scoped menus that do not know about each other                         |
+| Backends · Devtools         | the handoff seam, and the job record                                       |
+
+The proof section is the one to start with: **Proof the whole page** paginates
+everything into real numbered sheets with a cover and a notes page, and its
+Annotate button draws on them with a pen that thins as it speeds up.
+
 ## Where to run it
 
 |                |                                                                                                                                              |

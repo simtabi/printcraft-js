@@ -143,8 +143,8 @@ export function mountIframe(srcDoc: Document, options?: ResolvedOptions): Promis
   const width = frameWidthFor(options, sheet);
   const iframe = srcDoc.createElement('iframe');
   iframe.setAttribute('aria-hidden', 'true');
-  iframe.setAttribute('data-pc-frame', '');
-  iframe.setAttribute('data-pc-sheet', sheet.label);
+  iframe.setAttribute('data-prjs-frame', '');
+  iframe.setAttribute('data-prjs-sheet', sheet.label);
   iframe.setAttribute('style', offscreenFrameStyle(width, sheet.height));
   iframe.src = 'about:blank';
   (srcDoc.body || srcDoc.documentElement).appendChild(iframe);
@@ -222,125 +222,17 @@ export function mountWindow(srcWin: Window, options: ResolvedOptions): Promise<M
  * the inspector: the same assembled document rendered into a visible overlay with
  * Print / Log HTML / Close, so print styles can be iterated on without paper.
  */
-export function mountOverlay(srcDoc: Document, options?: ResolvedOptions): Promise<Mount> {
-  const sheet = resolveSheet(options?.setPrintSize);
-
-  const host = srcDoc.createElement('div');
-  host.setAttribute('data-pc-inspector', '');
-  host.setAttribute(
-    'style',
-    'position:fixed;inset:0;z-index:2147483646;background:rgba(20,20,24,.55);' +
-      'display:flex;flex-direction:column;padding:4vh 6vw;box-sizing:border-box;'
-  );
-
-  const bar = srcDoc.createElement('div');
-  bar.setAttribute(
-    'style',
-    'background:#17181b;color:#fff;font:12px/1 ui-monospace,Consolas,monospace;' +
-      'display:flex;gap:8px;align-items:center;padding:8px 12px;border-radius:4px 4px 0 0;'
-  );
-
-  const label = srcDoc.createElement('span');
-  label.textContent =
-    'printcraft inspector · ' + sheet.label + ' (' + sheet.width + '×' + sheet.height + 'px)';
-  label.setAttribute('style', 'flex:1');
-  bar.appendChild(label);
-
-  const mkBtn = (text: string): HTMLButtonElement => {
-    const b = srcDoc.createElement('button');
-    b.type = 'button';
-    b.textContent = text;
-    b.setAttribute(
-      'style',
-      'font:inherit;background:#fff;color:#17181b;border:0;padding:5px 10px;border-radius:3px;cursor:pointer;'
-    );
-    bar.appendChild(b);
-    return b;
-  };
-  const printBtn = mkBtn('Print');
-  const htmlBtn = mkBtn('Log HTML');
-  const closeBtn = mkBtn('Close');
-
-  // a stage the sheet floats on, so the preview reads as paper rather than as a
-  // panel that happens to contain html
-  const stage = srcDoc.createElement('div');
-  stage.setAttribute(
-    'style',
-    'flex:1;overflow:auto;background:#3f4046;border-radius:0 0 4px 4px;' +
-      'display:flex;justify-content:center;align-items:flex-start;padding:24px;box-sizing:border-box;'
-  );
-
-  const sheetBox = srcDoc.createElement('div');
-  sheetBox.setAttribute(
-    'style',
-    'width:' +
-      sheet.width +
-      'px;height:' +
-      sheet.height +
-      'px;flex:none;' +
-      'transform-origin:top center;box-shadow:0 6px 28px rgba(0,0,0,.45);background:#fff;'
-  );
-
-  const iframe = srcDoc.createElement('iframe');
-  iframe.setAttribute('title', 'printcraft print preview');
-  // the frame is the sheet, at sheet pixels. anything else and the preview shows
-  // a layout the paper will never have
-  iframe.setAttribute('style', 'width:100%;height:100%;border:0;background:#fff;display:block;');
-  iframe.src = 'about:blank';
-
-  sheetBox.appendChild(iframe);
-  stage.appendChild(sheetBox);
-  host.appendChild(bar);
-  host.appendChild(stage);
-  (srcDoc.body || srcDoc.documentElement).appendChild(host);
-
-  /** shrink the sheet to fit the stage, never enlarging past 1:1 */
-  const fit = (): void => {
-    const available = stage.clientWidth - 48;
-    if (available <= 0) return;
-    const scale = Math.min(1, available / sheet.width);
-    sheetBox.style.transform = 'scale(' + scale + ')';
-    // a scaled box keeps its unscaled footprint, so claw the difference back
-    sheetBox.style.marginBottom = -(sheet.height * (1 - scale)) + 'px';
-    label.textContent =
-      'printcraft inspector · ' +
-      sheet.label +
-      ' (' +
-      sheet.width +
-      '×' +
-      sheet.height +
-      'px, ' +
-      Math.round(scale * 100) +
-      '%)';
-  };
-
-  return frameReady(iframe, 'the inspector frame').then(({ win, doc }) => {
-    const mount = new HostedMount(win, doc, host, host);
-    fit();
-
-    const onResize = (): void => fit();
-    const view = srcDoc.defaultView;
-    view?.addEventListener('resize', onResize);
-    mount.onTeardown(() => view?.removeEventListener('resize', onResize));
-    printBtn.addEventListener('click', () => {
-      try {
-        win.focus();
-        win.print();
-      } catch {
-        /* noop */
-      }
-    });
-    htmlBtn.addEventListener('click', () => {
-      try {
-        console.log('[printcraft] print document html:\n', doc.documentElement.outerHTML);
-      } catch {
-        /* noop */
-      }
-    });
-    closeBtn.addEventListener('click', () => mount.teardown());
-    return mount;
-  });
-}
+/*
+ * `mountOverlay` used to live here.
+ *
+ * It was the inspector: a hand-inline-styled panel with Print, Log HTML and
+ * Close, mounted for `mode: 'inspect'`. The proof sheet answers the same
+ * question — what is about to print? — with a page rail, zoom, annotation and
+ * the kit's own styling, so `inspect` mounts that instead and this was two
+ * hundred lines maintaining a worse second answer.
+ *
+ * See src/proof/.
+ */
 
 /* waits ---------------------------------------------------------------- */
 

@@ -90,7 +90,7 @@ export function redactElement(el: Element, ch: string, sink?: string[]): void {
     for (let i = media.length - 1; i >= 0; i--) {
       const node = media[i]!;
       const box = doc.createElement('span');
-      box.className = 'pc-redacted-media';
+      box.className = 'prjs-redacted-media';
       const w = Number(node.getAttribute('width')) || 80;
       const h = Number(node.getAttribute('height')) || 40;
       box.setAttribute(
@@ -104,7 +104,7 @@ export function redactElement(el: Element, ch: string, sink?: string[]): void {
   scrubAttributes(el);
   const all = el.querySelectorAll('*');
   for (let i = 0; i < all.length; i++) scrubAttributes(all[i]!);
-  el.classList.add('pc-redacted');
+  el.classList.add('prjs-redacted');
 }
 
 /**
@@ -294,10 +294,10 @@ export function sanitizeClone(clone: Element): void {
 }
 
 export const REDACTION_CSS = [
-  '.pc-redacted, .pc-redacted * { background: #000 !important; color: #000 !important;',
+  '.prjs-redacted, .prjs-redacted * { background: #000 !important; color: #000 !important;',
   'border-color: #000 !important; text-shadow: none !important; text-decoration: none !important; }',
-  '.pc-redacted-media { background: #000 !important; }',
+  '.prjs-redacted-media { background: #000 !important; }',
   // a run redacts part of an element, so the element keeps its own styling and
   // only the block characters are painted over
-  '.pc-redacted-run { -webkit-print-color-adjust: exact; print-color-adjust: exact; }'
+  '.prjs-redacted-run { -webkit-print-color-adjust: exact; print-color-adjust: exact; }'
 ].join(' ');

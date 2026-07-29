@@ -1,7 +1,9 @@
 // the modes that write data attributes back onto the live page. marks made here
 // persist, so every later job from any surface honors them.
 
-import { NS } from '../support';
+import { parse as parseDrawing } from '../annotate/model';
+import { unmountOverlay as unmountDrawing } from '../annotate/render';
+import { NS, describeElement } from '../support';
 import { promptFor } from './kit';
 import type { ClipRect, Env } from '../types';
 
@@ -95,22 +97,15 @@ export async function askForNote(target: Element, env?: Env): Promise<string | n
   return annotate(target, text);
 }
 
+export { describeElement };
+
 export interface Mark {
   element: Element;
-  kind: 'note' | 'redaction';
-  /** the note's text; empty for a redaction */
+  kind: 'note' | 'redaction' | 'drawing';
+  /** the note's text, or a summary of what was drawn; empty for a redaction */
   text: string;
   /** a short, readable pointer back to the element */
   where: string;
-}
-
-/** A readable description of where an element is, for a list. */
-export function describeElement(el: Element): string {
-  const tag = el.tagName.toLowerCase();
-  const id = el.id ? '#' + el.id : '';
-  const cls = el.classList.length ? '.' + [...el.classList].slice(0, 2).join('.') : '';
-  const text = (el.textContent || '').trim().replace(/\s+/g, ' ').slice(0, 40);
-  return tag + id + cls + (text ? ' · ' + text + (text.length >= 40 ? '…' : '') : '');
 }
 
 /**
@@ -135,14 +130,61 @@ export function annotations(doc: Document): Mark[] {
   for (const el of doc.querySelectorAll('[data-' + NS + '-redact]')) {
     out.push({ element: el, kind: 'redaction', text: '', where: describeElement(el) });
   }
+  for (const el of doc.querySelectorAll('[data-' + NS + '-drawing]')) {
+    out.push({
+      element: el,
+      kind: 'drawing',
+      text: summariseDrawing(el.getAttribute('data-' + NS + '-drawing')),
+      where: describeElement(el)
+    });
+  }
   return out;
 }
 
-/** Removes every note and redaction. Returns how many went. */
+/**
+ * What was drawn, in words.
+ *
+ * The panel and the notes page both list marks, and a drawing has no text of its
+ * own to list. Counting the shapes by kind is the closest thing to a caption
+ * that does not require rendering it.
+ */
+export function summariseDrawing(raw: string | null): string {
+  const drawing = parseDrawing(raw);
+  if (!drawing.shapes.length) return 'an empty drawing';
+
+  const words = drawing.shapes.filter((s) => s.kind === 'text' && s.text).map((s) => s.text);
+  if (words.length === drawing.shapes.length) return '“' + words.join('”, “') + '”';
+
+  const counts = new Map<string, number>();
+  for (const shape of drawing.shapes) counts.set(shape.kind, (counts.get(shape.kind) || 0) + 1);
+
+  const names: Record<string, [string, string]> = {
+    pen: ['freehand mark', 'freehand marks'],
+    highlight: ['highlight', 'highlights'],
+    line: ['line', 'lines'],
+    arrow: ['arrow', 'arrows'],
+    rect: ['box', 'boxes'],
+    ellipse: ['circle', 'circles'],
+    text: ['label', 'labels']
+  };
+
+  return [...counts]
+    .map(([kind, n]) => n + ' ' + (names[kind] || [kind, kind])[n === 1 ? 0 : 1])
+    .join(', ');
+}
+
+const KIND_ATTR: Record<Mark['kind'], string> = {
+  note: '-note',
+  redaction: '-redact',
+  drawing: '-drawing'
+};
+
+/** Removes every note, redaction and drawing. Returns how many went. */
 export function clearAnnotations(doc: Document): number {
   const marks = annotations(doc);
   for (const mark of marks) {
-    mark.element.removeAttribute('data-' + NS + (mark.kind === 'note' ? '-note' : '-redact'));
+    mark.element.removeAttribute('data-' + NS + KIND_ATTR[mark.kind]);
+    if (mark.kind === 'drawing') unmountDrawing(mark.element as HTMLElement);
   }
   return marks.length;
 }

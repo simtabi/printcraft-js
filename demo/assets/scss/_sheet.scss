@@ -3,7 +3,7 @@
 @use 'tokens' as *;
 @use 'mixins' as *;
 
-.pc-page {
+.prjs-page {
   background: $paper-dim;
   color: $ink;
   font-family: $font-sans;
@@ -11,11 +11,11 @@
   margin: 0;
 }
 
-.pc-band {
+.prjs-band {
   @include sheet-column;
 }
 
-.pc-masthead {
+.prjs-masthead {
   background: $paper;
   border-bottom: 1px solid $rule;
 
@@ -43,7 +43,7 @@
   }
 }
 
-.pc-colophon {
+.prjs-colophon {
   border-top: 1px solid $rule;
   margin-top: 1rem;
 
@@ -57,7 +57,7 @@
 }
 
 /// A white sheet: the report, the memo, and each explanatory section.
-.pc-sheet {
+.prjs-sheet {
   background: $paper;
   border: 1px solid $rule;
   padding: 1.5rem;
@@ -80,12 +80,12 @@
   }
 }
 
-.pc-prose {
+.prjs-prose {
   color: $ink-soft;
 }
 
 /// Inline code in the explanatory copy.
-.pc-code {
+.prjs-code {
   font-family: $font-mono;
   font-size: 0.75rem;
   background: $paper-dim;
@@ -94,7 +94,7 @@
 }
 
 /// A magenta chip used to call out a behaviour in the sample content.
-.pc-chip {
+.prjs-chip {
   display: inline-block;
   background: process('m');
   color: $paper;
@@ -108,14 +108,14 @@
   }
 }
 
-.pc-link {
+.prjs-link {
   color: process('c');
   text-decoration: underline;
 }
 
 /// Deliberately hidden on screen. `revealHiddenElements` reads the computed
 /// display, so a class behaves exactly like the inline style it replaced.
-.pc-hidden-note {
+.prjs-hidden-note {
   display: none;
   border: 1px dashed #fcd34d;
   background: #fffbeb;
@@ -124,13 +124,13 @@
 }
 
 /// Scrolls on screen, unrolls on paper with `extendScrollableAreas`.
-.pc-scrollbox {
+.prjs-scrollbox {
   max-height: 8rem;
   overflow-y: auto;
   border: 1px solid $rule;
 }
 
-.pc-table {
+.prjs-table {
   width: 100%;
   border-collapse: collapse;
   font-size: 0.875rem;
@@ -147,7 +147,7 @@
   }
 }
 
-.pc-form {
+.prjs-form {
   display: flex;
   flex-wrap: wrap;
   gap: 1rem;
@@ -166,12 +166,12 @@
   }
 }
 
-.pc-chart {
+.prjs-chart {
   max-width: 100%;
 }
 
 /// Shown when the page is opened from disk, where fetches cannot work.
-.pc-load-note {
+.prjs-load-note {
   position: fixed;
   inset: auto 1rem 1rem;
   z-index: 99998;
@@ -204,7 +204,7 @@
 
 /// The banner shown when the library failed to load. Only the repo demo can
 /// ever reach this state; the standalone build has everything inlined.
-.pc-load-error {
+.prjs-load-error {
   position: fixed;
   inset: 0 0 auto;
   z-index: 99999;

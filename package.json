@@ -82,7 +82,7 @@
   ],
   "scripts": {
     "clean": "rimraf dist coverage test-results _site",
-    "prebuild": "npm run clean",
+    "prebuild": "npm run clean && npm run vendor:css",
     "build": "vite build && npm run build:umd && npm run build:cli && npm run build:types && npm run build:assets && node tools/build.mjs",
     "build:assets": "node tools/build-assets.mjs",
     "build:types": "node tools/build-types.mjs",
@@ -103,7 +103,10 @@
     "size": "size-limit",
     "prepublishOnly": "npm run build",
     "build:cli": "vite build --config vite.cli.config.ts",
-    "build:umd": "vite build --config vite.umd.config.ts"
+    "build:umd": "vite build --config vite.umd.config.ts",
+    "vendor:audit": "node tools/vendor-audit.mjs && node tools/vendor-css.mjs --check && node tools/vendor-daisyui.mjs --check",
+    "vendor:css": "node tools/vendor-css.mjs && node tools/vendor-daisyui.mjs",
+    "vendor:daisyui": "node tools/vendor-daisyui.mjs"
   },
   "devDependencies": {
     "@arethetypeswrong/cli": "^0.18.5",
@@ -113,6 +116,7 @@
     "@tailwindcss/cli": "^4.3.3",
     "@types/node": "^22.20.1",
     "@vitest/coverage-v8": "^4.1.10",
+    "daisyui": "^5.7.4",
     "jsdom": "^30.0.0",
     "oxlint": "^1.76.0",
     "prettier": "^3.9.6",
@@ -144,5 +148,9 @@
         "./dist/types/entry-share.d.ts"
       ]
     }
+  },
+  "dependencies": {
+    "@melloware/coloris": "^0.25.0",
+    "perfect-freehand": "^1.2.3"
   }
 }

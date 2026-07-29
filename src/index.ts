@@ -529,7 +529,36 @@ class Printcraft {
   // statics pass no emitter, so each job gets a private one and two concurrent
   // jobs never see each other's per-job `on` listeners
   static print(options: PrintcraftOptions | string | Element, env?: Env): Promise<JobRecord> {
-    return runJob(normalizeOptions(options), env || defaultEnv(), null, bus) as Promise<JobRecord>;
+    const resolved = normalizeOptions(options);
+    // `proof: true` is the only way a programmatic call reaches the sheet. an
+    // unattended job must not sit waiting for a person who is not there.
+    return runJob(
+      resolved,
+      env || defaultEnv(),
+      null,
+      bus,
+      resolved.proof ? 'proof' : 'print'
+    ) as Promise<JobRecord>;
+  }
+
+  /**
+   * Assembles the job, shows it, and prints only if the user says so.
+   *
+   * The same pipeline as `print`, stopped one step short. Whatever the proof
+   * shows is the document itself — not a rendering of it — and pressing Print
+   * continues this job rather than starting a second one.
+   *
+   * `print({ proof: true })` is the same thing from the other direction, for a
+   * caller who is already passing options.
+   */
+  static proof(options: PrintcraftOptions | string | Element, env?: Env): Promise<JobRecord> {
+    return runJob(
+      normalizeOptions(options),
+      env || defaultEnv(),
+      null,
+      bus,
+      'proof'
+    ) as Promise<JobRecord>;
   }
 
   static inspect(
@@ -765,7 +794,6 @@ class Printcraft {
     // mounts + waits
     mountIframe: core.mountIframe,
     mountWindow: core.mountWindow,
-    mountOverlay: core.mountOverlay,
     waitForAssets: core.waitForAssets,
     waitForDialogClose: core.waitForDialogClose,
     Emitter,

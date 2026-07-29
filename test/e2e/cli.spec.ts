@@ -94,7 +94,7 @@ test('pagination and page numbers reach the pdf', async () => {
   expect(code).toBe(0);
 
   const written = await readFile(html, 'utf8');
-  expect(written).toContain('pc-page-sheet');
+  expect(written).toContain('prjs-page-sheet');
   expect(written).toContain('Page 1 of');
   expect(written).toContain('CONFIDENTIAL');
 });
@@ -134,5 +134,5 @@ test('a config file supplies the options', async () => {
 
   const written = await readFile(html, 'utf8');
   expect(written).not.toContain('Jane Marie Doe');
-  expect(written).toContain('pc-page-sheet');
+  expect(written).toContain('prjs-page-sheet');
 });

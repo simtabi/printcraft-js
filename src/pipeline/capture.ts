@@ -33,7 +33,7 @@ export async function captureRegion(
   doc: Document
 ): Promise<CaptureResult> {
   const stage = doc.createElement('div');
-  stage.setAttribute('data-pc-ui', '');
+  stage.setAttribute('data-prjs-ui', '');
   stage.setAttribute(
     'style',
     'position:fixed;left:-20000px;top:0;width:' + rect.width + 'px;height:' + rect.height + 'px;'
@@ -58,7 +58,7 @@ export async function captureRegion(
 
     const img = doc.createElement('img');
     img.src = raster.dataUrl;
-    img.className = 'pc-capture';
+    img.className = 'prjs-capture';
     img.setAttribute('alt', options.documentTitle || 'Captured region');
     img.setAttribute('width', String(Math.round(rect.width * scale)));
     img.setAttribute('height', String(Math.round(rect.height * scale)));

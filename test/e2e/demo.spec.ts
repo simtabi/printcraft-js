@@ -18,7 +18,7 @@ async function inspect(page: Page, options: Record<string, unknown>): Promise<Fr
     (window as unknown as { __ctl?: unknown }).__ctl = await pc.inspect(opts);
   }, options);
 
-  const frame = page.frameLocator('[data-pc-inspector] iframe');
+  const frame = page.frameLocator('[data-prjs-proof] iframe');
   await expect(frame.locator('body')).toBeAttached();
 
   const handle = page.frames().find((f) => f.parentFrame() === page.mainFrame());
@@ -41,12 +41,12 @@ async function closeInspector(page: Page): Promise<void> {
     const ctl = (window as unknown as { __ctl?: { close(): void } }).__ctl;
     ctl?.close();
   });
-  await expect(page.locator('[data-pc-inspector]')).toHaveCount(0);
+  await expect(page.locator('[data-prjs-proof]')).toHaveCount(0);
 }
 
 test.beforeEach(async ({ page }) => {
   await page.goto(DEMO);
-  await expect(page.locator('#tickets .pc-ticket').first()).toBeVisible();
+  await expect(page.locator('#tickets .prjs-ticket').first()).toBeVisible();
 });
 
 test('the demo loads with no external requests and no failure banner', async ({ page }) => {
@@ -55,24 +55,24 @@ test('the demo loads with no external requests and no failure banner', async ({ 
     if (!r.url().startsWith('http://localhost')) external.push(r.url());
   });
   await page.reload();
-  await expect(page.locator('#tickets .pc-ticket').first()).toBeVisible();
+  await expect(page.locator('#tickets .prjs-ticket').first()).toBeVisible();
 
   expect(external, 'nothing is fetched off-origin').toEqual([]);
   await expect(page.getByText(/failed to load/)).toHaveCount(0);
   // the compiled stylesheet actually applied: tailwind's theme token paints the
   // process rule, and the sass component layer paints the run buttons
-  await expect(page.locator('.pc-rule i').first()).toHaveCSS(
+  await expect(page.locator('.prjs-rule i').first()).toHaveCSS(
     'background-color',
     'rgb(0, 159, 227)'
   );
-  await expect(page.locator('button.pc-run').first()).toHaveCSS(
+  await expect(page.locator('button.prjs-run').first()).toHaveCSS(
     'background-color',
     'rgb(23, 24, 27)'
   );
 
   // and the sass crop-mark mixin rendered its corner ticks
   const tick = await page
-    .locator('.pc-ticket')
+    .locator('.prjs-ticket')
     .first()
     .evaluate((el) => getComputedStyle(el, '::before').borderTopWidth);
   expect(tick).toBe('2px');
@@ -94,7 +94,7 @@ test('redaction reaches the print document as unrecoverable bars', async ({ page
     assetTimeout: 2000
   });
 
-  const redacted = frame.locator('.pc-redacted.e2e-secret');
+  const redacted = frame.locator('.prjs-redacted.e2e-secret');
   await expect(redacted).toBeAttached();
 
   const text = await redacted.textContent();
@@ -122,7 +122,7 @@ test('redacting a form field destroys its value, not just its label', async ({ p
 
   const html = await frame.content();
   expect(html, 'the typed value never reaches paper').not.toContain('Wayne Enterprises');
-  await expect(frame.locator('.pc-redacted')).toBeAttached();
+  await expect(frame.locator('.prjs-redacted')).toBeAttached();
   await closeInspector(page);
 });
 
@@ -142,8 +142,8 @@ test('crop marks and a bleed inset render on the page', async ({ page }) => {
     assetTimeout: 2000
   });
 
-  await expect(frame.locator('.pc-mark')).toHaveCount(4);
-  const corner = frame.locator('.pc-mark-tl');
+  await expect(frame.locator('.prjs-mark')).toHaveCount(4);
+  const corner = frame.locator('.prjs-mark-tl');
   await expect(corner).toHaveCSS('position', 'fixed');
   await expect(corner).toHaveCSS('border-right-color', 'rgb(229, 0, 125)');
   await closeInspector(page);
@@ -156,7 +156,7 @@ test('annotations render as break-safe note chips', async ({ page }) => {
     assetTimeout: 2000
   });
 
-  const chip = frame.locator('.pc-note').first();
+  const chip = frame.locator('.prjs-note').first();
   await expect(chip).toHaveText('verify with finance');
   await expect(chip).toHaveCSS('break-inside', 'avoid');
   await closeInspector(page);
@@ -171,7 +171,7 @@ test('a text watermark renders as rotated svg at the configured opacity', async 
     assetTimeout: 2000
   });
 
-  const layer = frame.locator('.pc-watermark');
+  const layer = frame.locator('.prjs-watermark');
   const svg = layer.locator('svg');
   await expect(svg).toBeAttached();
   await expect(svg.locator('text')).toHaveText('DRAFT');
@@ -212,12 +212,12 @@ test('clipRect prints exactly the drawn region', async ({ page }) => {
       assetTimeout: 5000,
       hooks: {
         beforePrint(ctx: { document: Document }) {
-          const img = ctx.document.querySelector<HTMLImageElement>('img.pc-capture');
+          const img = ctx.document.querySelector<HTMLImageElement>('img.prjs-capture');
           out = {
             captured: !!img,
             width: img ? Math.round(img.getBoundingClientRect().width) : 0,
-            ui: ctx.document.querySelectorAll('[data-pc-ui]').length,
-            scripts: ctx.document.querySelectorAll('.pc-target script').length
+            ui: ctx.document.querySelectorAll('[data-prjs-ui]').length,
+            scripts: ctx.document.querySelectorAll('.prjs-target script').length
           };
           return false;
         }
@@ -241,8 +241,8 @@ test('the repeating header and footer use the table technique', async ({ page })
     assetTimeout: 2000
   });
 
-  await expect(frame.locator('table.pc-sheet > thead td')).toHaveText('ACME CO');
-  await expect(frame.locator('table.pc-sheet > tfoot td')).toHaveText('internal');
+  await expect(frame.locator('table.prjs-sheet > thead td')).toHaveText('ACME CO');
+  await expect(frame.locator('table.prjs-sheet > tfoot td')).toHaveText('internal');
   await closeInspector(page);
 });
 
@@ -258,7 +258,7 @@ test('the assembled document renders to a pdf', async ({ page, browserName }) =>
 
   const frame = page.frames().find((f) => f.parentFrame() === page.mainFrame());
   const html = await frame!.content();
-  expect(html).toContain('pc-target');
+  expect(html).toContain('prjs-target');
 
   // render the host page (inspector open) as a smoke test that print css is valid
   const pdf = await page.pdf({ format: 'A4' });
@@ -279,26 +279,26 @@ test('the context menu opens on right-click and drives a job', async ({ page }) 
   await settleScroll(page);
 
   await target.click({ button: 'right' });
-  const menu = page.locator('[data-pc-menu]');
+  const menu = page.locator('[data-prjs-menu]');
   await expect(menu).toBeVisible();
 
   // it says whose menu it is, which a floating list of verbs does not
-  await expect(menu.locator('.pc-k-menu-title')).toHaveText('Print & mark up');
-  await expect(menu.locator('.pc-k-menu-desc')).toContainText('Choose what prints');
+  await expect(menu.locator('.prjs-menu-title')).toHaveText('Print & mark up');
+  await expect(menu.locator('.prjs-menu-desc')).toContainText('Choose what prints');
 
   // asserted by id rather than by count, which would only record how many there
   // were the day it was written
   await Promise.all(
     ['print-element', 'print-page', 'settings', 'draw', 'redact', 'inspect'].map((id) =>
-      expect(menu.locator(`[data-pc-item="${id}"]`), id).toBeVisible()
+      expect(menu.locator(`[data-prjs-item="${id}"]`), id).toBeVisible()
     )
   );
   // every row carries a one-line description and its keys
-  await expect(menu.locator('.pc-k-item-hint').first()).toBeVisible();
-  await expect(menu.locator('.pc-k-kbd').first()).toBeVisible();
+  await expect(menu.locator('.prjs-item-hint').first()).toBeVisible();
+  await expect(menu.locator('.prjs-kbd').first()).toBeVisible();
 
   // the redact item stamps the attribute the pipeline reads
-  await menu.locator('[data-pc-item="redact"]').click();
+  await menu.locator('[data-prjs-item="redact"]').click();
   await expect(page.locator('#cust')).toHaveAttribute('data-printcraft-redact', '');
   await expect(menu).toHaveCount(0);
 });
@@ -311,7 +311,7 @@ test('draw-to-print waits for confirmation before it captures anything', async (
     (window as unknown as { __drawn?: Promise<unknown> }).__drawn = pc.ui.drawArea({});
   });
 
-  const overlay = page.locator('[data-pc-draw]');
+  const overlay = page.locator('[data-prjs-draw]');
   await expect(overlay).toBeVisible();
 
   await page.mouse.move(120, 160);
@@ -320,9 +320,9 @@ test('draw-to-print waits for confirmation before it captures anything', async (
   await page.mouse.up();
 
   // the box stays editable: releasing the mouse is not a decision
-  await expect(page.locator('[data-pc-region]')).toBeVisible();
-  await expect(page.locator('[data-pc-handle]')).toHaveCount(8);
-  await expect(page.locator('[data-pc-dims]')).toContainText('300 × 240 px');
+  await expect(page.locator('[data-prjs-region]')).toBeVisible();
+  await expect(page.locator('[data-prjs-handle]')).toHaveCount(8);
+  await expect(page.locator('[data-prjs-dims]')).toContainText('300 × 240 px');
   await expect(overlay).toBeVisible();
 
   await page.keyboard.press('Escape');

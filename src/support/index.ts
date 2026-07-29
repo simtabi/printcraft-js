@@ -1,6 +1,7 @@
 // one import site for the primitives. no printing knowledge lives in this folder.
 
 export { NS, DATA_ID, FORBIDDEN_TAGS } from './constants';
+export { describeElement } from './describe';
 export { assign, clamp, raise, now, camelize } from './lang';
 export {
   toArray,

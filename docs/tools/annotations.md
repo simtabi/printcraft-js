@@ -33,7 +33,7 @@ a particular job adds its own.
 
 ## How chips render
 
-Each note becomes a `span.pc-note` inserted immediately after its element:
+Each note becomes a `span.prjs-note` inserted immediately after its element:
 
 - Inline-block, so it sits beside the content rather than displacing it
 - Amber on a bordered background, at 11px
@@ -46,7 +46,7 @@ The styles ship in the generated stylesheet of every job. Override them with
 Printcraft.print({
   target: '#contract',
   annotations: [{ selector: '#total', text: 'verify' }],
-  injectCustomStyle: '.pc-note { background: #dbeafe; border-color: #2563eb; color: #1e3a8a; }'
+  injectCustomStyle: '.prjs-note { background: #dbeafe; border-color: #2563eb; color: #1e3a8a; }'
 });
 ```
 

@@ -4,6 +4,15 @@
 
 @import 'tailwindcss';
 
+/* daisyUI supplies the components — buttons, cards, badges, modals — and this
+   page uses them directly, unprefixed, because it is our own page.
+   The library cannot: it renders into somebody else's document, where a global
+   `.btn` rule would restyle their buttons. It mirrors these same tokens under
+   `--prjs-*` instead. `tools/vendor-audit.mjs` checks the two stay in step. */
+@plugin 'daisyui' {
+  themes: false;
+}
+
 /* v4 scans relative to this file, so every source that can contain a class name
    has to be named explicitly. */
 @source '../../index.html';
@@ -26,4 +35,48 @@
 
   --font-mono: ui-monospace, 'SF Mono', 'Cascadia Mono', Consolas, Menlo, monospace;
   --font-sans: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+}
+
+/* The print shop, as a daisyUI theme.
+   `themes: false` above means none of daisyUI's own ship; this is the only one,
+   so it is also the default. The eight semantic names are daisyUI's, and the
+   library resolves the same eight under `--prjs-color-*` — which is what makes a
+   Printcraft dialog opened from this page look like it belongs to it. */
+@plugin 'daisyui/theme' {
+  name: 'printshop';
+  default: true;
+  prefersdark: false;
+  color-scheme: light;
+
+  --color-base-100: #ffffff;
+  --color-base-200: #f2f2ef;
+  --color-base-300: #d8d8d3;
+  --color-base-content: #17181b;
+
+  --color-primary: #17181b;
+  --color-primary-content: #ffffff;
+  --color-secondary: #009fe3;
+  --color-secondary-content: #04222e;
+  --color-accent: #e5007d;
+  --color-accent-content: #ffffff;
+  --color-neutral: #2a2e37;
+  --color-neutral-content: #ffffff;
+
+  --color-info: #009fe3;
+  --color-info-content: #04222e;
+  --color-success: #15803d;
+  --color-success-content: #ffffff;
+  --color-warning: #ffd500;
+  --color-warning-content: #2b2400;
+  --color-error: #e5007d;
+  --color-error-content: #ffffff;
+
+  --radius-selector: 0.25rem;
+  --radius-field: 0.25rem;
+  --radius-box: 0.5rem;
+  --size-selector: 0.25rem;
+  --size-field: 0.25rem;
+  --border: 1px;
+  --depth: 0;
+  --noise: 0;
 }
