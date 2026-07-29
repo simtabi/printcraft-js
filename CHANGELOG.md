@@ -89,6 +89,14 @@ defaults to `capture`. Everything that worked in 1.2 still works.
 - **A command line.** `printcraft print`, `doctor` and `init`, with Playwright as
   an optional peer. `doctor` exits non-zero when something would leak, which
   makes it a CI gate.
+- **`afterPaginate` and `beforeBackend` hooks.** The first receives the sheets as
+  live elements, which is the only place to reach one in particular. The second
+  is the last look before a job leaves the browser, against the payload a
+  backend actually receives rather than the mounted document; returning an
+  object replaces the job and `false` cancels it.
+- **`contributeActions`**, so a layer that is not always loaded can add its own.
+  `/share` uses it to put screenshot, copy and email in the menu without the
+  catalogue importing a rasteriser.
 - **Subpath exports.** `@simtabi/printcraft` is 22 kB; `/ui` and `/share` are
   opt-in. The umd bundle stays whole.
 
@@ -113,6 +121,19 @@ defaults to `capture`. Everything that worked in 1.2 still works.
 ### Removed
 
 - `buildMenuItems` and `openContextMenuAt`, replaced by the actions registry.
+
+### Upgrading
+
+- **A configured `documentTitle` now prints a heading.** It used to reach only
+  the browser's save-as-PDF filename. Set `printHeading: false` alongside it to
+  keep the old behaviour, which is what the demo's own config does.
+- **The right-click menu installs itself.** `data-menu="false"` on the script
+  tag, or `Printcraft.autoMenu = false` before load, restores the browser's.
+- **`clipMode` defaults to `capture`.** Pass `'reflow'` for the old behaviour.
+- **`.watermark()` takes a watermark**, not arbitrary options. `.set()` is where
+  arbitrary options were always meant to go.
+- **`redactionPolicy` defaults to `strict`.** A job whose redaction did not take
+  now throws instead of printing. `'warn'` restores the old behaviour.
 
 ## [1.2.0] — scoped release, hardening, and a real type surface
 
