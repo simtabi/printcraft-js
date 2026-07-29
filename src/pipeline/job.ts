@@ -36,18 +36,15 @@ import {
 import { assemblePrintDocument } from './document';
 import { captureRegion } from './capture';
 import { paginate as paginateInto } from './paginate';
-import {
-  mountIframe,
-  mountOverlay,
-  mountWindow,
-  waitForAssets,
-  waitForDialogClose
-} from './mounts';
+import { mountIframe, mountOverlay, mountWindow, waitForAssets } from './mounts';
+import { browserBackend } from '../backend/browser';
+import { resolveSheet } from '../production/sheets';
 import { devtools } from './devtools';
 import type {
   Env,
   EventPayload,
   Hooks,
+  RenderedJob,
   InspectController,
   JobRecord,
   JobStatus,
@@ -328,6 +325,26 @@ export class Job {
       .catch((err: unknown) => this.fail(err));
   }
 
+  /**
+   * The job as a backend sees it.
+   *
+   * `html` is the assembled document, which has already been through every
+   * transform, so a backend that ships it off the machine ships the redacted
+   * copy and never the original.
+   */
+  private renderedJob(mount: Mount): RenderedJob {
+    const sheet = resolveSheet(this.options.setPrintSize);
+    return {
+      id: String(this.record.id),
+      title: this.options.documentTitle || mount.document.title || '',
+      html: mount.document.documentElement.outerHTML,
+      sheet: { width: sheet.width, height: sheet.height, name: sheet.label },
+      pages: this.record.pages ?? null,
+      document: mount.document,
+      window: mount.window
+    };
+  }
+
   /** splits the assembled content into real sheets, when asked */
   private paginateDocument(doc: Document): void {
     if (!this.options.paginate) return;
@@ -412,20 +429,21 @@ export class Job {
         }).some((r) => r === false);
         if (hookSaysNo || eventSaysNo) return this.cancelled();
 
-        const closed = waitForDialogClose(mount.window, options);
-        try {
-          mount.window.focus();
-        } catch {
-          /* noop */
-        }
-        mount.window.print();
+        // the handoff goes through a backend so a companion service can take it
+        // over without a caller changing anything. the browser's dialog is the
+        // default, and the only one that needs nothing installed.
+        const backend = options.backend || browserBackend;
+        const rendered = this.renderedJob(mount);
+        this.fire('backend:start', { backend: backend.name });
 
-        return closed.then(() => {
+        return backend.print(rendered, options.backendOptions).then((result) => {
           this.mark('dialog');
           this.teardownMount();
+          this.record.backend = result;
+          this.fire('backend:done', { ...result });
           this.hook('afterPrint', { options });
           if (typeof options.afterPrintCb === 'function') options.afterPrintCb(options);
-          this.finalize('done');
+          this.finalize(result.status === 'cancelled' ? 'cancelled' : 'done');
           this.fire('job:afterprint');
           this.fire('job:done');
           this.detachTempListeners();

@@ -6,6 +6,7 @@ import * as redact from './privacy/redact';
 import * as marks from './production/marks';
 import * as ui from './ui';
 import { icon } from './ui/icons';
+import { browserBackend } from './backend/browser';
 import {
   assign,
   defaultsRef,
@@ -23,6 +24,7 @@ import {
   VERSION
 } from './core';
 import type {
+  BackendPrintOptions,
   ClipRect,
   Env,
   HeaderFooterMode,
@@ -37,6 +39,7 @@ import type {
   PrintTarget,
   PrivacyConfig,
   ResolvedOptions,
+  PrintBackend,
   ScrollExpansion,
   Transform,
   Watermark
@@ -44,6 +47,9 @@ import type {
 
 export type {
   Annotation,
+  BackendCapabilities,
+  BackendPrintOptions,
+  BackendResult,
   ClipRect,
   CustomMethodMap,
   Env,
@@ -57,9 +63,12 @@ export type {
   Logger,
   PrintcraftEvent,
   PrintcraftOptions,
+  PrintBackend,
+  PrinterInfo,
   PrinterMarks,
   PrintTarget,
   PrivacyConfig,
+  RenderedJob,
   ResolvedOptions,
   ResolvedPrinterMarks,
   ResolvedWatermark,
@@ -309,6 +318,13 @@ class Printcraft {
     return this;
   }
 
+  /** Send this job somewhere other than the browser dialog. See docs/backends.md. */
+  via(backend: PrintBackend, options?: BackendPrintOptions): this {
+    this.options.backend = backend;
+    if (options) this.options.backendOptions = options;
+    return this;
+  }
+
   header(text: string): this {
     this.options.headerText = text;
     return this;
@@ -420,6 +436,19 @@ class Printcraft {
   static set defaults(v: PrintcraftOptions) {
     defaultsRef.current = v || {};
   }
+
+  /**
+   * Where finished jobs go. The browser's dialog by default, which needs nothing
+   * installed and cannot print silently or pick a device — those need a
+   * companion service on the machine. See docs/backends.md.
+   */
+  static get backend(): PrintBackend {
+    return (defaultsRef.current.backend as PrintBackend) || browserBackend;
+  }
+  static set backend(b: PrintBackend | null) {
+    defaultsRef.current.backend = b;
+  }
+  static browserBackend = browserBackend;
 
   static job(target?: PrintcraftOptions | string | Element): Printcraft {
     return new Printcraft(target);

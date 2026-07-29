@@ -84,6 +84,8 @@ export {
   firstPageCss
 } from './production/watermark';
 
+export { browserBackend } from './backend/browser';
+
 export { captureRegion } from './pipeline/capture';
 export { rasterize, blobToDataUrl } from './share/rasterize';
 export type { RasterizeOptions, Raster } from './share/rasterize';

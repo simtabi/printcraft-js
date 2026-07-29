@@ -3,9 +3,17 @@
 
 import type { PrivacyConfig } from './privacy/redact';
 import type { PrinterMarks, ResolvedPrinterMarks } from './production/marks';
+import type { BackendPrintOptions, BackendResult, PrintBackend } from './backend';
 
 export type { PrivacyConfig } from './privacy/redact';
 export type { PrinterMarks, ResolvedPrinterMarks } from './production/marks';
+export type {
+  BackendCapabilities,
+  BackendPrintOptions,
+  BackendResult,
+  PrintBackend,
+  PrinterInfo
+} from './backend';
 
 /** the document/window pair a job runs against. jobs never touch globals directly. */
 export interface Env {
@@ -19,6 +27,27 @@ export interface ClipRect {
   y: number;
   width: number;
   height: number;
+}
+
+/**
+ * A finished job, as a backend sees it.
+ *
+ * Everything here has already been through the transform chain, so exclusions,
+ * redaction and the sanitiser have all run. A backend never gets the live page,
+ * which is what keeps "nothing leaks into the print copy" true no matter where
+ * the job ends up.
+ */
+export interface RenderedJob {
+  id: string;
+  title: string;
+  /** the assembled print document, as markup */
+  html: string;
+  sheet: { width: number; height: number; name: string };
+  /** sheets, when the job was paginated; null when the browser flowed it */
+  pages: number | null;
+  /** present only for backends printing in the page, such as the browser's */
+  document?: Document;
+  window?: Window;
 }
 
 export type WatermarkPosition =
@@ -166,6 +195,8 @@ export type PrintcraftEvent =
   | 'capture:done'
   | 'paginate:start'
   | 'paginate:done'
+  | 'backend:start'
+  | 'backend:done'
   | 'ui:menu'
   | 'ui:pick'
   | 'ui:draw'
@@ -190,6 +221,8 @@ export interface JobRecord {
   pages?: number;
   duration?: number;
   documentHTML?: string;
+  /** what the backend reported, once the handoff completed */
+  backend?: BackendResult;
 }
 
 /**
@@ -253,6 +286,15 @@ export interface PrintcraftOptions {
    */
   watermark?: Watermark | string | null;
   printerMarks?: PrinterMarks | boolean | null;
+
+  /**
+   * Where the finished job goes. Defaults to the browser's own print dialog,
+   * which needs nothing installed and cannot print silently or choose a device.
+   * See docs/backends.md.
+   */
+  backend?: PrintBackend | null;
+  /** passed to the backend: printer, copies, duplex, tray, silent */
+  backendOptions?: BackendPrintOptions;
 
   /**
    * Lay the content out as real sheets rather than letting the browser flow it.
@@ -346,6 +388,8 @@ export interface ResolvedOptions extends PrintcraftOptions {
   watermarkAngle: number;
   watermark: ResolvedWatermark | null;
   printerMarks: ResolvedPrinterMarks | null;
+  backend: PrintBackend | null;
+  backendOptions: BackendPrintOptions;
   paginate: boolean | PaginateConfig;
   pageNumbers: boolean | PageNumbers;
   pageBorder: boolean | PageBorder;

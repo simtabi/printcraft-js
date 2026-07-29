@@ -45,6 +45,9 @@ export const DEFAULTS: ResolvedOptions = {
   watermarkAngle: -30,
   watermark: null,
 
+  backend: null,
+  backendOptions: {},
+
   headerText: null,
   footerText: null,
   headerFooterMode: 'repeat',
