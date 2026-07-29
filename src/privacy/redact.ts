@@ -185,14 +185,78 @@ export function applyPrivacy(
   return hits;
 }
 
+/** Tags that can execute, navigate or load on their own. */
+const KILL =
+  'script, noscript, object, embed, iframe, frame, frameset, applet, base, portal, ' +
+  // a refresh meta in the print document navigates the frame out from under the
+  // job; other metas are harmless but carry nothing worth keeping either
+  'meta[http-equiv], link[rel~="import"], template';
+
+/** Attributes that name something to fetch, run, or navigate to. */
+const ACTIVE_URL_ATTRS = [
+  'href',
+  'src',
+  'srcdoc',
+  'action',
+  'formaction',
+  'xlink:href',
+  'ping',
+  'background',
+  'data',
+  'codebase',
+  'longdesc',
+  'usemap',
+  'profile',
+  'manifest',
+  'cite'
+];
+
+/** Attributes safe to hold a `data:` payload, because they only ever draw. */
+const DATA_URI_ALLOWED = new Set(['src', 'srcset', 'poster']);
+
 /**
- * always-on defense for the print copy. the print document is a fresh same-origin
- * browsing context, so content that was inert on the host page — a script inside a
- * template, an onclick in user-generated markup, a nested iframe — would actually
- * run there. stripping executable content costs nothing visually.
+ * Whether a url is safe in an active position.
+ *
+ * An allowlist rather than a blocklist. `javascript:` is the obvious one, but
+ * `vbscript:`, `data:text/html` and a handful of others all execute too, and a
+ * blocklist is a promise to have thought of every scheme anyone will invent.
+ */
+function safeUrl(value: string, attribute: string): boolean {
+  // control characters and html entities are how a blocked scheme gets past a
+  // naive check: `java\tscript:` and `java&#x09;script:` both run
+  const cleaned = value
+    // oxlint-disable-next-line no-control-regex
+    .replace(/[\u0000-\u0020\u007f]/g, '')
+    .replace(/&#x?[0-9a-f]+;?/gi, '')
+    .toLowerCase();
+
+  const scheme = /^([a-z][a-z0-9+.-]*):/.exec(cleaned);
+  if (!scheme) return true; // relative, fragment, or query — nothing to execute
+
+  const name = scheme[1]!;
+  if (name === 'http' || name === 'https' || name === 'mailto' || name === 'tel') return true;
+  if (name === 'blob') return DATA_URI_ALLOWED.has(attribute);
+  if (name === 'data') {
+    // an image is fine; `data:text/html` is a document that runs
+    return DATA_URI_ALLOWED.has(attribute) && cleaned.startsWith('data:image/');
+  }
+  return false;
+}
+
+/**
+ * Always-on defence for the print copy.
+ *
+ * The print document is a fresh same-origin browsing context, so content that
+ * was inert on the host page — a script inside a template, an onclick in
+ * user-generated markup, a nested iframe — would actually run there. Stripping
+ * it costs nothing visually.
+ *
+ * This is not a general-purpose XSS sanitiser and does not claim to be. It
+ * removes what can execute or navigate in a print document, which is a smaller
+ * and better-defined problem than sanitising arbitrary untrusted html.
  */
 export function sanitizeClone(clone: Element): void {
-  const kill = clone.querySelectorAll('script, noscript, object, embed, iframe, frame');
+  const kill = clone.querySelectorAll(KILL);
   for (let i = kill.length - 1; i >= 0; i--) {
     const n = kill[i]!;
     if (n.parentNode) n.parentNode.removeChild(n);
@@ -202,15 +266,30 @@ export function sanitizeClone(clone: Element): void {
   everything.forEach((el) => {
     const drop: string[] = [];
     for (let i = 0; i < el.attributes.length; i++) {
-      const attr = el.attributes[i]!;
-      if (attr.name.toLowerCase().indexOf('on') === 0) drop.push(attr.name);
+      const name = el.attributes[i]!.name.toLowerCase();
+      // `on*` is every event handler, and `srcdoc` is a whole document inline
+      if (name.indexOf('on') === 0 || name === 'srcdoc') drop.push(el.attributes[i]!.name);
     }
     drop.forEach((a) => el.removeAttribute(a));
 
-    ['href', 'src', 'action', 'formaction', 'xlink:href'].forEach((attr) => {
-      const v = el.getAttribute(attr);
-      if (v && /^\s*javascript:/i.test(v)) el.setAttribute(attr, '#');
-    });
+    for (const attr of ACTIVE_URL_ATTRS) {
+      const value = el.getAttribute(attr);
+      if (value && !safeUrl(value, attr)) {
+        // `#` rather than removal: a link with no href still reads as a link,
+        // and an image with no src leaves a broken-image box on the page
+        if (attr === 'href') el.setAttribute(attr, '#');
+        else el.removeAttribute(attr);
+      }
+    }
+
+    // an svg <use> can pull in a whole external document, scripts included
+    if (el.tagName.toLowerCase() === 'use') {
+      const ref = el.getAttribute('href') || el.getAttribute('xlink:href') || '';
+      if (ref && ref[0] !== '#') {
+        el.removeAttribute('href');
+        el.removeAttribute('xlink:href');
+      }
+    }
   });
 }
 
