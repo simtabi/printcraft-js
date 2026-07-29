@@ -15,8 +15,8 @@
 // width is the viewport the clone lays out against, which is how the screen
 // layout is preserved.
 
-import { raise } from '../support';
 import type { ClipRect } from '../types';
+import { fail } from '../support/errors';
 
 export interface RasterizeOptions {
   /** css pixels; defaults to the element's own box */
@@ -213,7 +213,8 @@ export async function rasterize(el: Element, options: RasterizeOptions = {}): Pr
   }
 
   const doc = el.ownerDocument;
-  if (!doc?.defaultView) raise('rasterize needs an element that belongs to a document');
+  if (!doc?.defaultView)
+    fail('PC_RASTERIZE_FAILED', 'rasterize needs an element that belongs to a document');
   const view = doc.defaultView;
   const base = doc.baseURI;
   const timeout = options.assetTimeout ?? 8000;
@@ -281,7 +282,8 @@ export async function rasterize(el: Element, options: RasterizeOptions = {}): Pr
   canvas.height = Math.round(outHeight * scale);
 
   const ctx = canvas.getContext('2d');
-  if (!ctx) raise('this browser gave us no 2d canvas context to rasterize into');
+  if (!ctx)
+    fail('PC_RASTERIZE_FAILED', 'this browser gave us no 2d canvas context to rasterize into');
 
   if (options.background) {
     ctx.fillStyle = options.background;

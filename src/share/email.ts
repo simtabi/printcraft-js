@@ -9,8 +9,8 @@
 // client. It cannot carry an attachment, so the modal says so rather than
 // letting someone believe the PDF went with it.
 
-import { raise } from '../support';
 import type { Env } from '../types';
+import { fail } from '../support/errors';
 
 export interface EmailAttachment {
   filename: string;
@@ -105,16 +105,20 @@ export async function sendEmail(
   options: SendOptions = {},
   env?: Env
 ): Promise<EmailResult> {
-  if (!message.to.length) raise('an email needs at least one recipient');
+  if (!message.to.length) fail('PC_EMAIL_INVALID', 'an email needs at least one recipient');
   const bad = invalidAddresses(message.to.concat(message.cc || []));
-  if (bad.length) raise('these do not look like email addresses: ' + bad.join(', '));
+  if (bad.length)
+    fail('PC_EMAIL_INVALID', 'these do not look like email addresses: ' + bad.join(', '), {
+      addresses: bad
+    });
 
   if (options.allowedRecipients?.length) {
     const refused = message.to
       .concat(message.cc || [])
       .filter((a) => !allowed(a, options.allowedRecipients!));
     if (refused.length) {
-      raise(
+      fail(
+        'PC_EMAIL_INVALID',
         'these recipients are not on the allowlist: ' +
           refused.join(', ') +
           '. Add them to allowedRecipients, or leave it unset to allow any address.'

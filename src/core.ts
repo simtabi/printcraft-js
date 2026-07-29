@@ -30,8 +30,15 @@ export {
   removeNode,
   debugState,
   detectDebug,
-  makeLogger
+  makeLogger,
+  logger,
+  LEVELS,
+  PrintcraftError,
+  CODES,
+  fail,
+  isPrintcraftError
 } from './support';
+export type { LogLevel, LogRecord, LogSink, ErrorCode, ErrorContext } from './support';
 
 export { DEFAULTS, defaultsRef, normalizeOptions, coerceValue, parseDataOptions } from './options';
 

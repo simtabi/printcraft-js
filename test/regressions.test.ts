@@ -70,9 +70,17 @@ test('printing an input directly preserves its value', () => {
 test('a blocked popup raises instead of failing silently', () => {
   const d = dom('<div id="r">x</div>');
   const win = { ...d.window, open: () => null } as unknown as Window;
-  expect(() =>
-    I.mountWindow(win, I.normalizeOptions({ target: '#r', printInIframe: false }))
-  ).toThrow(/popup blocked/);
+
+  let error: { code?: string; hint?: string } | null = null;
+  try {
+    I.mountWindow(win, I.normalizeOptions({ target: '#r', printInIframe: false }));
+  } catch (e) {
+    error = e as typeof error;
+  }
+
+  // the code is the stable part; the wording is free to improve
+  expect(error?.code).toBe('PC_POPUP_BLOCKED');
+  expect(error?.hint, 'and it says what to do about it').toContain('printInIframe');
 });
 
 /* 6 — concurrent jobs must not share listeners ------------------------- */

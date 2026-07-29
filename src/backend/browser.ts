@@ -5,7 +5,6 @@
 // honestly through `capabilities()` rather than accepting options it will
 // quietly ignore.
 
-import { raise } from '../support';
 import { waitForDialogClose } from '../pipeline/mounts';
 import type {
   BackendCapabilities,
@@ -14,6 +13,7 @@ import type {
   PrintBackend
 } from './index';
 import type { RenderedJob, ResolvedOptions } from '../types';
+import { fail } from '../support/errors';
 
 const CAPABILITIES: BackendCapabilities = {
   // every one of these needs a process on the machine. see docs/backends.md.
@@ -35,7 +35,10 @@ export const browserBackend: PrintBackend = {
   print(job: RenderedJob, options: BackendPrintOptions = {}): Promise<BackendResult> {
     const win = job.window;
     if (!win) {
-      raise('the browser backend needs a mounted window; it cannot print detached markup');
+      fail(
+        'PC_BACKEND_UNSUPPORTED',
+        'the browser backend needs a mounted window; it cannot print detached markup'
+      );
     }
 
     if (options.silent) {

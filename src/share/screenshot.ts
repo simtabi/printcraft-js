@@ -5,9 +5,9 @@
 // runs the ordinary pipeline — clone, exclude, redact, sanitise — and rasterises
 // the result. What you get is the print copy, photographed.
 
-import { raise } from '../support';
 import { rasterize, type Raster } from './rasterize';
 import type { ClipRect, Env, PrintcraftOptions } from '../types';
+import { fail } from '../support/errors';
 
 export interface ScreenshotOptions extends PrintcraftOptions {
   type?: 'image/png' | 'image/jpeg' | 'image/webp';
@@ -108,7 +108,7 @@ export async function screenshot(
       assetTimeout: options.assetTimeout ?? 8000
     });
 
-    if (!raster.blob) raise('the screenshot produced no image');
+    if (!raster.blob) fail('PC_RASTERIZE_FAILED', 'the screenshot produced no image');
     if (options.download) {
       saveBlob(
         raster.blob,

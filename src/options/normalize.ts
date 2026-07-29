@@ -1,10 +1,11 @@
 // filling in defaults, coercing list options to arrays, and validating.
 
-import { assign, clamp, isElement, raise, toArray } from '../support';
+import { assign, clamp, isElement, toArray } from '../support';
 import { normalizeMarks } from '../production/marks';
 import { needsPages, resolveWatermark } from '../production/watermark';
 import { DEFAULTS, defaultsRef } from './defaults';
 import type { PrintcraftOptions, ResolvedOptions } from '../types';
+import { fail } from '../support/errors';
 
 /**
  * selectors are interpolated straight into a generated stylesheet, so a `}` (or a
@@ -15,9 +16,16 @@ const SELECTOR_INJECTION = /[{}<]|\/\*/;
 
 function assertSafeSelectors(key: string, selectors: string[]): void {
   for (const sel of selectors) {
-    if (typeof sel !== 'string') raise("'" + key + "' entries must be css selector strings");
+    if (typeof sel !== 'string')
+      fail('PC_OPTIONS_INVALID', "'" + key + "' entries must be css selector strings", {
+        option: key
+      });
     if (SELECTOR_INJECTION.test(sel)) {
-      raise("'" + key + "' contains an illegal character in selector '" + sel + "'");
+      fail(
+        'PC_SELECTOR_UNSAFE',
+        "'" + key + "' contains an illegal character in selector '" + sel + "'",
+        { option: key, selector: sel }
+      );
     }
   }
 }
@@ -34,10 +42,13 @@ export function normalizeOptions(
 
   if (o.removeInlineStyles) o.keepInlineStyles = false;
   if (!o.target && o.html == null && !o.clipRect) {
-    raise("one of 'target', 'html', or 'clipRect' is required");
+    fail('PC_OPTIONS_INVALID', "one of 'target', 'html', or 'clipRect' is required");
   }
   if (o.exposeLinkUrls && o.exposeLinkUrls !== 'all' && o.exposeLinkUrls !== 'external') {
-    raise("'exposeLinkUrls' must be 'all' or 'external'");
+    fail('PC_OPTIONS_INVALID', "'exposeLinkUrls' must be 'all' or 'external'", {
+      option: 'exposeLinkUrls',
+      value: o.exposeLinkUrls
+    });
   }
   if (o.watermarkOpacity != null) o.watermarkOpacity = clamp(o.watermarkOpacity, 0, 1);
 
@@ -66,10 +77,13 @@ export function normalizeOptions(
     const r = o.clipRect as unknown as Record<string, unknown>;
     for (const k of ['x', 'y', 'width', 'height']) {
       if (typeof r[k] !== 'number' || isNaN(r[k] as number)) {
-        raise('clipRect needs numeric x, y, width, height');
+        fail('PC_CLIP_INVALID', 'clipRect needs numeric x, y, width, height', {
+          clipRect: o.clipRect
+        });
       }
     }
-    if (o.clipRect.width < 2 || o.clipRect.height < 2) raise('clipRect is too small to print');
+    if (o.clipRect.width < 2 || o.clipRect.height < 2)
+      fail('PC_CLIP_INVALID', 'clipRect is too small to print', { clipRect: o.clipRect });
     // clip jobs keep source css by default: layout fidelity is the entire point
     if (!('keepSourceCSS' in raw)) o.keepSourceCSS = true;
   }

@@ -12,8 +12,8 @@
 // is issued synchronously and the data arrives later. Chrome and Firefox accept
 // the same shape, so there is one path rather than a branch.
 
-import { raise } from '../support';
 import type { Env } from '../types';
+import { fail } from '../support/errors';
 
 export type CopyFormat = 'image' | 'html' | 'text' | 'markup' | 'data-url';
 
@@ -73,7 +73,8 @@ async function writeText(text: string, env: Env): Promise<CopyResult> {
   if (copyByCommand(text, env)) {
     return { format: 'text', via: 'execCommand', bytes: text.length };
   }
-  raise(
+  fail(
+    'PC_CLIPBOARD_DENIED',
     'the clipboard refused the write. Browsers only allow it from a user gesture, ' +
       'and some require the clipboard-write permission.'
   );
@@ -89,7 +90,8 @@ async function writeText(text: string, env: Env): Promise<CopyResult> {
 export async function copyImage(blob: Blob | Promise<Blob>, env: Env): Promise<CopyResult> {
   const clipboard = clipboardOf(env);
   if (!clipboard?.write || !hasClipboardItem(env)) {
-    raise(
+    fail(
+      'PC_CLIPBOARD_DENIED',
       'this browser cannot put an image on the clipboard. ' +
         'Use copyText, or save the screenshot to a file instead.'
     );
@@ -102,7 +104,8 @@ export async function copyImage(blob: Blob | Promise<Blob>, env: Env): Promise<C
   try {
     await clipboard.write([new Item({ [type]: blob as Blob })]);
   } catch (e) {
-    raise(
+    fail(
+      'PC_CLIPBOARD_DENIED',
       'the clipboard refused the image: ' +
         (e instanceof Error ? e.message : String(e)) +
         '. It has to be called during a user gesture, and Safari needs the ' +

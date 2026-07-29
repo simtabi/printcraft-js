@@ -5,7 +5,8 @@
 // characters and scrubbing the attributes is the only approach where the print
 // artifact itself holds nothing recoverable.
 
-import { raise, toArray } from '../support';
+import { toArray } from '../support';
+import { fail } from '../support/errors';
 
 export interface PrivacyConfig {
   emails?: boolean;
@@ -126,7 +127,12 @@ export function applyRedaction(
       const found = clone.querySelectorAll(sel);
       for (let i = 0; i < found.length; i++) redactElement(found[i]!, ch, sink);
     } catch {
-      if (strict) raise("redactSelectorList contains an invalid css selector: '" + sel + "'");
+      if (strict)
+        fail(
+          'PC_SELECTOR_INVALID',
+          "redactSelectorList contains an invalid css selector: '" + sel + "'",
+          { selector: sel }
+        );
     }
   };
   selectors.forEach((sel) => run(sel, true));

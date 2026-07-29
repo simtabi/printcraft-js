@@ -2,9 +2,9 @@
 // a hidden iframe (the default), a popup window, and the inspector overlay.
 // each one settles exactly once and always hands back a teardown.
 
-import { raise } from '../support';
 import { resolveSheet, type SheetSize } from '../production/sheets';
 import type { Mount, ResolvedOptions } from '../types';
+import { fail } from '../support/errors';
 
 /** how long any mount may take to become usable before the job gives up. */
 const MOUNT_TIMEOUT = 15000;
@@ -120,7 +120,9 @@ function frameReady(
       iframe.removeEventListener('load', settle);
       if (iframe.parentNode) iframe.parentNode.removeChild(iframe);
       try {
-        raise(label + ' did not become ready within ' + MOUNT_TIMEOUT + 'ms');
+        fail('PC_MOUNT_TIMEOUT', label + ' did not become ready within ' + MOUNT_TIMEOUT + 'ms', {
+          timeout: MOUNT_TIMEOUT
+        });
       } catch (e) {
         reject(e);
       }
@@ -158,7 +160,7 @@ export function mountIframe(srcDoc: Document, options?: ResolvedOptions): Promis
  */
 export function mountWindow(srcWin: Window, options: ResolvedOptions): Promise<Mount> {
   const w = srcWin.open('', '_blank', options.windowFeatures);
-  if (!w) raise('popup blocked. use printInIframe: true or allow popups for this site');
+  if (!w) fail('PC_POPUP_BLOCKED', 'the browser blocked the print window');
 
   return new Promise<Mount>((resolve, reject) => {
     let settled = false;
@@ -192,7 +194,11 @@ export function mountWindow(srcWin: Window, options: ResolvedOptions): Promise<M
         /* noop */
       }
       try {
-        raise('the print window did not become ready within ' + MOUNT_TIMEOUT + 'ms');
+        fail(
+          'PC_MOUNT_TIMEOUT',
+          'the print window did not become ready within ' + MOUNT_TIMEOUT + 'ms',
+          { timeout: MOUNT_TIMEOUT }
+        );
       } catch (e) {
         reject(e);
       }

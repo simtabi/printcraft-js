@@ -20,7 +20,6 @@ import {
   normalizeOptions,
   NS,
   parseDataOptions,
-  raise,
   runJob,
   VERSION
 } from './core';
@@ -45,6 +44,7 @@ import type {
   Transform,
   Watermark
 } from './types';
+import { fail } from './support/errors';
 
 export type {
   Annotation,
@@ -90,7 +90,7 @@ const bus = new Emitter();
 
 /** merges a plain object into `Printcraft.defaults`. */
 function applyConfig(obj: PrintcraftOptions): PrintcraftOptions {
-  if (!obj || typeof obj !== 'object') raise('config must be a plain object');
+  if (!obj || typeof obj !== 'object') fail('PC_CONFIG_INVALID', 'config must be a plain object');
   assign(defaultsRef.current, obj);
   bus.emit('config:loaded', { config: obj, source: 'object' });
   return defaultsRef.current;
@@ -130,7 +130,11 @@ function loadConfig(
 
   return Promise.resolve(f(url as string & Request))
     .then((res) => {
-      if (!res.ok) raise('config request failed with status ' + res.status);
+      if (!res.ok)
+        fail('PC_CONFIG_UNREACHABLE', 'config request failed with status ' + res.status, {
+          url,
+          status: res.status
+        });
       return res.json();
     })
     .then((json) => {
@@ -150,7 +154,12 @@ function readInlineConfig(doc: Document | null): PrintcraftOptions | null {
   try {
     json = JSON.parse(node.textContent || '') as PrintcraftOptions;
   } catch (e) {
-    return raise('inline config is not valid json: ' + (e as Error).message);
+    return fail(
+      'PC_CONFIG_INVALID',
+      'inline config is not valid json: ' + (e as Error).message,
+      {},
+      e
+    );
   }
   applyConfig(json);
   return json;
@@ -451,6 +460,13 @@ class Printcraft {
   }
   static browserBackend = browserBackend;
 
+  /** Levels, sinks and a ring buffer. See docs/tools/logging.md. */
+  static logger = core.logger;
+  /** Every error code, with a one-line description. */
+  static CODES = core.CODES;
+  static PrintcraftError = core.PrintcraftError;
+  static isPrintcraftError = core.isPrintcraftError;
+
   static job(target?: PrintcraftOptions | string | Element): Printcraft {
     return new Printcraft(target);
   }
@@ -586,6 +602,35 @@ class Printcraft {
     bus.off(name, fn);
     return Printcraft;
   }
+  /**
+   * Resolves the next time `name` fires.
+   *
+   * For the cases where a callback is the wrong shape: awaiting the end of a job
+   * started somewhere else, or a test that needs the event rather than the
+   * promise. `timeout` rejects rather than hanging forever.
+   */
+  static waitFor(name: PrintcraftEvent | string, timeout = 30_000): Promise<unknown> {
+    return new Promise((resolve, reject) => {
+      const timer = setTimeout(() => {
+        bus.off(name, onEvent);
+        reject(
+          new core.PrintcraftError(
+            'PC_MOUNT_TIMEOUT',
+            'nothing emitted "' + name + '" within ' + timeout + 'ms',
+            { event: name, timeout }
+          )
+        );
+      }, timeout);
+
+      function onEvent(payload: unknown): void {
+        clearTimeout(timer);
+        bus.off(name, onEvent);
+        resolve(payload);
+      }
+      bus.on(name, onEvent);
+    });
+  }
+
   static once(name: PrintcraftEvent | string, fn: Listener): typeof Printcraft {
     bus.once(name, fn);
     return Printcraft;

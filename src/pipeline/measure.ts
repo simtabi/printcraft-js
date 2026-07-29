@@ -2,7 +2,7 @@
 // anything measurable is captured here first, keyed by a temporary data-pc-id,
 // and applied to the clone later.
 
-import { DATA_ID, FORBIDDEN_TAGS, isElement, raise, selfAndMatches, toArray } from '../support';
+import { DATA_ID, FORBIDDEN_TAGS, isElement, selfAndMatches, toArray } from '../support';
 import { resolveSheet } from '../production/sheets';
 import type {
   ClipRect,
@@ -12,6 +12,7 @@ import type {
   PrintTarget,
   ResolvedOptions
 } from '../types';
+import { fail } from '../support/errors';
 
 const FORM_FIELDS = 'input, textarea, select';
 
@@ -31,9 +32,11 @@ export function resolveTargets(target: PrintTarget, doc: Document): Element[] {
       }
       return;
     }
-    if (typeof t !== 'string') raise('target must be a css selector or an element');
+    if (typeof t !== 'string')
+      fail('PC_TARGET_INVALID', 'target must be a css selector or an element', { target: t });
     const matches = doc.querySelectorAll(t);
-    if (!matches.length) raise("no elements match target '" + t + "'");
+    if (!matches.length)
+      fail('PC_TARGET_NOT_FOUND', "no elements match target '" + t + "'", { target: t });
     for (let i = 0; i < matches.length; i++) {
       const el = matches[i]!;
       if (!seen.has(el)) {
@@ -45,7 +48,11 @@ export function resolveTargets(target: PrintTarget, doc: Document): Element[] {
 
   found.forEach((el) => {
     if (FORBIDDEN_TAGS.indexOf(el.tagName) !== -1) {
-      raise('tag <' + el.tagName.toLowerCase() + '> cannot be a print target');
+      fail(
+        'PC_TARGET_UNPRINTABLE',
+        'tag <' + el.tagName.toLowerCase() + '> cannot be a print target',
+        { tag: el.tagName.toLowerCase() }
+      );
     }
   });
   return found;

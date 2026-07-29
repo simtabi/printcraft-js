@@ -12,4 +12,8 @@ export {
   removeNode
 } from './dom';
 export { Emitter } from './emitter';
-export { debugState, detectDebug, makeLogger } from './logger';
+export { debugState, detectDebug, makeLogger, logger, LEVELS } from './logger';
+export type { LogLevel, LogRecord, LogSink } from './logger';
+
+export { PrintcraftError, CODES, fail, isPrintcraftError } from './errors';
+export type { ErrorCode, ErrorContext } from './errors';

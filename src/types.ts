@@ -495,6 +495,7 @@ export interface Mount {
 
 export interface Logger {
   active: boolean;
+  trace(...args: unknown[]): void;
   debug(...args: unknown[]): void;
   info(...args: unknown[]): void;
   warn(...args: unknown[]): void;

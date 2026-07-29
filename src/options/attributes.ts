@@ -1,7 +1,8 @@
 // the declarative surface: turning `data-printcraft-*` attributes into options.
 
-import { camelize, NS, raise, assign } from '../support';
+import { camelize, NS, assign } from '../support';
 import type { PrintcraftOptions } from '../types';
+import { fail } from '../support/errors';
 
 /** keys whose value is a list, so a comma in the attribute means "split me". */
 const LIST_KEY = /(List|Selectors)$/;
@@ -44,7 +45,11 @@ export function parseDataOptions(el: Element): PrintcraftOptions {
     try {
       assign(opts, JSON.parse(blob) as object);
     } catch {
-      raise('data-' + NS + '-options is not valid json on <' + el.tagName.toLowerCase() + '>');
+      fail(
+        'PC_CONFIG_INVALID',
+        'data-' + NS + '-options is not valid json on <' + el.tagName.toLowerCase() + '>',
+        { tag: el.tagName.toLowerCase() }
+      );
     }
   }
 

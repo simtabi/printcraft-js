@@ -8,9 +8,9 @@
 // The raster is taken from the *transformed* clone, so redaction, exclusions and
 // the sanitiser all apply before a single pixel is drawn.
 
-import { raise } from '../support';
 import { resolveSheet } from '../production/sheets';
 import type { ClipRect, ResolvedOptions } from '../types';
+import { fail } from '../support/errors';
 
 export interface CaptureResult {
   element: Element;
@@ -71,7 +71,8 @@ export async function captureRegion(
       skipped: raster.skipped
     };
   } catch (e) {
-    raise(
+    fail(
+      'PC_RASTERIZE_FAILED',
       'could not capture the selected region: ' +
         (e instanceof Error ? e.message : String(e)) +
         '. Use clipMode: "reflow" to print live markup instead.'
