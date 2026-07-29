@@ -398,3 +398,40 @@ test('the old flat options still print', async ({ page }) => {
   expect(r.tagName).toBe('svg');
   expect(r.opacity).toBe('0.4');
 });
+
+test('afterPaginate hands over the live sheets, so one can be stamped', async ({ page }) => {
+  const stamped = await page.evaluate(async () => {
+    let sheets = 0;
+    let html = '';
+    const pc = (window as unknown as { Printcraft: { print(o: unknown): Promise<unknown> } })
+      .Printcraft;
+
+    await pc.print({
+      target: 'body',
+      paginate: true,
+      assetTimeout: 5000,
+      hooks: {
+        afterPaginate(ctx: { sheets: Element[]; document: Document }) {
+          sheets = ctx.sheets.length;
+          // the sheets are live elements, which is the whole reason for a hook
+          // here rather than an event: this is the only place to reach one
+          const last = ctx.sheets[ctx.sheets.length - 1];
+          const mark = ctx.document.createElement('p');
+          mark.className = 'end-of-document';
+          mark.textContent = 'End of document';
+          last?.appendChild(mark);
+        },
+        beforePrint(ctx: { document: Document }) {
+          html = ctx.document.body.innerHTML;
+          return false;
+        }
+      }
+    });
+    return { sheets, html };
+  });
+
+  expect(stamped.sheets).toBeGreaterThan(2);
+  expect(stamped.html).toContain('end-of-document');
+  // stamped on the last sheet only
+  expect(stamped.html.split('end-of-document')).toHaveLength(2);
+});

@@ -56,6 +56,23 @@ options).
 | `ui:redact`     | Redaction was toggled from the UI       | `element`/`elements`, `redacted` |
 | `ui:annotate`   | A note was added from the UI            | `element`, `text`                |
 
+| Event              | When                                 | Payload                               |
+| ------------------ | ------------------------------------ | ------------------------------------- |
+| `paginate:start`   | The content is about to be split     | —                                     |
+| `paginate:done`    | Sheets exist                         | `pages`, `oversized`                  |
+| `capture:start`    | A region is about to be rasterised   | `rect`                                |
+| `capture:done`     | It has been                          | `rect`, `width`, `height`, `skipped`  |
+| `redact:mark`      | A rectangle was marked for redaction | `rect`, `runs`, `marks`               |
+| `redact:review`    | The review step closed               | `marks`, `action`                     |
+| `redact:verify`    | The document was re-read for leaks   | `checked`, `leaked`, `where`          |
+| `redact:leak`      | Something got through                | `checked`, `leaked`, `where`          |
+| `share:screenshot` | An image was rendered                | `width`, `height`, `skipped`          |
+| `share:copy`       | Something reached the clipboard      | `format`, `via`                       |
+| `share:email`      | A message was handed to a transport  | `status`, `via`, `to`                 |
+| `backend:start`    | The job is going to a backend        | `backend`                             |
+| `backend:done`     | The backend answered                 | `status`, `backend`, `jobId`, `pages` |
+| `config:skipped`   | A config could not be fetched        | `source`, `reason`                    |
+
 ## Hooks
 
 Hooks are single functions rather than a listener list, and they can mutate.
@@ -65,8 +82,46 @@ Hooks are single functions rather than a listener list, and they can mutate.
 | `beforeClone`    | `(targets, options)`            | Inspect the live targets               |
 | `transformClone` | `(clone, options)`              | Return an element to replace the clone |
 | `beforeAssemble` | `(clones, options)`             | Reorder or edit the clone list         |
+| `afterPaginate`  | `({sheets, document, options})` | Stamp a sheet; only when it paginated  |
 | `beforePrint`    | `({window, document, options})` | Return `false` to cancel               |
+| `beforeBackend`  | `({job, backend, options})`     | Amend the payload, or return `false`   |
 | `afterPrint`     | `({options})`                   | Clean up                               |
+
+`afterPaginate` receives the sheets as live elements in the mounted document,
+which is the only place to reach one in particular:
+
+```js
+Printcraft.print({
+  target: '#report',
+  paginate: true,
+  hooks: {
+    afterPaginate({ sheets, document }) {
+      const stamp = document.createElement('p');
+      stamp.textContent = 'End of document';
+      sheets[sheets.length - 1].appendChild(stamp);
+    }
+  }
+});
+```
+
+`beforeBackend` is the last look before a job leaves the browser. `beforePrint`
+fires against the mounted document; this fires against the payload a backend
+will actually receive, so it is the only place to inspect or amend it. Returning
+an object replaces the job, `false` cancels it, and it never fires for the
+browser's own dialog, which has no payload to amend.
+
+```js
+Printcraft.print({
+  target: '#invoice',
+  backend: Printcraft.httpBackend({ url: '/api/print' }),
+  hooks: {
+    beforeBackend({ job }) {
+      audit(job.id, job.html.length);
+      return { ...job, title: job.title + ' (reviewed)' };
+    }
+  }
+});
+```
 
 ```js
 Printcraft.print({

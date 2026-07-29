@@ -129,7 +129,37 @@ export interface Hooks {
   beforeClone?: (targets: Element[], options: ResolvedOptions) => unknown;
   transformClone?: (clone: Element, options: ResolvedOptions) => Element | null | void;
   beforeAssemble?: (clones: Element[], options: ResolvedOptions) => unknown;
+
+  /**
+   * After the content has been split into sheets.
+   *
+   * The sheets are live elements in the mounted document, so this is where to
+   * stamp something on each one, or on one in particular. Only fires when the
+   * job paginated.
+   */
+  afterPaginate?: (ctx: {
+    sheets: Element[];
+    document: Document;
+    options: ResolvedOptions;
+  }) => unknown;
+
   beforePrint?: (ctx: { window: Window; document: Document; options: ResolvedOptions }) => unknown;
+
+  /**
+   * The last look before the job leaves the browser.
+   *
+   * `beforePrint` fires against the mounted document; this fires against what a
+   * backend will actually receive, which is the only place to inspect or amend
+   * the payload. Returning an object replaces the job; returning false cancels
+   * it. Never fires for the browser backend's own dialog handoff — there is no
+   * payload there to amend.
+   */
+  beforeBackend?: (ctx: {
+    job: RenderedJob;
+    backend: string;
+    options: ResolvedOptions;
+  }) => RenderedJob | false | void;
+
   afterPrint?: (ctx: { options: ResolvedOptions }) => unknown;
 }
 

@@ -450,6 +450,14 @@ export class Job {
     this.mark('paginate');
     this.record.pages = result.pages;
     this.fire('paginate:done', { pages: result.pages, oversized: result.oversized });
+
+    // the sheets are live elements now, which is what makes this the only place
+    // to stamp one of them in particular
+    this.hook('afterPaginate', {
+      sheets: [...doc.querySelectorAll('.pc-page-sheet')],
+      document: doc,
+      options: this.options
+    });
   }
 
   /** replaces a clip clone with its raster when `clipMode` asks for one */
@@ -533,7 +541,21 @@ export class Job {
         // over without a caller changing anything. the browser's dialog is the
         // default, and the only one that needs nothing installed.
         const backend = options.backend || browserBackend;
-        const rendered = this.renderedJob(mount);
+        let rendered = this.renderedJob(mount);
+
+        // the last look before it leaves the browser. beforePrint fires against
+        // the mounted document; this fires against the payload itself, which is
+        // the only place to inspect or amend it.
+        if (backend !== browserBackend) {
+          const amended = this.hook('beforeBackend', {
+            job: rendered,
+            backend: backend.name,
+            options
+          });
+          if (amended === false) return this.cancelled();
+          if (amended && typeof amended === 'object') rendered = amended as RenderedJob;
+        }
+
         this.fire('backend:start', { backend: backend.name });
 
         return backend.print(rendered, options.backendOptions).then((result) => {

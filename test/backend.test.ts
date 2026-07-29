@@ -219,3 +219,56 @@ test('with no backend set, the browser dialog is still what runs', async () => {
   expect(record.status).toBe('done');
   expect(record.backend).toMatchObject({ status: 'printed', backend: 'browser' });
 });
+
+/* the hook that sees what leaves the browser ------------------------------ */
+
+test('beforeBackend is the last look at what leaves the browser', async () => {
+  const d = dom('<div id="r">payload</div>');
+  const { backend, seen } = recorder();
+  let sawBackend = '';
+
+  await Printcraft.print(
+    {
+      target: '#r',
+      backend,
+      assetTimeout: 50,
+      hooks: {
+        beforeBackend(ctxIn: { job: { html: string }; backend: string }) {
+          sawBackend = ctxIn.backend;
+          // amending is the point: a header, a signature, a redaction check
+          return { ...ctxIn.job, html: ctxIn.job.html + '<!-- reviewed -->' };
+        }
+      }
+    },
+    env(d)
+  );
+
+  expect(sawBackend).toBe('recorder');
+  expect(seen[0].html, 'the amendment reached the backend').toContain('<!-- reviewed -->');
+});
+
+test('beforeBackend returning false cancels rather than sending', async () => {
+  const d = dom('<div id="r">payload</div>');
+  const { backend, seen } = recorder();
+
+  const record = await Printcraft.print(
+    { target: '#r', backend, assetTimeout: 50, hooks: { beforeBackend: () => false } },
+    env(d)
+  );
+
+  expect(seen, 'nothing was sent').toHaveLength(0);
+  expect(record.cancelled).toBe(true);
+});
+
+test('beforeBackend does not fire for the browser dialog, which has no payload', async () => {
+  const d = dom('<div id="r">x</div>');
+  const restore = stubPrint(d);
+  let fired = false;
+
+  await Printcraft.print(
+    { target: '#r', assetTimeout: 50, hooks: { beforeBackend: () => void (fired = true) } },
+    env(d)
+  );
+  restore();
+  expect(fired).toBe(false);
+});

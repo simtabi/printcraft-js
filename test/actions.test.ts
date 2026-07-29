@@ -548,3 +548,28 @@ test('sign is applied to every frame, for an unattended service', async () => {
   expect(signed.every((s) => typeof s === 'string' && s.startsWith('sig-'))).toBe(true);
   backend.close();
 });
+
+/* the two hooks the new stages needed -------------------------------------- */
+
+// The splitting half of this lives in test/e2e/pages.spec.ts: jsdom has no
+// layout, so scrollHeight is zero and everything fits on one sheet.
+
+test('afterPaginate does not fire for a job that did not paginate', async () => {
+  const d = dom('<div id="r">x</div>');
+  let fired = false;
+
+  await Printcraft.print(
+    {
+      target: '#r',
+      assetTimeout: 50,
+      hooks: {
+        afterPaginate() {
+          fired = true;
+        },
+        beforePrint: () => false
+      }
+    },
+    env(d)
+  );
+  expect(fired).toBe(false);
+});
