@@ -16,11 +16,18 @@
 // layout is preserved.
 
 import { raise } from '../support';
+import type { ClipRect } from '../types';
 
 export interface RasterizeOptions {
   /** css pixels; defaults to the element's own box */
   width?: number;
   height?: number;
+  /**
+   * Keep only this rectangle of the result, in css pixels relative to the top
+   * left of the rendered area. The element still lays out at its full `width`,
+   * so a crop is what you selected rather than a narrower relayout of it.
+   */
+  clip?: ClipRect;
   /** device pixels per css pixel. 2 gives a retina-sharp result. */
   scale?: number;
   /** painted behind the content. transparent by default for png. */
@@ -45,6 +52,12 @@ export interface Raster {
   height: number;
   /** assets that could not be inlined, usually cross-origin without CORS */
   skipped: string[];
+  /**
+   * Every sampled pixel came out the same colour, so the image carries no
+   * content. Callers show this instead of a blank box the user has to
+   * interpret. Undefined when the pixels could not be read back.
+   */
+  uniform?: boolean;
 }
 
 const XHTML = 'http://www.w3.org/1999/xhtml';
@@ -255,9 +268,17 @@ export async function rasterize(el: Element, options: RasterizeOptions = {}): Pr
   const source = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(markup);
 
   const image = await loadImage(view, source, timeout);
+
+  // the clone laid out against `width`, and only now do we throw away the part
+  // nobody asked for. cropping here rather than by scaling and offsetting the
+  // result means there is no arithmetic for host css to invalidate.
+  const clip = options.clip;
+  const outWidth = clip ? Math.max(1, Math.round(clip.width)) : width;
+  const outHeight = clip ? Math.max(1, Math.round(clip.height)) : height;
+
   const canvas = doc.createElement('canvas');
-  canvas.width = Math.round(width * scale);
-  canvas.height = Math.round(height * scale);
+  canvas.width = Math.round(outWidth * scale);
+  canvas.height = Math.round(outHeight * scale);
 
   const ctx = canvas.getContext('2d');
   if (!ctx) raise('this browser gave us no 2d canvas context to rasterize into');
@@ -267,7 +288,9 @@ export async function rasterize(el: Element, options: RasterizeOptions = {}): Pr
     ctx.fillRect(0, 0, canvas.width, canvas.height);
   }
   ctx.setTransform(scale, 0, 0, scale, 0, 0);
-  ctx.drawImage(image, 0, 0, width, height);
+  if (clip)
+    ctx.drawImage(image, clip.x, clip.y, clip.width, clip.height, 0, 0, outWidth, outHeight);
+  else ctx.drawImage(image, 0, 0, width, height);
 
   const type = options.type || 'image/png';
   const blob = await canvasToBlob(canvas, type, options.quality);
@@ -276,8 +299,39 @@ export async function rasterize(el: Element, options: RasterizeOptions = {}): Pr
     dataUrl: canvas.toDataURL(type, options.quality),
     width: canvas.width,
     height: canvas.height,
-    skipped: [...new Set(skipped)]
+    skipped: [...new Set(skipped)],
+    uniform: looksBlank(ctx, canvas)
   };
+}
+
+/**
+ * Whether the canvas is one flat colour.
+ *
+ * Samples a grid instead of reading every pixel, because this runs on a preview
+ * the user is waiting for and a full buffer of a retina A4 page is 8 megapixels.
+ * A grid is enough to tell "nothing rendered" from "something did".
+ */
+function looksBlank(ctx: CanvasRenderingContext2D, canvas: HTMLCanvasElement): boolean | undefined {
+  const steps = 24;
+  const dx = Math.max(1, Math.floor(canvas.width / steps));
+  const dy = Math.max(1, Math.floor(canvas.height / steps));
+
+  try {
+    let first: string | null = null;
+    for (let y = 0; y < canvas.height; y += dy) {
+      for (let x = 0; x < canvas.width; x += dx) {
+        const [r, g, b, a] = ctx.getImageData(x, y, 1, 1).data;
+        const pixel = r + ',' + g + ',' + b + ',' + a;
+        if (first === null) first = pixel;
+        else if (pixel !== first) return false;
+      }
+    }
+    return true;
+  } catch {
+    // a tainted canvas refuses getImageData. that is not a blank image, it is
+    // an unknowable one, so say nothing rather than something wrong.
+    return undefined;
+  }
 }
 
 function loadImage(view: Window, src: string, timeout: number): Promise<HTMLImageElement> {

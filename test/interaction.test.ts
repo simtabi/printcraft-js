@@ -226,8 +226,11 @@ test('fluent builder chains into a complete options object', () => {
   expect_deep(o.excludeSelectorList, ['.ads', 'nav']);
   expect_deep(o.redactSelectorList, ['.ssn']);
   expect_deep(o.privacy, { emails: true });
-  expect_eq(o.watermarkText, 'DRAFT');
-  expect_eq(o.watermarkOpacity, 0.1);
+  // .watermark() writes the object form; the flat options remain as aliases on
+  // the way in, and test/watermark.test.ts covers those
+  expect_eq(o.watermark.text, 'DRAFT');
+  expect_eq(o.watermark.opacity, 0.1);
+  expect_eq(o.watermark.repeat, 'first-page');
   expect_eq(o.printerMarks.bleed, '4mm');
   expect_deep(o.annotations, [{ selector: '#total', text: 'verify' }]);
   expect_deep(o.avoidBreakSelectors, ['tr']);

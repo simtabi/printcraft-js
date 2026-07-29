@@ -2,9 +2,11 @@
 // header/footer, printer marks, and the target slots. built with dom apis rather
 // than document.write, which is deprecated and would re-open the stream.
 
-import { escapeHtml, NS, toArray } from '../support';
+import { NS, toArray } from '../support';
 import { REDACTION_CSS } from '../privacy/redact';
 import { marksCss, marksMarkup } from '../production/marks';
+import { resolveSheet } from '../production/sheets';
+import { buildWatermarkLayer, firstPageCss, watermarkCss } from '../production/watermark';
 import { paginationCss } from './paginate';
 import type { ResolvedOptions, ResolvedPrinterMarks } from '../types';
 
@@ -58,15 +60,11 @@ export function buildPageCss(options: ResolvedOptions): string {
 
   if (options.printerMarks) css.push(marksCss(options.printerMarks as ResolvedPrinterMarks));
 
-  if (options.watermarkImageURL || options.watermarkText) {
-    css.push(
-      [
-        '.pc-watermark { position: fixed; inset: 0; display: flex; align-items: center;',
-        'justify-content: center; z-index: 2147483647; pointer-events: none; }',
-        '.pc-watermark img, .pc-watermark svg { max-width: 70%; max-height: 70%;',
-        'opacity: ' + options.watermarkOpacity + '; }'
-      ].join(' ')
-    );
+  // paginated jobs put a mark inside every sheet and style it there; without
+  // sheets there is nothing to attach to, so the mark is fixed and lands on the
+  // first page
+  if (options.watermark) {
+    css.push(options.paginate ? watermarkCss(options.watermark) : firstPageCss(options.watermark));
   }
 
   if (options.headerText || options.footerText) {
@@ -93,30 +91,19 @@ export function buildPageCss(options: ResolvedOptions): string {
   return css.join('\n');
 }
 
+/**
+ * The watermark for an unpaginated job, sized against the sheet it will print on.
+ *
+ * Paginated jobs do not come through here: the paginator builds a mark into each
+ * sheet as it creates them, which is the only way to reach page two.
+ */
 export function buildWatermarkNode(options: ResolvedOptions, doc: Document): Element | null {
-  if (!options.watermarkImageURL && !options.watermarkText) return null;
-
-  const wrap = doc.createElement('div');
-  wrap.className = 'pc-watermark';
-
-  if (options.watermarkImageURL) {
-    const img = doc.createElement('img');
-    img.src = options.watermarkImageURL;
-    img.alt = '';
-    wrap.appendChild(img);
-  } else {
-    const text = escapeHtml(options.watermarkText);
-    wrap.innerHTML =
-      '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300" width="400" height="300">' +
-      '<text x="200" y="150" font-size="42" font-family="sans-serif" fill="#000" ' +
-      'text-anchor="middle" dominant-baseline="middle" ' +
-      'transform="rotate(' +
-      Number(options.watermarkAngle || 0) +
-      ' 200 150)">' +
-      text +
-      '</text></svg>';
-  }
-  return wrap;
+  if (!options.watermark) return null;
+  const sheet = resolveSheet(options.setPrintSize);
+  return buildWatermarkLayer(options.watermark, doc, {
+    width: sheet.width,
+    height: sheet.height
+  });
 }
 
 export function collectSourceCss(srcDoc: Document): Element[] {
@@ -226,8 +213,11 @@ export function assemblePrintDocument(
     contentHost.appendChild(slot);
   });
 
-  const wm = buildWatermarkNode(options, doc);
-  if (wm) body.appendChild(wm);
+  // a paginated job gets its mark from the paginator, once per sheet
+  if (!options.paginate) {
+    const wm = buildWatermarkNode(options, doc);
+    if (wm) body.appendChild(wm);
+  }
 
   if (options.printerMarks) {
     const marks = marksMarkup(doc, options.printerMarks as ResolvedPrinterMarks);

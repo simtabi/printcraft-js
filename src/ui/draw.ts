@@ -383,44 +383,50 @@ export function drawArea(
       const preview = node(doc, 'div', {
         style:
           'border:1px solid #d8d8d3;border-radius:4px;overflow:hidden;background:#f2f2ef;' +
-          'position:relative;max-height:240px;'
+          'display:flex;justify-content:center;width:fit-content;max-width:100%;margin:0 auto;'
       });
 
-      let previewed = false;
+      let blank = false;
       try {
         const { rasterize } = await import('../share/rasterize');
+        // rendered at the layout you selected against, then cropped to the
+        // selection. an earlier version shrank a full-viewport shot with a
+        // transform, and the host page's `img { max-width: 100% }` resized it
+        // out from under the arithmetic, so the box came out empty.
         const raster = await rasterize(doc.documentElement, {
           width: win.innerWidth,
           height: win.innerHeight,
+          clip: { x: viewportBox.x, y: viewportBox.y, width: viewportBox.w, height: viewportBox.h },
           scale: 1,
           background: '#ffffff',
           assetTimeout: 4000
         });
 
-        // show the selection by sliding the full-viewport shot behind a window
-        const scale = Math.min(1, 440 / viewportBox.w, 240 / viewportBox.h);
-        preview.style.width = Math.round(viewportBox.w * scale) + 'px';
-        preview.style.height = Math.round(viewportBox.h * scale) + 'px';
-
+        blank = raster.uniform === true;
         const shot = node(doc, 'img', {
+          class: 'pc-k-media',
           attrs: { alt: 'The area you selected' },
-          style:
-            'position:absolute;transform-origin:top left;' +
-            'transform:scale(' +
-            scale +
-            ');left:' +
-            -viewportBox.x * scale +
-            'px;top:' +
-            -viewportBox.y * scale +
-            'px;'
+          style: 'max-height:240px;'
         }) as HTMLImageElement;
         shot.src = raster.dataUrl;
         preview.appendChild(shot);
-        previewed = true;
       } catch {
         preview.textContent = 'Preview unavailable. The selection is still valid.';
         preview.setAttribute('style', 'color:#55575e;');
       }
+
+      // never let someone confirm a rectangle that would print nothing
+      const body = blank
+        ? node(doc, 'div', {
+            children: [
+              preview,
+              node(doc, 'p', {
+                style: 'margin-top:8px;color:#8a3324;font-size:13px;',
+                text: 'This area looks empty. Printing it would give you a blank page — keep adjusting to cover some content.'
+              })
+            ]
+          })
+        : preview;
 
       const result = await modal(
         {
@@ -435,7 +441,7 @@ export function drawArea(
             mm(rect.height) +
             ' mm',
           size: 'md',
-          body: preview,
+          body,
           fields: [
             {
               type: 'text',
@@ -461,7 +467,6 @@ export function drawArea(
         scope
       );
 
-      void previewed;
       return {
         ok: result.action === 'print',
         title: String(result.values['title'] || '').trim(),

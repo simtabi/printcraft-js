@@ -2,6 +2,7 @@
 
 import { assign, clamp, isElement, raise, toArray } from '../support';
 import { normalizeMarks } from '../production/marks';
+import { needsPages, resolveWatermark } from '../production/watermark';
 import { DEFAULTS, defaultsRef } from './defaults';
 import type { PrintcraftOptions, ResolvedOptions } from '../types';
 
@@ -39,6 +40,13 @@ export function normalizeOptions(
     raise("'exposeLinkUrls' must be 'all' or 'external'");
   }
   if (o.watermarkOpacity != null) o.watermarkOpacity = clamp(o.watermarkOpacity, 0, 1);
+
+  // One mark cannot cover pages that do not exist as elements: `position: fixed`
+  // paints the first page and stops. So a repeating mark implies real sheets.
+  // The job logs this, because switching pagination on changes the layout and
+  // nobody should have to discover that from the output.
+  o.watermark = resolveWatermark(o);
+  if (needsPages(o.watermark) && !o.paginate) o.paginate = true;
 
   o.excludeSelectorList = toArray(o.excludeSelectorList);
   o.redactSelectorList = toArray(o.redactSelectorList);

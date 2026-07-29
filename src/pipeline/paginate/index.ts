@@ -14,6 +14,7 @@
 // have no layout, so there would be nothing to measure.
 
 import { NS } from '../../support';
+import { buildWatermarkLayer } from '../../production/watermark';
 import { measureSheet, sidesToCss, type SheetBox } from './geometry';
 import type { Logger, PageNumbers, ResolvedOptions } from '../../types';
 
@@ -83,6 +84,16 @@ export function paginate(
   let flow: HTMLElement | null = null;
   let oversized = 0;
 
+  // built once and cloned per sheet: a tiled mark can be two hundred nodes, and
+  // rebuilding that for every page of a long document is wasted work
+  const watermark =
+    options.watermark && options.watermark.repeat !== 'first-page'
+      ? buildWatermarkLayer(options.watermark, doc, {
+          width: box.sheet.width,
+          height: box.sheet.height
+        })
+      : null;
+
   const startPage = (): void => {
     const page = doc.createElement('section');
     page.className = 'pc-page-sheet';
@@ -106,6 +117,7 @@ export function paginate(
     if (hasFooterBand) inner.appendChild(band('footer'));
 
     page.appendChild(inner);
+    if (watermark) page.appendChild(watermark.cloneNode(true));
     host.appendChild(page);
     pages.push(page);
     flow = content;

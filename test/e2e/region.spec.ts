@@ -292,6 +292,9 @@ test('confirming asks for an optional title and description first', async ({ pag
   await expect(modal.locator('.pc-k-sub'), 'the size, in both units').toContainText('500 × 300 px');
   await expect(modal.locator('#pc-f-title')).toBeVisible();
   await expect(modal.locator('#pc-f-description')).toBeVisible();
+  // `toBeVisible` is too weak on its own: the broken preview was a real element
+  // at 77×54 with the content pushed outside it, and passed. The preview tests
+  // below check the pixels.
   await expect(modal.locator('img'), 'a preview of what will print').toBeVisible();
 
   // both captions are optional, so the primary action works with them empty
@@ -336,4 +339,122 @@ test('a selection too small to be useful cannot be confirmed', async ({ page }) 
 
   await expect(page.locator('[data-pc-act="print"]')).toBeDisabled();
   await expect(page.locator('[data-pc-toolbar]')).toContainText('Too small');
+});
+
+/* the preview ----------------------------------------------------------- */
+//
+// The preview used to render nothing. The raster was fine — a 1280×900 PNG with
+// no errors — but the `<img>` showing it laid out at 77×54, because the demo's
+// `img { max-width: 100% }` sized it to its container before the transform that
+// was supposed to position it, and the negative offsets then put what was left
+// outside the box. It is now a crop, so there is no arithmetic to invalidate,
+// and the kit re-states the styles it depends on so a host reset cannot reach in.
+
+interface Preview {
+  natural: [number, number];
+  rendered: [number, number];
+  /** distinct colours across a sampled grid: 1 means the image is flat */
+  colours: number;
+  notice: boolean;
+}
+
+async function readPreview(page: Page): Promise<Preview> {
+  return page.evaluate(() => {
+    const modal = document.querySelector('[data-pc-modal]')!;
+    const img = modal.querySelector<HTMLImageElement>('.pc-k-body img')!;
+    const box = img.getBoundingClientRect();
+
+    const canvas = document.createElement('canvas');
+    canvas.width = img.naturalWidth;
+    canvas.height = img.naturalHeight;
+    const ctx = canvas.getContext('2d')!;
+    ctx.drawImage(img, 0, 0);
+
+    const seen = new Set<string>();
+    for (let y = 0; y < canvas.height; y += 8) {
+      for (let x = 0; x < canvas.width; x += 8) {
+        const [r, g, b] = ctx.getImageData(x, y, 1, 1).data;
+        seen.add(`${r},${g},${b}`);
+      }
+    }
+
+    return {
+      natural: [img.naturalWidth, img.naturalHeight] as [number, number],
+      rendered: [Math.round(box.width), Math.round(box.height)] as [number, number],
+      colours: seen.size,
+      notice: /looks empty/.test(modal.textContent || '')
+    };
+  });
+}
+
+test('the preview is the region itself, at a size you can see', async ({ page }) => {
+  await openDraw(page);
+  await dragBox(page, [180, 200], [780, 620]);
+  await page.locator('[data-pc-act="print"]').click();
+  await expect(page.locator('[data-pc-modal]')).toBeVisible();
+
+  const preview = await readPreview(page);
+
+  // the image *is* the selection, not the viewport with a window over it
+  expect(preview.natural).toEqual([600, 420]);
+  // and it is laid out at a size a person can read, which is what was broken
+  expect(preview.rendered[0]).toBeGreaterThan(100);
+  expect(preview.rendered[1]).toBeGreaterThan(40);
+  // aspect ratio survives the fit
+  expect(preview.rendered[0] / preview.rendered[1]).toBeCloseTo(600 / 420, 1);
+  // and it has content, rather than being a flat grey box
+  expect(preview.colours, 'the preview drew something').toBeGreaterThan(5);
+  expect(preview.notice).toBe(false);
+});
+
+test('a host stylesheet that resets images cannot break the preview', async ({ page }) => {
+  // Tailwind preflight, Bootstrap reboot and normalize all rewrite these. The
+  // kit renders into the host document, so they reach it.
+  await page.addStyleTag({
+    content: `
+      img, svg, canvas, video { max-width: 100%; height: auto; display: block; }
+      img { width: 100%; }
+      button, input, select, textarea { font: inherit; margin: 0; }
+      input[type="checkbox"] { position: absolute; opacity: 0; width: 1px; height: 1px; }
+      p, h1, h2, h3 { margin: 0; font-size: inherit; }
+    `
+  });
+
+  await openDraw(page);
+  await dragBox(page, [180, 200], [780, 620]);
+  await page.locator('[data-pc-act="print"]').click();
+  await expect(page.locator('[data-pc-modal]')).toBeVisible();
+
+  const preview = await readPreview(page);
+  expect(preview.natural).toEqual([600, 420]);
+  expect(preview.rendered[0]).toBeGreaterThan(100);
+  expect(preview.colours).toBeGreaterThan(5);
+
+  // the form controls the host tried to hide are still operable
+  const modal = page.locator('[data-pc-modal]');
+  await modal.locator('#pc-f-title').fill('Survived');
+  await expect(modal.locator('#pc-f-title')).toHaveValue('Survived');
+  await expect(modal.locator('[data-pc-action="print"]')).toBeEnabled();
+});
+
+test('a selection with nothing in it says so instead of printing blank', async ({ page }) => {
+  await page.evaluate(() => {
+    const gap = document.createElement('div');
+    gap.id = 'blank-gap';
+    gap.style.cssText = 'height:600px;background:#fff;';
+    document.body.prepend(gap);
+    window.scrollTo(0, 0);
+  });
+
+  await openDraw(page);
+  await dragBox(page, [200, 120], [700, 480]);
+  await page.locator('[data-pc-act="print"]').click();
+  await expect(page.locator('[data-pc-modal]')).toBeVisible();
+
+  const preview = await readPreview(page);
+  expect(preview.colours, 'nothing but background').toBe(1);
+  expect(preview.notice, 'and the dialog says so').toBe(true);
+
+  // the way out is offered rather than the job silently producing a blank page
+  await expect(page.locator('[data-pc-action="back"]')).toBeVisible();
 });

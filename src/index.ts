@@ -38,7 +38,8 @@ import type {
   PrivacyConfig,
   ResolvedOptions,
   ScrollExpansion,
-  Transform
+  Transform,
+  Watermark
 } from './types';
 
 export type {
@@ -61,8 +62,11 @@ export type {
   PrivacyConfig,
   ResolvedOptions,
   ResolvedPrinterMarks,
+  ResolvedWatermark,
   ScrollExpansion,
-  Transform
+  Transform,
+  Watermark,
+  WatermarkPosition
 } from './types';
 
 function defaultEnv(): Env {
@@ -293,13 +297,15 @@ class Printcraft {
     return this;
   }
 
-  watermark(textOrCfg: string | PrintcraftOptions, opacity?: number): this {
-    if (typeof textOrCfg === 'string') {
-      this.options.watermarkText = textOrCfg;
-      if (opacity != null) this.options.watermarkOpacity = opacity;
-    } else {
-      assign(this.options, textOrCfg);
-    }
+  /**
+   * `.watermark('DRAFT')` for the simple case, or the full spec for position,
+   * tiling, colour and the rest. The opacity argument is a shorthand for the
+   * one key people reach for most.
+   */
+  watermark(mark: string | Watermark, opacity?: number): this {
+    const spec: Watermark = typeof mark === 'string' ? { text: mark } : assign({}, mark);
+    if (opacity != null) spec.opacity = opacity;
+    this.options.watermark = spec;
     return this;
   }
 
@@ -597,6 +603,9 @@ class Printcraft {
     applyReveal: core.applyReveal,
     buildPageCss: core.buildPageCss,
     buildWatermarkNode: core.buildWatermarkNode,
+    resolveWatermark: core.resolveWatermark,
+    buildWatermarkLayer: core.buildWatermarkLayer,
+    needsPages: core.needsPages,
     assemblePrintDocument: core.assemblePrintDocument,
     buildClipClone: core.buildClipClone,
     escapeHtml: core.escapeHtml,

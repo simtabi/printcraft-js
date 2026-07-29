@@ -171,10 +171,16 @@ test('a text watermark renders as rotated svg at the configured opacity', async 
     assetTimeout: 2000
   });
 
-  const svg = frame.locator('.pc-watermark svg');
+  const layer = frame.locator('.pc-watermark');
+  const svg = layer.locator('svg');
   await expect(svg).toBeAttached();
   await expect(svg.locator('text')).toHaveText('DRAFT');
-  await expect(svg).toHaveCSS('opacity', '0.4');
+
+  // opacity belongs to the layer, not each mark: a tiled grid is hundreds of
+  // copies, and one per copy would be hundreds of stacking contexts
+  await expect(layer).toHaveCSS('opacity', '0.4');
+  // and the rotation is on the mark's own wrapper, so the svg stays a plain box
+  await expect(layer.locator('> div')).toHaveCSS('transform', /matrix\(0\.7071\d*, -0\.7071\d*/);
   await closeInspector(page);
 });
 

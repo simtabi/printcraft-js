@@ -21,6 +21,61 @@ export interface ClipRect {
   height: number;
 }
 
+export type WatermarkPosition =
+  | 'center'
+  | 'top-left'
+  | 'top-center'
+  | 'top-right'
+  | 'middle-left'
+  | 'middle-right'
+  | 'bottom-left'
+  | 'bottom-center'
+  | 'bottom-right';
+
+/** How a watermark looks and where it lands. */
+export interface Watermark {
+  text?: string | null;
+  /** a url; drawn instead of `text` when both are given */
+  image?: string | null;
+  /** a named spot on the sheet, or explicit coordinates the mark centres on */
+  position?: WatermarkPosition | { x: string; y: string };
+  /**
+   * `first-page` marks page one, which is all a browser does unaided.
+   * `every-page` marks each sheet. `tile` covers each sheet with a grid.
+   * The last two turn `paginate` on.
+   */
+  repeat?: 'first-page' | 'every-page' | 'tile';
+  tile?: { gap?: string; stagger?: boolean };
+  /** a percentage of the sheet width, any css length, or a number of pixels */
+  size?: string | number;
+  /** degrees clockwise; negative leans left */
+  rotate?: number;
+  opacity?: number;
+  color?: string;
+  font?: string;
+  weight?: string | number;
+  /** `over` the content, or `behind` it where the content has no background */
+  layer?: 'behind' | 'over';
+  /** how far a corner or edge position sits in from the sheet edge */
+  margin?: string;
+}
+
+export interface ResolvedWatermark {
+  text: string | null;
+  image: string | null;
+  position: WatermarkPosition | { x: string; y: string };
+  repeat: 'first-page' | 'every-page' | 'tile';
+  tile: { gap: string; stagger: boolean };
+  size: string;
+  rotate: number;
+  opacity: number;
+  color: string;
+  font: string;
+  weight: string;
+  layer: 'behind' | 'over';
+  margin: string;
+}
+
 /** a note chip rendered next to every element matching `selector`. */
 export interface Annotation {
   selector: string;
@@ -180,10 +235,23 @@ export interface PrintcraftOptions {
   headerText?: string | null;
   footerText?: string | null;
   headerFooterMode?: HeaderFooterMode;
+  /** @deprecated use `watermark: { image }` */
   watermarkImageURL?: string | null;
+  /** @deprecated use `watermark: { text }`, or pass a string to `watermark` */
   watermarkText?: string | null;
+  /** @deprecated use `watermark: { opacity }` */
   watermarkOpacity?: number;
+  /** @deprecated use `watermark: { rotate }` */
   watermarkAngle?: number;
+
+  /**
+   * Mark the pages.
+   *
+   * A string is the shorthand for `{ text }`. Asking for `repeat: 'every-page'`
+   * or `'tile'` turns `paginate` on, because `position: fixed` prints on the
+   * first page only and a mark on every page needs sheets to sit in.
+   */
+  watermark?: Watermark | string | null;
   printerMarks?: PrinterMarks | boolean | null;
 
   /**
@@ -276,6 +344,7 @@ export interface ResolvedOptions extends PrintcraftOptions {
   watermarkText: string | null;
   watermarkOpacity: number;
   watermarkAngle: number;
+  watermark: ResolvedWatermark | null;
   printerMarks: ResolvedPrinterMarks | null;
   paginate: boolean | PaginateConfig;
   pageNumbers: boolean | PageNumbers;

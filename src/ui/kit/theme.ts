@@ -96,6 +96,40 @@ export function ensureStyles(doc: Document): void {
 }
 .pc-k *, .pc-k *::before, .pc-k *::after { box-sizing: inherit; }
 
+/* The kit renders into the host document, so the host's stylesheet reaches it.
+   Framework resets are the problem: Tailwind's preflight sets
+   \`img { max-width: 100% }\`, which shrank the region preview to its container
+   and then the offset maths put what was left outside the visible box. Bootstrap
+   and normalize rewrite the form controls the same way. Re-state what the kit
+   assumes for the elements it builds, so a surface looks the same on any page. */
+.pc-k img, .pc-k canvas { max-width: none; max-height: none; }
+.pc-k svg { max-width: none; max-height: none; display: inline-block; vertical-align: middle; }
+.pc-k button, .pc-k input, .pc-k select, .pc-k textarea {
+  font: inherit;
+  color: inherit;
+  letter-spacing: inherit;
+  text-transform: none;
+  margin: 0;
+}
+.pc-k input[type="checkbox"], .pc-k input[type="radio"] {
+  appearance: auto;
+  -webkit-appearance: auto;
+  position: static;
+  width: auto;
+  height: auto;
+  opacity: 1;
+  clip: auto;
+}
+.pc-k p, .pc-k h1, .pc-k h2, .pc-k h3, .pc-k ul, .pc-k ol, .pc-k figure { margin: 0; }
+
+/* anything the kit shows as a picture: fits its box, keeps its aspect.
+   two classes deep so it outranks the reset above. */
+.pc-k .pc-k-media {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
 .pc-k-scrim {
   position: fixed;
   inset: 0;

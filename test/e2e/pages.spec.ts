@@ -266,3 +266,135 @@ test('cancel changes nothing', async ({ page }) => {
   );
   expect(result).toMatchObject({ action: 'cancel' });
 });
+
+/* watermarks ------------------------------------------------------------- */
+//
+// The old watermark was one `position: fixed` element on the body: measured at
+// 794×1123 in a 5089px document, so it marked page one and stopped, and under
+// pagination it sat outside the sheets entirely — six sheets, one mark.
+//
+// It is now built into each sheet as a real `<svg>` or `<img>`. That matters
+// beyond neatness: a mark drawn as a CSS background depends on
+// `print-color-adjust: exact` being honoured, and disappears where it is not.
+// Rendered to PDF and back, a background mark vanishes under
+// `print-color-adjust: economy` while this one still prints.
+
+interface Marks {
+  sheets: number;
+  layers: number;
+  marks: number;
+  perSheet: number[];
+  tagName: string;
+  position: string;
+  opacity: string;
+  markWidth: number;
+  backgroundImage: string;
+}
+
+async function watermarked(page: Page, options: Record<string, unknown>): Promise<Marks> {
+  return page.evaluate(async (opts) => {
+    let seen = {} as Marks;
+    const pc = (window as unknown as { Printcraft: { print(o: unknown): Promise<unknown> } })
+      .Printcraft;
+
+    await pc.print({
+      target: 'body',
+      assetTimeout: 5000,
+      ...opts,
+      hooks: {
+        beforePrint(ctx: { document: Document }) {
+          const d = ctx.document;
+          const sheets = [...d.querySelectorAll('.pc-page-sheet')];
+          const layers = [...d.querySelectorAll<HTMLElement>('.pc-watermark')];
+          const mark = d.querySelector<HTMLElement>('.pc-watermark svg, .pc-watermark img');
+
+          seen = {
+            sheets: sheets.length,
+            layers: layers.length,
+            marks: d.querySelectorAll('.pc-watermark svg, .pc-watermark img').length,
+            perSheet: sheets.map(
+              (s) => s.querySelectorAll('.pc-watermark svg, .pc-watermark img').length
+            ),
+            tagName: mark?.tagName.toLowerCase() ?? '',
+            position: layers[0] ? getComputedStyle(layers[0]).position : '',
+            opacity: layers[0] ? getComputedStyle(layers[0]).opacity : '',
+            markWidth: mark ? Math.round(mark.getBoundingClientRect().width) : 0,
+            backgroundImage: layers[0] ? getComputedStyle(layers[0]).backgroundImage : ''
+          };
+          return false;
+        }
+      }
+    });
+    return seen;
+  }, options);
+}
+
+test('a repeating watermark marks every sheet, not just the first', async ({ page }) => {
+  const r = await watermarked(page, {
+    watermark: { text: 'CONFIDENTIAL', repeat: 'every-page' }
+  });
+
+  expect(r.sheets, 'asking to repeat laid the content out as sheets').toBeGreaterThan(2);
+  expect(r.layers, 'one layer per sheet').toBe(r.sheets);
+  expect(
+    r.perSheet.every((n) => n === 1),
+    `marks per sheet: ${r.perSheet}`
+  ).toBe(true);
+  expect(r.position, 'positioned against its sheet, not the page box').toBe('absolute');
+});
+
+test('the mark is an element, so it does not depend on background printing', async ({ page }) => {
+  const r = await watermarked(page, { watermark: { text: 'DRAFT', repeat: 'every-page' } });
+
+  // this is the property that makes it survive "Background graphics" being off
+  // and `print-color-adjust` being ignored: it is content, not decoration
+  expect(r.tagName).toBe('svg');
+  expect(r.backgroundImage, 'nothing is drawn as a background').toBe('none');
+});
+
+test('a first-page watermark stays fixed and leaves the layout alone', async ({ page }) => {
+  const r = await watermarked(page, { watermark: 'DRAFT' });
+
+  expect(r.sheets, 'no pagination was asked for and none happened').toBe(0);
+  expect(r.layers).toBe(1);
+  expect(r.position).toBe('fixed');
+});
+
+test('tiling covers each sheet', async ({ page }) => {
+  const r = await watermarked(page, {
+    watermark: { text: 'COPY', repeat: 'tile', size: '20%' }
+  });
+
+  expect(r.sheets).toBeGreaterThan(2);
+  expect(
+    r.perSheet.every((n) => n > 20),
+    `marks per sheet: ${r.perSheet}`
+  ).toBe(true);
+  // every sheet gets the same grid, so a page is never half covered
+  expect(new Set(r.perSheet).size).toBe(1);
+});
+
+test('size, opacity and position are honoured', async ({ page }) => {
+  const r = await watermarked(page, {
+    watermark: {
+      text: 'VOID',
+      repeat: 'every-page',
+      size: '25%',
+      rotate: 0,
+      opacity: 0.6,
+      position: 'bottom-right'
+    }
+  });
+
+  // 25% of the 794px A4 sheet, unrotated so the box is the mark
+  expect(r.markWidth).toBe(199);
+  expect(r.opacity).toBe('0.6');
+});
+
+test('the old flat options still print', async ({ page }) => {
+  const r = await watermarked(page, { watermarkText: 'LEGACY', watermarkOpacity: 0.4 });
+
+  expect(r.layers).toBe(1);
+  expect(r.tagName).toBe('svg');
+  expect(r.opacity).toBe('0.4');
+});

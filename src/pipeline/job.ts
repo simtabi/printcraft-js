@@ -292,6 +292,17 @@ export class Job {
     });
     this.log.groupEnd();
 
+    // normalizeOptions turns pagination on for a repeating watermark, because
+    // one fixed element cannot reach page two. Say so: it changes the layout.
+    if (options.watermark && options.watermark.repeat !== 'first-page') {
+      this.log.info(
+        'watermark repeat is "' +
+          options.watermark.repeat +
+          '", so the content is laid out as real sheets. ' +
+          'A fixed mark only ever prints on the first page.'
+      );
+    }
+
     return Promise.resolve()
       .then(() => {
         this.fire('job:start');

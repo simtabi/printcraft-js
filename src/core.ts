@@ -76,6 +76,14 @@ export {
 export { resolveSheet, toPx, DEFAULT_SHEET } from './production/sheets';
 export type { SheetSize } from './production/sheets';
 
+export {
+  resolveWatermark,
+  buildWatermarkLayer,
+  needsPages,
+  watermarkCss,
+  firstPageCss
+} from './production/watermark';
+
 export { captureRegion } from './pipeline/capture';
 export { rasterize, blobToDataUrl } from './share/rasterize';
 export type { RasterizeOptions, Raster } from './share/rasterize';
