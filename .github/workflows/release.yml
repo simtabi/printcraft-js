@@ -23,6 +23,12 @@ jobs:
           node-version: '22'
           registry-url: https://registry.npmjs.org
 
+      # npm 10, which Node 22 bundles, crashes in arborist's peer-set loader
+      # ("Cannot read properties of null (reading 'edgesOut')") on vitest's
+      # optional @vitest/browser-playwright peer. npm 11 resolves it.
+      - name: Upgrade npm
+        run: npm install -g npm@11
+
       - name: Install
         run: npm install --no-package-lock
 
