@@ -383,6 +383,12 @@ call`, with `explain()` naming which layer set each value. A source can be an
   in were attached once; they are now put back when the next toolbar opens,
   bringing any bar still in them along.
 
+- **Three accessibility gaps.** Removing a mark in the notes panel dropped
+  focus to `<body>`; it now moves to the next mark, the previous one, or the
+  panel. The studio's tool buttons now say which is pressed. Colour swatches
+  were read out as hex; they now have names ("Red", or "Colour #123456") and a
+  labelled group.
+
 ### Not fixed
 
 - The ⊗ floating in the Description box in two of the screenshots is not ours.

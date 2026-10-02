@@ -106,12 +106,23 @@ function card(mark: Mark, doc: Document, env: Env, refresh: () => void): HTMLEle
   };
   tooltip(remove, { text: REMOVE_SAYS[mark.kind] }, env);
   remove.addEventListener('click', () => {
+    // the list is rebuilt below, taking this button with it: focus goes to the
+    // mark that takes its place, or the one before, or the panel itself
+    const removes = (): HTMLElement[] => [
+      ...doc.querySelectorAll<HTMLElement>('[data-prjs-notes] [data-prjs-act="remove"]')
+    ];
+    const at = removes().indexOf(remove);
+    const panel = remove.closest<HTMLElement>('[data-prjs-modal] .prjs-modal-box');
     if (mark.kind === 'note') removeNote(mark.element);
     else if (mark.kind === 'drawing') {
       mark.element.removeAttribute('data-printcraft-drawing');
       unmountDrawing(mark.element as HTMLElement);
     } else toggleRedact(mark.element);
     refresh();
+    const left = removes();
+    const next = left[Math.min(at, left.length - 1)] || panel;
+    if (next === panel) panel?.setAttribute('tabindex', '-1');
+    next?.focus();
   });
   actions.appendChild(remove);
 

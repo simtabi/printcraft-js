@@ -790,3 +790,47 @@ test('a toolbar still appears after the host replaces <body>', () => {
   first.close();
   second.close();
 });
+
+test('removing a mark in the notes panel keeps focus in the panel', async () => {
+  // the list is rebuilt on every change, so the focused Remove button went
+  // with it and focus fell to <body>, putting a keyboard user back at the top
+  const d = dom(
+    '<p id="a" data-printcraft-note="one">A</p><p id="b" data-printcraft-note="two">B</p>'
+  );
+  const doc = d.window.document;
+  void ui.notesPanel({}, env(d));
+  const removes = (): HTMLElement[] => [
+    ...doc.querySelectorAll<HTMLElement>('[data-prjs-notes] [data-prjs-act="remove"]')
+  ];
+  removes()[0]!.focus();
+  removes()[0]!.click();
+  expect(removes()).toHaveLength(1);
+  expect(doc.activeElement, 'on the next mark').toBe(removes()[0]);
+
+  removes()[0]!.click();
+  expect(doc.activeElement).not.toBe(doc.body);
+  expect(
+    doc.querySelector('[data-prjs-modal]')!.contains(doc.activeElement),
+    'still in the panel'
+  ).toBe(true);
+  key(d, 'Escape');
+});
+
+test('colour swatches are named, not read out as hex', () => {
+  const d = dom('');
+  void ui.modal(
+    {
+      title: 'Ink',
+      fields: [{ type: 'color', name: 'ink', label: 'Ink', swatches: ['#dc2626', '#123456'] }]
+    },
+    env(d)
+  );
+  const labels = [...d.window.document.querySelectorAll('[data-prjs-swatch]')].map((b) =>
+    b.getAttribute('aria-label')
+  );
+  expect(labels).toEqual(['Red', 'Colour #123456']);
+  expect(d.window.document.querySelector('.prjs-swatches')!.getAttribute('aria-label')).toBe(
+    'Ink swatches'
+  );
+  key(d, 'Escape');
+});
