@@ -231,9 +231,15 @@ reach every rule inside our surfaces and nothing outside them: a host's own `--c
 is neither read nor overwritten.
 
 ```bash
-npm run vendor:daisyui   # regenerate after upgrading daisyui
-npm run vendor:audit     # tokens in step, and both vendored sheets current
+npm run vendor:daisyui -- --floor   # regenerate after raising the daisyui floor
+npm run vendor:audit                # tokens in step, and both vendored sheets current
 ```
+
+The generated `src/ui/kit/daisyui-css.ts` is committed, and the build bundles it as it
+stands rather than regenerating it. daisyUI is a ranged devDependency and the repository
+keeps no lock file, so regenerating on every build shipped whichever patch was newest that
+day. CI checks the committed sheet against the lowest version the range admits; changing it
+means raising that floor in `package.json` and regenerating, in a reviewed commit.
 
 A modal with no body renders no body element. It used to render an empty band between the
 title and the buttons.

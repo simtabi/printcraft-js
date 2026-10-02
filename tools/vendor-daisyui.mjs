@@ -19,18 +19,64 @@
 //   node tools/vendor-daisyui.mjs           write src/ui/kit/daisyui-css.ts
 //   node tools/vendor-daisyui.mjs --check   fail if it is out of date
 //   node tools/vendor-daisyui.mjs --report  what each component costs
+//
+// Add `--floor` to any of them to work from the lowest daisyUI the devDependency
+// range admits — fetched with `npm pack` — instead of whatever is installed.
+//
+// The generated file is a build input and is committed; the build does not
+// regenerate it. daisyUI is a devDependency with a range and this library keeps
+// no lock file, so regenerating on every build meant CI bundled whichever 5.x
+// patch was newest that day: 5.7.4 to 5.7.47 added 2 kB brotlied to the UMD
+// bundle with no change in this repository. CI instead runs `--check --floor`,
+// so the committed sheet always matches the range's floor and moving it is a
+// reviewed change — raise the floor, then `npm run vendor:daisyui -- --floor`.
 
-import { readFileSync, writeFileSync, existsSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync, mkdtempSync, rmSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
+import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { brotliCompressSync } from 'node:zlib';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const OUT = join(root, 'src/ui/kit/daisyui-css.ts');
-const PKG = join(root, 'node_modules/daisyui');
 
 const check = process.argv.includes('--check');
 const report = process.argv.includes('--report');
+const floor = process.argv.includes('--floor');
+
+/**
+ * The lowest daisyUI the devDependency range admits, unpacked into a temp dir.
+ *
+ * `^5.7.4`, `~5.7.4` and `>=5.7.4 <6` all name their floor as the first full
+ * version in the string; anything without one is refused rather than guessed.
+ */
+function floorPackage() {
+  const range = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')).devDependencies
+    ?.daisyui;
+  const at = /(\d+\.\d+\.\d+)/.exec(range || '');
+  if (!at) {
+    console.error('cannot read a floor from the daisyui range "' + range + '"');
+    process.exit(1);
+  }
+  const dir = mkdtempSync(join(tmpdir(), 'prjs-daisyui-'));
+  process.on('exit', () => rmSync(dir, { recursive: true, force: true }));
+  const npm = process.platform === 'win32' ? 'npm.cmd' : 'npm';
+  const tgz = execFileSync(
+    npm,
+    ['pack', 'daisyui@' + at[1], '--pack-destination', dir, '--silent'],
+    {
+      encoding: 'utf8'
+    }
+  )
+    .trim()
+    .split('\n')
+    .pop();
+  execFileSync('tar', ['-xzf', join(dir, tgz), '-C', dir]);
+  return join(dir, 'package');
+}
+
+const PKG = floor ? floorPackage() : join(root, 'node_modules/daisyui');
 
 /**
  * The components whose markup the kit actually draws.

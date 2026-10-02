@@ -147,6 +147,11 @@ call`, with `explain()` naming which layer set each value. A source can be an
 - The UMD budget is **80 kB**, up from 60. It measures 78.83, of which 8.6 kB is
   daisyUI's own component css, 5.4 kB Coloris and 2 kB perfect-freehand. Roughly
   four hundred lines of hand-written component css came out in exchange.
+- **The vendored daisyUI sheet is a committed build input.** `prebuild` used to
+  regenerate it from whichever daisyUI the `^5.7.4` range resolved, and with no
+  lock file CI took 5.7.47, which put the UMD bundle at 81.99 kB with nothing in
+  this repository changed. The build now bundles the committed file, and CI checks
+  it against the range's floor (`vendor-daisyui.mjs --check --floor`).
 
 ### Fixed
 

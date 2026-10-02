@@ -82,7 +82,7 @@
   ],
   "scripts": {
     "clean": "rimraf dist coverage test-results _site",
-    "prebuild": "npm run clean && npm run vendor:css",
+    "prebuild": "npm run clean && node tools/vendor-css.mjs",
     "build": "vite build && npm run build:umd && npm run build:cli && npm run build:types && npm run build:assets && node tools/build.mjs",
     "build:assets": "node tools/build-assets.mjs",
     "build:types": "node tools/build-types.mjs",
@@ -104,7 +104,7 @@
     "prepublishOnly": "npm run build",
     "build:cli": "vite build --config vite.cli.config.ts",
     "build:umd": "vite build --config vite.umd.config.ts",
-    "vendor:audit": "node tools/vendor-audit.mjs && node tools/vendor-css.mjs --check && node tools/vendor-daisyui.mjs --check",
+    "vendor:audit": "node tools/vendor-audit.mjs && node tools/vendor-css.mjs --check && node tools/vendor-daisyui.mjs --check --floor",
     "vendor:css": "node tools/vendor-css.mjs && node tools/vendor-daisyui.mjs",
     "vendor:daisyui": "node tools/vendor-daisyui.mjs"
   },
