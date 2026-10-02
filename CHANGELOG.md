@@ -369,6 +369,11 @@ call`, with `explain()` naming which layer set each value. A source can be an
   selection, so a second tool took it over and region actions from the first
   page acted on the second. Each document now answers for its own.
 
+- **The proof's keys did nothing with focus inside the sheet.** After clicking
+  the paper, or with the drawing tools open, Escape did not cancel and the print
+  shortcut opened the browser's own dialog. The proof now hears both from its
+  frame, leaving a key the drawing tools already handled to them.
+
 ### Not fixed
 
 - The ⊗ floating in the Description box in two of the screenshots is not ours.

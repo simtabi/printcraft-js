@@ -620,21 +620,24 @@ export function drawArea(
     }
     layer.addEventListener('contextmenu', onRegionMenu as EventListener);
 
-    releaseRegion = holdRegion({
-      rect: () => toPageRect(box || { x: 0, y: 0, w: 0, h: 0 }),
-      viewportBox: () => box || { x: 0, y: 0, w: 0, h: 0 },
-      confirm: () => void commit(),
-      reset: startOver,
-      cancel: () => finish('cancel'),
+    releaseRegion = holdRegion(
+      {
+        rect: () => toPageRect(box || { x: 0, y: 0, w: 0, h: 0 }),
+        viewportBox: () => box || { x: 0, y: 0, w: 0, h: 0 },
+        confirm: () => void commit(),
+        reset: startOver,
+        cancel: () => finish('cancel'),
 
-      hide: () => {
-        layer.style.display = 'none';
+        hide: () => {
+          layer.style.display = 'none';
+        },
+        show: () => {
+          layer.style.display = 'block';
+          paint();
+        }
       },
-      show: () => {
-        layer.style.display = 'block';
-        paint();
-      }
-    }, doc);
+      doc
+    );
 
     function finish(action: 'cancel'): void {
       if (settled) return;

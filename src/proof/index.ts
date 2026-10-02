@@ -65,6 +65,7 @@ export async function mountProof(
   cfg: ProofOptions & Partial<ProofHost> = {}
 ): Promise<ProofMount> {
   const { sheet, window: win, document: doc } = await openProof(options, env);
+  sheet.listenToFrame(doc);
 
   let settle: (verdict: 'print' | 'cancel') => void = () => {};
   const decision = new Promise<'print' | 'cancel'>((resolve) => {
