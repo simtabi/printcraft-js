@@ -597,3 +597,57 @@ test('no two stock actions claim the same keys', () => {
 
   expect(doubled, 'one binding, two actions: only one of them can ever run').toEqual([]);
 });
+
+/* remembering marks ------------------------------------------------------- */
+
+/** a store the test can read back, holding what a previous visit saved */
+function savedStore(
+  marks: unknown[]
+): { name: string; data: Map<string, unknown> } & Record<string, unknown> {
+  const data = new Map<string, unknown>([['page|marks', marks]]);
+  return {
+    name: 'test',
+    data,
+    get: async (k: string) => (data.has(k) ? data.get(k) : null),
+    set: async (k: string, v: unknown) => void data.set(k, v),
+    remove: async (k: string) => void data.delete(k),
+    keys: async () => [...data.keys()],
+    clear: async () => data.clear()
+  };
+}
+
+const anchorFor = (selector: string, text: string, tag = 'p') => ({
+  selector,
+  text,
+  tag,
+  index: 0
+});
+
+test('putting saved marks back is not an edit, so it never overwrites the lost ones', async () => {
+  // The observer that saves marks was installed before restoration finished,
+  // so the attributes restoration wrote were saved as fresh edits: 250ms after
+  // load the store held only the marks that resolved, and every mark reported
+  // lost was deleted for good.
+  const d = dom('<p id="here">Still here</p>');
+  const store = savedStore([
+    { kind: 'note', anchor: anchorFor('#here', 'Still here'), data: 'kept', at: 1 },
+    { kind: 'redaction', anchor: anchorFor('#gone', 'A paragraph from another build'), at: 1 }
+  ]);
+  const iface = ui.create(
+    { persist: store, scopeKey: 'page', contextMenu: false, keyboard: false },
+    env(d)
+  );
+
+  const report = await iface.restored();
+  expect(report.restored).toHaveLength(1);
+  expect(report.lost).toHaveLength(1);
+  await new Promise((r) => setTimeout(r, 350));
+  expect(store.data.get('page|marks'), 'the lost mark is still stored').toHaveLength(2);
+
+  // an edit after the restore is still saved
+  d.window.document.getElementById('here')!.setAttribute('data-printcraft-redact', '');
+  await new Promise((r) => setTimeout(r, 350));
+  const kinds = (store.data.get('page|marks') as Array<{ kind: string }>).map((m) => m.kind);
+  expect(kinds).toContain('redaction');
+  iface.destroy();
+});

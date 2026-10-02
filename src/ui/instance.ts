@@ -138,34 +138,60 @@ export class PrintcraftInterface {
    */
   private rememberFromNowOn(): void {
     const doc = this.env.document;
-
-    this.restoring = this.memory.restoreMarks(doc);
-    void this.restoring.then((report) => {
-      if (report.lost.length) {
-        this.deps.emit('state:lost', { marks: report.lost });
-      }
-      this.options.onRestore?.(report);
-    });
-
-    if (typeof this.env.window.MutationObserver !== 'function') return;
+    const MO = this.env.window.MutationObserver;
 
     // marks arrive in bursts — a drag over six paragraphs is six mutations — so
     // the write is coalesced rather than run once per attribute
     let pending: ReturnType<typeof setTimeout> | undefined;
-    const watcher = new this.env.window.MutationObserver(() => {
+    const save = (): void => {
       clearTimeout(pending);
       pending = setTimeout(() => void this.memory.saveMarks(doc), 250);
-    });
+    };
 
-    watcher.observe(doc.documentElement, {
+    // Held, not saved, while the restore is running. Putting saved marks back
+    // writes the same attributes an edit does, and saving that would overwrite
+    // the store with only the marks that resolved: every mark reported lost
+    // would be deleted for good, where a later build of the page might have
+    // found it.
+    let held: MutationRecord[] | null = [];
+    const watcher =
+      typeof MO === 'function'
+        ? new MO((records) => {
+            if (held) held.push(...records);
+            else save();
+          })
+        : null;
+    watcher?.observe(doc.documentElement, {
       subtree: true,
       attributes: true,
       attributeFilter: ['data-printcraft-note', 'data-printcraft-redact', 'data-printcraft-drawing']
     });
 
+    this.restoring = this.memory.restoreMarks(doc).then(
+      (report) => {
+        // what changed while restoring that restoring did not write was the
+        // user, and is saved like any other edit
+        const restored = new Set<Node>(report.restored.map((m) => m.element));
+        const seen = (held || []).concat(watcher?.takeRecords() || []);
+        held = null;
+        if (seen.some((r) => !restored.has(r.target))) save();
+
+        if (report.lost.length) {
+          this.deps.emit('state:lost', { marks: report.lost });
+        }
+        this.options.onRestore?.(report);
+        return report;
+      },
+      (err: unknown) => {
+        // a store that cannot be read must not stop later edits being saved
+        held = null;
+        throw err;
+      }
+    );
+
     this.cleanups.push(() => {
       clearTimeout(pending);
-      watcher.disconnect();
+      watcher?.disconnect();
     });
   }
 

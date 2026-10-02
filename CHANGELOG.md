@@ -270,6 +270,12 @@ call`, with `explain()` naming which layer set each value. A source can be an
   `notacolor` reached an svg that drew no ink. The field now asks the browser's
   css parser.
 
+- **Loading a page with `persist` on deleted its lost marks.** The observer that
+  saves marks was running while saved marks were put back, so restoring them
+  counted as an edit, and 250ms later the store held only the marks that
+  resolved. Restoration is no longer saved as an edit; a change made while it
+  runs still is.
+
 ### Not fixed
 
 - The ⊗ floating in the Description box in two of the screenshots is not ours.
