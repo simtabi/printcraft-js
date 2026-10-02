@@ -29,6 +29,24 @@ jobs:
       - name: Upgrade npm
         run: npm install -g npm@11
 
+      # trusted publishing (OIDC) needs npm >= 11.5.1 and Node >= 22.14; an
+      # older toolchain falls back to token auth, finds no token, and fails
+      # with a misleading E404/ENEEDAUTH, so refuse up front instead
+      - name: Check the npm toolchain supports trusted publishing
+        run: |
+          node -e '
+            const ok = (v, min) => {
+              const a = v.replace(/^v/, "").split(".").map(Number);
+              const b = min.split(".").map(Number);
+              for (let i = 0; i < 3; i++) if (a[i] !== b[i]) return a[i] > b[i];
+              return true;
+            };
+            const npm = require("child_process").execSync("npm --version").toString().trim();
+            if (!ok(process.version, "22.14.0")) { console.error(`node ${process.version} < 22.14.0`); process.exit(1); }
+            if (!ok(npm, "11.5.1")) { console.error(`npm ${npm} < 11.5.1`); process.exit(1); }
+            console.log(`node ${process.version}, npm ${npm}`);
+          '
+
       - name: Install
         run: npm install --no-package-lock
 
@@ -67,14 +85,33 @@ jobs:
           fi
           cat release-notes.md
 
-      # prepublishOnly runs the full build, so a stale dist can never ship
+      # A version already on the registry is skipped rather than failed, so a
+      # release whose first publish was done by hand (trusted publishing can
+      # only be configured once the package exists) still gets its GitHub
+      # release from the tag.
+      - name: Check whether this version is already published
+        id: published
+        run: |
+          name="$(node -p "require('./package.json').name")"
+          version="$(node -p "require('./package.json').version")"
+          if npm view "$name@$version" version >/dev/null 2>&1; then
+            echo "$name@$version is already on npm; skipping publish"
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      # prepublishOnly runs the full build, so a stale dist can never ship.
+      # Authentication is npm trusted publishing (OIDC, id-token: write above);
+      # no NODE_AUTH_TOKEN is set on purpose.
       - name: Publish to npm
+        if: steps.published.outputs.exists != 'true'
         run: npm publish --access public
         env:
           NPM_CONFIG_PROVENANCE: true
 
       - name: Create the GitHub release
-        uses: softprops/action-gh-release@v3
+        uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
         with:
           body_path: release-notes.md
           generate_release_notes: true
