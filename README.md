@@ -7,7 +7,7 @@
 
 > Client-side printing you can aim: real paginated sheets with numbers and borders, a region tool that prints what you drew, redaction that is verified rather than hoped for, and a right-click menu, command palette and keyboard commands that are there the moment the script loads.
 
-Runs in any browser with `afterprint` and `document.fonts`: Chrome, Edge, Firefox and Safari, current and two back. TypeScript source, zero runtime dependencies, ESM + UMD builds, and a command line for CI.
+Runs in any browser with `afterprint` and `document.fonts`: Chrome, Edge, Firefox and Safari, current and two back. TypeScript source, two runtime dependencies (both leaf), ESM + UMD builds, and a command line for CI.
 
 **[Try the demo](https://simtabi.github.io/printcraft-js/)**: every job, the interaction layer and the inspector, with nothing to install.
 

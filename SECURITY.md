@@ -20,8 +20,9 @@ agree a disclosure timeline with you before publishing anything.
 
 ## Scope
 
-Printcraft runs entirely in the browser with no server component and no runtime
-dependencies, so its security surface is the print copy it builds. Reports in
+Printcraft runs entirely in the browser with no server component and two leaf
+runtime dependencies (`perfect-freehand` and `@melloware/coloris`), so its
+security surface is the print copy it builds. Reports in
 these areas are in scope:
 
 - **Sanitizer bypass.** The print document is a fresh same-origin browsing
