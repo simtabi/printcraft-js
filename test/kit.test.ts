@@ -768,3 +768,69 @@ test('every text colour in the kit reaches 4.5:1 in both schemes', () => {
   }
   expect(checked, 'both schemes were found in the sheet').toBe(12);
 });
+
+test('a toolbar still appears after the host replaces <body>', () => {
+  // the lanes were appended to the body once and cached per document, so a
+  // framework that swapped <body> left every later toolbar in a detached lane
+  const d = dom('');
+  const doc = d.window.document;
+  const first = ui.toolbar({ label: 'One', actions: [{ id: 'a', label: 'A' }] }, env(d));
+  doc.documentElement.replaceChild(doc.createElement('body'), doc.body);
+  const second = ui.toolbar({ label: 'Two', actions: [{ id: 'b', label: 'B' }] }, env(d));
+  const lanes = doc.querySelectorAll('[data-prjs-toolbar-stack]');
+  expect(lanes.length, 'the lanes are back in the document').toBe(2);
+  expect(
+    doc.body.contains(doc.querySelector('[data-prjs-act="b"]')),
+    'the new bar is visible'
+  ).toBe(true);
+  expect(
+    doc.body.contains(doc.querySelector('[data-prjs-act="a"]')),
+    'and the old one with it'
+  ).toBe(true);
+  first.close();
+  second.close();
+});
+
+test('removing a mark in the notes panel keeps focus in the panel', async () => {
+  // the list is rebuilt on every change, so the focused Remove button went
+  // with it and focus fell to <body>, putting a keyboard user back at the top
+  const d = dom(
+    '<p id="a" data-printcraft-note="one">A</p><p id="b" data-printcraft-note="two">B</p>'
+  );
+  const doc = d.window.document;
+  void ui.notesPanel({}, env(d));
+  const removes = (): HTMLElement[] => [
+    ...doc.querySelectorAll<HTMLElement>('[data-prjs-notes] [data-prjs-act="remove"]')
+  ];
+  removes()[0]!.focus();
+  removes()[0]!.click();
+  expect(removes()).toHaveLength(1);
+  expect(doc.activeElement, 'on the next mark').toBe(removes()[0]);
+
+  removes()[0]!.click();
+  expect(doc.activeElement).not.toBe(doc.body);
+  expect(
+    doc.querySelector('[data-prjs-modal]')!.contains(doc.activeElement),
+    'still in the panel'
+  ).toBe(true);
+  key(d, 'Escape');
+});
+
+test('colour swatches are named, not read out as hex', () => {
+  const d = dom('');
+  void ui.modal(
+    {
+      title: 'Ink',
+      fields: [{ type: 'color', name: 'ink', label: 'Ink', swatches: ['#dc2626', '#123456'] }]
+    },
+    env(d)
+  );
+  const labels = [...d.window.document.querySelectorAll('[data-prjs-swatch]')].map((b) =>
+    b.getAttribute('aria-label')
+  );
+  expect(labels).toEqual(['Red', 'Colour #123456']);
+  expect(d.window.document.querySelector('.prjs-swatches')!.getAttribute('aria-label')).toBe(
+    'Ink swatches'
+  );
+  key(d, 'Escape');
+});

@@ -221,8 +221,8 @@ function stockActions(deps: UiDeps): Action[] {
       scope: ['region'],
       tone: 'primary',
       keywords: ['area', 'region', 'selection', 'continue'],
-      when: () => hasRegion() || 'Draw an area first',
-      run: () => activeRegion()?.confirm()
+      when: (ctx) => hasRegion(ctx.env.document) || 'Draw an area first',
+      run: (ctx) => activeRegion(ctx.env.document)?.confirm()
     },
     {
       id: 'region-reset',
@@ -231,8 +231,8 @@ function stockActions(deps: UiDeps): Action[] {
       icon: 'crop',
       group: GROUPS.choose,
       scope: ['region'],
-      when: () => hasRegion() || 'Draw an area first',
-      run: () => activeRegion()?.reset()
+      when: (ctx) => hasRegion(ctx.env.document) || 'Draw an area first',
+      run: (ctx) => activeRegion(ctx.env.document)?.reset()
     },
     {
       id: 'region-cancel',
@@ -241,8 +241,8 @@ function stockActions(deps: UiDeps): Action[] {
       icon: 'close',
       group: GROUPS.choose,
       scope: ['region'],
-      when: () => hasRegion() || 'Nothing is selected',
-      run: () => activeRegion()?.cancel()
+      when: (ctx) => hasRegion(ctx.env.document) || 'Nothing is selected',
+      run: (ctx) => activeRegion(ctx.env.document)?.cancel()
     },
 
     {

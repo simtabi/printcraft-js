@@ -120,9 +120,9 @@ function fromStorage(backing: Storage, label: string, options: WebStoreOptions =
     }
   };
 
-  /** Drops the oldest records this store owns. Returns how many went. */
-  const evict = (count: number): number => {
-    const aged = own().map((k) => ({ k, t: readAt<unknown>(k)?.t ?? 0 }));
+  /** Drops the oldest records this store owns, or only those in one group. */
+  const evict = (count: number, keys = own()): number => {
+    const aged = keys.map((k) => ({ k, t: readAt<unknown>(k)?.t ?? 0 }));
     // sorted in place: `aged` is built here and used here
     // oxlint-disable-next-line no-array-sort
     aged.sort((a, b) => a.t - b.t);
@@ -163,9 +163,13 @@ function fromStorage(backing: Storage, label: string, options: WebStoreOptions =
         }
       }
 
+      // per page: a key up to its last `|` is the page it belongs to, and the
+      // limit is about that page's records, not every page on the origin
       if (options.limit) {
-        const over = own().length - options.limit;
-        if (over > 0) evict(over);
+        const group = full(k).slice(0, full(k).lastIndexOf('|') + 1) || prefix;
+        const mine = own().filter((o) => o.startsWith(group));
+        const over = mine.length - options.limit;
+        if (over > 0) evict(over, mine);
       }
       return Promise.resolve();
     },
@@ -228,6 +232,12 @@ export interface HttpStoreOptions {
   fetch?: typeof fetch;
   /** sent with every request. `include` is what a cookie session needs. */
   credentials?: RequestCredentials;
+  /**
+   * Namespaces the keys, so `keys()` and `clear()` cover only what this store
+   * wrote. Without one, `clear()` refuses unless told `{ all: true }`: the
+   * collection is usually every page's state for a user.
+   */
+  prefix?: string;
 }
 
 /**
@@ -243,6 +253,8 @@ export interface HttpStoreOptions {
  */
 export function httpStore(options: HttpStoreOptions): Store {
   const base = options.url.replace(/\/+$/, '');
+  const prefix = options.prefix ?? '';
+  const at = (k: string): string => '/' + encodeURIComponent(prefix + k);
   const call = options.fetch ?? ((...a: Parameters<typeof fetch>) => fetch(...a));
 
   const request = async (path: string, init?: RequestInit): Promise<Response> => {
@@ -267,7 +279,7 @@ export function httpStore(options: HttpStoreOptions): Store {
     name: 'http',
 
     async get<T>(k: string): Promise<T | null> {
-      const res = await request('/' + encodeURIComponent(k));
+      const res = await request(at(k));
       if (res.status === 404) return null;
       try {
         return (await res.json()) as T;
@@ -277,11 +289,11 @@ export function httpStore(options: HttpStoreOptions): Store {
     },
 
     async set<T>(k: string, v: T): Promise<void> {
-      await request('/' + encodeURIComponent(k), { method: 'PUT', body: JSON.stringify(v) });
+      await request(at(k), { method: 'PUT', body: JSON.stringify(v) });
     },
 
     async remove(k: string): Promise<void> {
-      await request('/' + encodeURIComponent(k), { method: 'DELETE' });
+      await request(at(k), { method: 'DELETE' });
     },
 
     async keys(): Promise<string[]> {
@@ -289,14 +301,29 @@ export function httpStore(options: HttpStoreOptions): Store {
       if (res.status === 404) return [];
       try {
         const body = (await res.json()) as unknown;
-        return Array.isArray(body) ? body.map(String) : [];
+        return Array.isArray(body)
+          ? body
+              .map(String)
+              .filter((k) => k.startsWith(prefix))
+              .map((k) => k.slice(prefix.length))
+          : [];
       } catch {
         return [];
       }
     },
 
-    async clear(): Promise<void> {
-      await request('', { method: 'DELETE' });
+    /**
+     * Removes this store's keys, one at a time. Emptying the collection itself
+     * takes `{ all: true }`, because it is usually more than this store wrote.
+     */
+    async clear(opts?: { all?: boolean }): Promise<void> {
+      if (opts?.all) return void (await request('', { method: 'DELETE' }));
+      if (!prefix) {
+        throw new PrintcraftError('PC_STORE_FAILED', 'refusing to empty the whole collection', {
+          hint: 'give httpStore a prefix, or call clear({ all: true }) if that is what you mean.'
+        });
+      }
+      for (const k of await this.keys()) await this.remove(k);
     }
   };
 }

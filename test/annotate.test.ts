@@ -419,3 +419,21 @@ test('the colour picker is not something the studio draws on', async () => {
   expect(down.defaultPrevented, 'left to the picker').toBe(false);
   studio.close();
 });
+
+test("the studio's toolbar says which tool is in use", async () => {
+  const d = dom('<p>x</p>');
+  const doc = d.window.document;
+  const { openStudio } = await import('../src/annotate');
+  const studio = openStudio({
+    document: doc,
+    window: d.window as unknown as Window & typeof globalThis
+  });
+  const pressed = (): string[] =>
+    [...doc.querySelectorAll('[data-prjs-toolbar] [aria-pressed="true"]')].map((b) =>
+      b.getAttribute('data-prjs-act')!
+    );
+  expect(pressed()).toEqual(['pen']);
+  studio.use('arrow');
+  expect(pressed()).toEqual(['arrow']);
+  studio.close();
+});

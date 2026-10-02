@@ -371,6 +371,9 @@ export function openStudio(env: Env, options: StudioOptions = {}): StudioHandle 
     },
 
     use(next: ShapeKind): void {
+      // pressed state, so a screen reader hears which tool is in use
+      bar?.setActive(tool, false);
+      bar?.setActive(next, true);
       tool = next;
       bar?.setStatus(label());
     },
@@ -522,6 +525,7 @@ export function openStudio(env: Env, options: StudioOptions = {}): StudioHandle 
           id: t.id,
           label: t.label,
           icon: t.icon,
+          active: t.id === tool,
           onSelect: () => handle.use(t.id)
         })),
         { id: 'image', label: 'Image', icon: 'image', onSelect: () => void pickImage() },

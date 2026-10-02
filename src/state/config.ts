@@ -91,7 +91,10 @@ export async function readSource(
     return value;
   }
 
-  if (isPlainObject(source) && 'store' in source && source['store']) {
+  // a store is something with get and set, not anything with a `store` key:
+  // `{ store: 'main' }` is ordinary config
+  const store = isPlainObject(source) ? (source['store'] as Store | undefined) : undefined;
+  if (typeof store?.get === 'function' && typeof store.set === 'function') {
     const spec = source as { store: Store; key?: string };
     const value = await spec.store.get<ConfigValues>(spec.key || 'config');
     return isPlainObject(value) ? value : {};

@@ -81,7 +81,8 @@ Printcraft.ui.create({ persist: httpStore({ url: '/api/print-state', credentials
 `limit` work and a future format can migrate rather than throw. A full quota evicts the
 oldest records this store owns and retries once; if it still will not fit you get
 `PC_STORE_FULL` rather than a silent no-op. `clear()` only removes keys under the prefix,
-never the host app's.
+never the host app's. `limit` counts one page's records at a time (keys up to their last
+`|`), so a busy page cannot evict another page's marks.
 
 `httpStore` is the plainest REST that could work, so it can be implemented in an afternoon
 in any language:
@@ -92,6 +93,12 @@ GET    /api/print-state/marks    → [...]     404 means nothing stored
 PUT    /api/print-state/marks    ← [...]
 DELETE /api/print-state/marks
 ```
+
+A 404 on `PUT` is an error (`PC_STORE_FAILED`), not "nothing stored": it means the url is
+wrong. Pass `prefix` to give the store a namespace in a shared collection; `keys()` and
+`clear()` then cover only keys under it, and `clear()` deletes them one by one. Without a
+prefix `clear()` refuses, because the collection is usually every page's state for that
+user; `clear({ all: true })` sends `DELETE` to the collection when that is what you mean.
 
 ## Marks that cannot be found again
 

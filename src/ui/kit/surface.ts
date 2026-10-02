@@ -96,7 +96,7 @@ export abstract class Surface {
   private seq = 0;
 
   /** Whether a focus-holding surface opened over this one, on the same document. */
-  private get covered(): boolean {
+  protected get covered(): boolean {
     return modals.some((m) => m !== this && m.doc === this.doc && m.seq > this.seq);
   }
 

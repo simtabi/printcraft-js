@@ -38,6 +38,17 @@ export const DEFAULT_SWATCHES = [
   '#ffffff'
 ];
 
+/** What a screen reader says for a swatch, instead of six hex digits. */
+const NAMES: Record<string, string> = {
+  '#dc2626': 'Red',
+  '#d97706': 'Amber',
+  '#15803d': 'Green',
+  '#1d4ed8': 'Blue',
+  '#7c3aed': 'Violet',
+  '#111827': 'Black',
+  '#ffffff': 'White'
+};
+
 let loading: Promise<unknown> | null = null;
 
 /**
@@ -72,9 +83,17 @@ async function ensureColoris(doc: Document): Promise<void> {
       api.init();
       return api;
     });
+    // a failure is not remembered: the next field tries again rather than the
+    // page going without a picker until it reloads
+    loading.catch(() => {
+      loading = null;
+    });
   }
 
-  const api = (await loading) as { coloris(o: Record<string, unknown>): void };
+  const api = (await loading) as {
+    coloris(o: Record<string, unknown>): void;
+    setInstance?(selector: string, o: Record<string, unknown>): void;
+  };
   api.coloris({
     el: '.prjs-color-input',
     parent: (doc.body || doc.documentElement) as unknown as string,
@@ -87,6 +106,8 @@ async function ensureColoris(doc: Document): Promise<void> {
     focusInput: false,
     selectInput: false
   });
+  // per field: one that asked for no opacity channel gets none
+  api.setInstance?.('.prjs-color-input[data-alpha="false"]', { alpha: false });
 }
 
 /**
@@ -121,13 +142,16 @@ export function buildColorField(
 
   const swatches = spec.swatches ?? DEFAULT_SWATCHES;
   if (swatches.length) {
-    const strip = h(doc, 'div', { class: 'prjs-swatches', attrs: { role: 'group' } });
+    const strip = h(doc, 'div', {
+      class: 'prjs-swatches',
+      attrs: { role: 'group', 'aria-label': (spec.label || 'Colour') + ' swatches' }
+    });
     for (const colour of swatches) {
       const dot = h(doc, 'button', {
         class: 'prjs-swatch',
         attrs: {
           type: 'button',
-          'aria-label': colour,
+          'aria-label': NAMES[colour.toLowerCase()] || 'Colour ' + colour,
           'data-prjs-swatch': colour,
           style: '--prjs-swatch: ' + colour
         }

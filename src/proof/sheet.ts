@@ -239,6 +239,22 @@ class ProofSheet extends Surface {
     super.onKeydown(ev);
   }
 
+  /**
+   * Hears the proof's own keys from inside its frame.
+   *
+   * A keydown in the frame (after clicking the paper, or with the studio open)
+   * never reaches the host document, so Escape did nothing there and the print
+   * shortcut opened the browser's dialog over the panel. A key something in the
+   * frame already handled — the studio's own Escape — is left alone.
+   */
+  listenToFrame(frameDoc: Document): void {
+    this.on(frameDoc, 'keydown', (ev) => {
+      const e = ev as KeyboardEvent;
+      const ours = e.key === 'Escape' || ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'p');
+      if (ours && !e.defaultPrevented && !this.covered) this.onKeydown(e);
+    });
+  }
+
   /** Shows the Settings button, once a caller has said what it does. */
   enableSettings(): void {
     if (this.settingsBtn) this.settingsBtn.hidden = false;

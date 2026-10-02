@@ -574,6 +574,36 @@ test('an unpaginated proof shows no empty page rail', async () => {
   Printcraft.devtools.clear();
 });
 
+test('Escape and the print shortcut work with focus inside the proof', async () => {
+  // the keys were heard only on the host document, and a keydown inside the
+  // proof's frame (after clicking the paper, or with the studio open) never
+  // reaches it: Escape did nothing and the shortcut opened the browser's dialog
+  const d = dom('<div id="r"><p>proof me</p></div>');
+  const doc = d.window.document;
+  const job = Printcraft.proof(
+    { target: '#r', assetTimeout: 50 },
+    { document: doc, window: d.window }
+  );
+  const frame = await until(() =>
+    doc.querySelector<HTMLIFrameElement>('[data-prjs-proof] iframe')?.contentDocument?.body
+      ? doc.querySelector<HTMLIFrameElement>('[data-prjs-proof] iframe')
+      : null
+  );
+  await until(() =>
+    doc.querySelector('[data-prjs-proof] [data-prjs-act="settings"]:not([hidden])')
+  );
+  const inner = frame.contentDocument!;
+  const ev = new frame.contentWindow!.KeyboardEvent('keydown', {
+    key: 'Escape',
+    bubbles: true,
+    cancelable: true
+  });
+  inner.body.dispatchEvent(ev);
+  expect((await job).status).toBe('cancelled');
+  expect(doc.querySelector('[data-prjs-proof]')).toBeNull();
+  Printcraft.devtools.clear();
+});
+
 /* boot */
 
 test('_boot is a safe no-op without a document', () => {

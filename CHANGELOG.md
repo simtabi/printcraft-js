@@ -355,6 +355,40 @@ call`, with `explain()` naming which layer set each value. A source can be an
   options save now sends `count` and `store` like the others. The annotate page
   described a toolbar that cycled colours, which became the Pen form.
 
+- **`httpStore().clear()` emptied the whole collection** — on a per-user state
+  service, every page's marks. It now deletes only keys under its new `prefix`
+  option, one at a time, and without a prefix refuses unless called as
+  `clear({ all: true })`.
+- **A `localStore` `limit` evicted other pages' records.** Every page shares the
+  prefix; the limit now counts one page's records at a time.
+- **A config object with a `store` key was taken for a store source**, so
+  `{ store: 'main' }` threw and its layer was skipped. A store is now recognised
+  by having `get` and `set`.
+
+- **Two region tools shared one selection.** A single slot held the open
+  selection, so a second tool took it over and region actions from the first
+  page acted on the second. Each document now answers for its own.
+
+- **The proof's keys did nothing with focus inside the sheet.** After clicking
+  the paper, or with the drawing tools open, Escape did not cancel and the print
+  shortcut opened the browser's own dialog. The proof now hears both from its
+  frame, leaving a key the drawing tools already handled to them.
+
+- **The colour picker ignored `alpha: false`, and a failed load was final.**
+  Opacity was configured once for every field, and a picker that failed to load
+  never tried again until a reload. A field without alpha now gets a picker
+  without it, and the next field retries a failed load.
+
+- **Toolbars vanished after the host replaced `<body>`.** The lanes they dock
+  in were attached once; they are now put back when the next toolbar opens,
+  bringing any bar still in them along.
+
+- **Three accessibility gaps.** Removing a mark in the notes panel dropped
+  focus to `<body>`; it now moves to the next mark, the previous one, or the
+  panel. The studio's tool buttons now say which is pressed. Colour swatches
+  were read out as hex; they now have names ("Red", or "Colour #123456") and a
+  labelled group.
+
 ### Not fixed
 
 - The ⊗ floating in the Description box in two of the screenshots is not ours.
