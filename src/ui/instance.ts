@@ -168,7 +168,18 @@ export class PrintcraftInterface {
     });
 
     this.restoring = this.memory.restoreMarks(doc).then(
-      (report) => {
+      async (report) => {
+        // a drawing put back is only an attribute until something paints it:
+        // it would print, and be invisible on the page. loaded on demand, like
+        // every other way into the drawing code.
+        if (report.restored.some((m) => m.kind === 'drawing')) {
+          try {
+            (await import('../annotate')).repaintAll(doc);
+          } catch {
+            /* the marks are back either way; only the on-screen overlay is missing */
+          }
+        }
+
         // what changed while restoring that restoring did not write was the
         // user, and is saved like any other edit
         const restored = new Set<Node>(report.restored.map((m) => m.element));

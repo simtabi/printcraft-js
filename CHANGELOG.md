@@ -276,6 +276,11 @@ call`, with `explain()` naming which layer set each value. A source can be an
   resolved. Restoration is no longer saved as an edit; a change made while it
   runs still is.
 
+- **A restored drawing was invisible on the page.** Restoring put the
+  `data-printcraft-drawing` attribute back and nothing drew it, so the drawing
+  printed but could not be seen after a reload. Restoring now repaints it;
+  `repaintAll` existed for exactly this and had no caller.
+
 ### Not fixed
 
 - The ⊗ floating in the Description box in two of the screenshots is not ours.

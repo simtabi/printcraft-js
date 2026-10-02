@@ -651,3 +651,39 @@ test('putting saved marks back is not an edit, so it never overwrites the lost o
   expect(kinds).toContain('redaction');
   iface.destroy();
 });
+
+test('a restored drawing is painted on the page, not only stored on it', async () => {
+  // Restoring put the attribute back and nothing drew it: the drawing printed,
+  // but after a reload it was invisible on screen. `repaintAll` existed for this
+  // and had no caller.
+  const d = dom('<p id="total">Total 1,240</p>');
+  const drawing = JSON.stringify({
+    v: 1,
+    shapes: [
+      {
+        id: 's1',
+        kind: 'ellipse',
+        points: [
+          { x: 0.1, y: 0.1 },
+          { x: 0.9, y: 0.9 }
+        ],
+        color: '#dc2626',
+        width: 3,
+        opacity: 1
+      }
+    ]
+  });
+  const store = savedStore([
+    { kind: 'drawing', anchor: anchorFor('#total', 'Total 1,240'), data: drawing, at: 1 }
+  ]);
+  const iface = ui.create(
+    { persist: store, scopeKey: 'page', contextMenu: false, keyboard: false },
+    env(d)
+  );
+  await iface.restored();
+
+  const host = d.window.document.getElementById('total')!;
+  expect(host.getAttribute('data-printcraft-drawing')).toBe(drawing);
+  expect(host.querySelector(':scope > svg.prjs-drawing'), 'the overlay is on screen').toBeTruthy();
+  iface.destroy();
+});
