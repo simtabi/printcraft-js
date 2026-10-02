@@ -768,3 +768,25 @@ test('every text colour in the kit reaches 4.5:1 in both schemes', () => {
   }
   expect(checked, 'both schemes were found in the sheet').toBe(12);
 });
+
+test('a toolbar still appears after the host replaces <body>', () => {
+  // the lanes were appended to the body once and cached per document, so a
+  // framework that swapped <body> left every later toolbar in a detached lane
+  const d = dom('');
+  const doc = d.window.document;
+  const first = ui.toolbar({ label: 'One', actions: [{ id: 'a', label: 'A' }] }, env(d));
+  doc.documentElement.replaceChild(doc.createElement('body'), doc.body);
+  const second = ui.toolbar({ label: 'Two', actions: [{ id: 'b', label: 'B' }] }, env(d));
+  const lanes = doc.querySelectorAll('[data-prjs-toolbar-stack]');
+  expect(lanes.length, 'the lanes are back in the document').toBe(2);
+  expect(
+    doc.body.contains(doc.querySelector('[data-prjs-act="b"]')),
+    'the new bar is visible'
+  ).toBe(true);
+  expect(
+    doc.body.contains(doc.querySelector('[data-prjs-act="a"]')),
+    'and the old one with it'
+  ).toBe(true);
+  first.close();
+  second.close();
+});

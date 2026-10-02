@@ -379,6 +379,10 @@ call`, with `explain()` naming which layer set each value. A source can be an
   never tried again until a reload. A field without alpha now gets a picker
   without it, and the next field retries a failed load.
 
+- **Toolbars vanished after the host replaced `<body>`.** The lanes they dock
+  in were attached once; they are now put back when the next toolbar opens,
+  bringing any bar still in them along.
+
 ### Not fixed
 
 - The ⊗ floating in the Description box in two of the screenshots is not ours.

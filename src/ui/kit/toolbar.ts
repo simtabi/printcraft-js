@@ -81,6 +81,11 @@ class ToolbarStack {
   }
 
   add(bar: Docked): void {
+    // a framework that swaps <body> takes the lanes with it; put them back, and
+    // every bar still in them comes back too
+    for (const lane of [this.top, this.bottom]) {
+      if (!lane.isConnected) (this.doc.body || this.doc.documentElement).appendChild(lane);
+    }
     this.bars.push(bar);
     (bar.dock === 'top' ? this.top : this.bottom).appendChild(bar.el);
     this.reflow();
