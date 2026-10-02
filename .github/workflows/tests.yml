@@ -24,11 +24,17 @@ jobs:
         # on node 20 even though the package itself supports it
         node: ['22', '24']
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: ${{ matrix.node }}
+
+      # npm 10, which Node 22 bundles, crashes in arborist's peer-set loader
+      # ("Cannot read properties of null (reading 'edgesOut')") on vitest's
+      # optional @vitest/browser-playwright peer. npm 11 resolves it.
+      - name: Upgrade npm
+        run: npm install -g npm@11
 
       - name: Install
         run: npm install --no-package-lock
@@ -44,11 +50,17 @@ jobs:
     name: End-to-end (chromium)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: '22'
+
+      # npm 10, which Node 22 bundles, crashes in arborist's peer-set loader
+      # ("Cannot read properties of null (reading 'edgesOut')") on vitest's
+      # optional @vitest/browser-playwright peer. npm 11 resolves it.
+      - name: Upgrade npm
+        run: npm install -g npm@11
 
       - name: Install
         run: npm install --no-package-lock

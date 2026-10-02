@@ -2,8 +2,9 @@
 
 ## Reporting a vulnerability
 
-Email **security@simtabi.com** with the details. Please do not open a public
-issue for a security problem.
+The preferred channel is GitHub private vulnerability reporting: open a private report at <https://github.com/simtabi/printcraft-js/security/advisories/new>. The report stays attached to the repository, with a draft advisory and a CVE request path. Email **security@simtabi.com** if you do not use GitHub.
+
+Please do not open a public issue for a security problem.
 
 Include what you have: the affected version, a description of the issue, and a
 reproduction if one is available. You will get an acknowledgement within three
