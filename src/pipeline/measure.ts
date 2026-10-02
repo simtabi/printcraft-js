@@ -77,39 +77,8 @@ let measureSeq = 0;
  */
 const heldLinks = new Map<string, number>();
 
-function ownerOf(id: string): string {
-  const at = id.indexOf('-');
-  return at === -1 ? '' : id.slice(0, at);
-}
-
-/** removes every link under the roots that no open proof is holding */
-function sweep(roots: Element[]): void {
-  roots.forEach((rootEl) => {
-    selfAndMatches(rootEl, '[' + DATA_ID + ']').forEach((el) => {
-      if (!heldLinks.has(ownerOf(el.getAttribute(DATA_ID) || ''))) el.removeAttribute(DATA_ID);
-    });
-  });
-}
-
-/** releases what a holding measurement took, and strips an owner nobody holds */
-function releaseOwners(owners: Set<string>, doc: Document | null): number {
-  let removed = 0;
-  for (const owner of owners) {
-    const left = (heldLinks.get(owner) || 1) - 1;
-    if (left > 0) {
-      heldLinks.set(owner, left);
-      continue;
-    }
-    heldLinks.delete(owner);
-    if (!doc) continue;
-    for (const el of doc.querySelectorAll('[' + DATA_ID + '^="' + owner + '-"]')) {
-      el.removeAttribute(DATA_ID);
-      removed++;
-    }
-  }
-  owners.clear();
-  return removed;
-}
+/** who handed an id out: everything before the dash */
+const ownerOf = (id: string): string => id.split('-')[0]!;
 
 /**
  * captures what only the live tree knows (canvas pixels, laid-out image sizes,
@@ -133,17 +102,14 @@ export function measureLiveTree(
     let id = el.getAttribute(DATA_ID);
     // a proof reuses a link another open proof holds, and replaces a stale one:
     // nothing would keep a leftover on the page for as long as this proof needs it
-    const from = id ? ownerOf(id) : '';
-    if (!id || (tagAll && from !== owner && !heldLinks.has(from))) {
+    if (!id || (tagAll && !holds.has(ownerOf(id)) && !heldLinks.has(ownerOf(id)))) {
       id = owner + '-' + ++counter;
       el.setAttribute(DATA_ID, id);
     }
-    if (tagAll) {
-      const held = ownerOf(id);
-      if (!holds.has(held)) {
-        holds.add(held);
-        heldLinks.set(held, (heldLinks.get(held) || 0) + 1);
-      }
+    const from = ownerOf(id);
+    if (tagAll && !holds.has(from)) {
+      holds.add(from);
+      heldLinks.set(from, (heldLinks.get(from) || 0) + 1);
     }
     return (meta[id] ||= {});
   }
@@ -218,33 +184,25 @@ export function measureLiveTree(
      * holding are the one exception: they are in use, not left behind.
      */
     cleanup() {
-      sweep(targets);
+      targets.forEach((rootEl) => {
+        selfAndMatches(rootEl, '[' + DATA_ID + ']').forEach((el) => {
+          if (!heldLinks.has(ownerOf(el.getAttribute(DATA_ID)!))) el.removeAttribute(DATA_ID);
+        });
+      });
     },
     release() {
-      return releaseOwners(holds, targets[0]?.ownerDocument || null);
+      holds.forEach((held) => {
+        const left = heldLinks.get(held)! - 1;
+        if (left) return void heldLinks.set(held, left);
+        heldLinks.delete(held);
+        targets[0]?.ownerDocument
+          .querySelectorAll('[' + DATA_ID + '^="' + held + '-"]')
+          .forEach((el) => el.removeAttribute(DATA_ID));
+      });
+      holds.clear();
     }
   };
 }
-
-/**
- * Tags a tree for a proof's links without measuring anything.
- *
- * A drawn region clones the whole body and measures none of it, so a proof of
- * one had nothing linking its copy back to the page: a mark made on it could not
- * be written through, and a Settings rebuild lost it. Measuring would change what
- * the clip prints, so this only tags.
- */
-export function linkTree(roots: Element[], win: Window): Measurement {
-  return measureLiveTree(roots, LINK_ONLY, win, true);
-}
-
-const LINK_ONLY = {
-  printCanvas: false,
-  removeImages: false,
-  forceLazyImages: false,
-  revealHiddenElements: false,
-  extendScrollableAreas: false
-} as ResolvedOptions;
 
 /**
  * copies live field state into clone markup. `cloneNode` carries attributes, not

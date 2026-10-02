@@ -579,11 +579,8 @@ export type MetaMap = Record<string, ElementMeta>;
 export interface Measurement {
   meta: MetaMap;
   cleanup(): void;
-  /**
-   * Takes down the links this measurement holds open for a proof, and only
-   * those. Returns how many attributes came off the page.
-   */
-  release?(): number;
+  /** Takes down the links this measurement holds open for a proof, and only those. */
+  release?(): void;
 }
 
 /** where an assembled print document goes: hidden iframe, popup, or inspector overlay. */
