@@ -25,3 +25,6 @@ pnpm-lock.yaml
 
 # github pages output
 _site/
+
+# Screenshots a browser tool wrote under an unset output path (2026-07-29)
+undefined/
