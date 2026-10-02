@@ -6,6 +6,10 @@ All notable changes to this project are documented here. This project adheres to
 
 ## [Unreleased]
 
+### Added
+
+- `npm run check:publish` (part of `lint:pkg`, so it runs in CI and before every release) fails when npm would rewrite `package.json` at publish time. npm only warns about those corrections; on 2026-10-02 one silently dropped the `printcraft` CLI from the 3.0.0 tarball before it shipped.
+
 ## [3.0.0] - 2026-10-02 — a proof sheet before every print, daisyUI underneath, and one prefix
 
 The class names and data attributes the kit renders are part of the public
