@@ -326,6 +326,14 @@ call`, with `explain()` naming which layer set each value. A source can be an
   failed to load surfaced as an unhandled rejection. The rail is now a labelled
   navigation landmark marking the current page, and zoom changes are announced.
 
+- **Drawing tools left things behind.** Undoing a pen stroke left its resize
+  watcher running, which redrew the stroke when the host resized. A click with
+  the studio open made the element `position: relative` for good. The studio
+  drew on Coloris's colour area and blocked it, and a touch that became a scroll
+  left the preview on the page. In the region tool, the toolbar's Start over
+  kept the old box for the next visit, and a right-click on the box started a
+  move that followed the mouse.
+
 ### Not fixed
 
 - The ⊗ floating in the Description box in two of the screenshots is not ours.

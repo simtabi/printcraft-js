@@ -328,3 +328,95 @@ test('a dialog over the studio keeps Escape and undo to itself', async () => {
   expect(studio.isOpen, 'the studio is still open').toBe(true);
   studio.close();
 });
+
+test('remounting without a pen stroke stops the old resize watcher', async () => {
+  // Only a drawing with a pen stroke installs a ResizeObserver, and only that
+  // case replaced it: undo the pen, and the old watcher kept redrawing the
+  // undone stroke from the drawing it captured whenever the host resized.
+  const d = dom('<div id="h"></div>');
+  const host = d.window.document.getElementById('h') as HTMLElement;
+  const made: Array<{ off: boolean }> = [];
+  (d.window as unknown as { ResizeObserver: unknown }).ResizeObserver = class {
+    rec = { off: false };
+    constructor() {
+      made.push(this.rec);
+    }
+    observe(): void {}
+    disconnect(): void {
+      this.rec.off = true;
+    }
+  };
+  const { mountOverlay } = await import('../src/annotate/render');
+  mountOverlay(host, { v: 1, shapes: [shape({ kind: 'pen' }), shape({ id: 's2', kind: 'box' })] });
+  expect(made).toHaveLength(1);
+  mountOverlay(host, { v: 1, shapes: [shape({ id: 's2', kind: 'box' })] });
+  expect(made[0]!.off, 'the pen-era watcher is gone').toBe(true);
+});
+
+test('a click with the studio open leaves a static element static', async () => {
+  // start() set position: relative without the marker unmountOverlay reads,
+  // so a click that drew nothing re-anchored the element's positioned children
+  // for good.
+  const d = dom('<p id="p">mark me</p>');
+  const doc = d.window.document;
+  const p = doc.getElementById('p') as HTMLElement;
+  p.getBoundingClientRect = () =>
+    ({
+      left: 0,
+      top: 0,
+      width: 200,
+      height: 40,
+      right: 200,
+      bottom: 40,
+      x: 0,
+      y: 0,
+      toJSON() {}
+    }) as DOMRect;
+  const { openStudio } = await import('../src/annotate');
+  const studio = openStudio({
+    document: doc,
+    window: d.window as unknown as Window & typeof globalThis
+  });
+  for (const type of ['pointerdown', 'pointerup']) {
+    p.dispatchEvent(
+      new d.window.MouseEvent(type, { bubbles: true, button: 0, clientX: 50, clientY: 20 })
+    );
+  }
+  expect(p.style.position, 'put back as it was').toBe('');
+  studio.close();
+});
+
+test('the colour picker is not something the studio draws on', async () => {
+  // Coloris mounts its picker on <body> without our marker, and the studio's
+  // pointerdown took drags on the colour area as strokes and blocked the picker.
+  const d = dom('<div class="clr-picker"><div id="clr-color-area"></div></div>');
+  const doc = d.window.document;
+  const area = doc.getElementById('clr-color-area') as HTMLElement;
+  area.getBoundingClientRect = () =>
+    ({
+      left: 0,
+      top: 0,
+      width: 200,
+      height: 100,
+      right: 200,
+      bottom: 100,
+      x: 0,
+      y: 0,
+      toJSON() {}
+    }) as DOMRect;
+  const { openStudio } = await import('../src/annotate');
+  const studio = openStudio({
+    document: doc,
+    window: d.window as unknown as Window & typeof globalThis
+  });
+  const down = new d.window.MouseEvent('pointerdown', {
+    bubbles: true,
+    cancelable: true,
+    button: 0,
+    clientX: 10,
+    clientY: 10
+  });
+  area.dispatchEvent(down);
+  expect(down.defaultPrevented, 'left to the picker').toBe(false);
+  studio.close();
+});

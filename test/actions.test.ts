@@ -933,3 +933,34 @@ test('configure() reaches the right-click menu, not only the palette and keys', 
   expect(seen).toMatchObject({ documentTitle: 'Configured later' });
   iface.destroy();
 });
+
+test("the toolbar's Start over forgets a kept selection too", async () => {
+  const d = dom('<p>x</p>');
+  const doc = d.window.document;
+  const store = savedStore([]);
+  const iface = remembering(d, store);
+  const done = iface.run('draw') as Promise<{ action: string }>;
+  drag(d, [40, 50], [240, 170]);
+  await settle();
+  expect(store.data.has('page|progress')).toBe(true);
+  doc.querySelector<HTMLElement>('[data-prjs-toolbar] [data-prjs-act="reset"]')!.click();
+  await settle();
+  expect(store.data.has('page|progress'), 'the discarded box is not brought back').toBe(false);
+
+  // and a right-click on the box does not pick it up
+  const layer = doc.querySelector('[data-prjs-draw]')!;
+  drag(d, [40, 50], [240, 170]);
+  const region = doc.querySelector('[data-prjs-region]') as HTMLElement;
+  const left = region.style.left;
+  layer.dispatchEvent(
+    new d.window.MouseEvent('pointerdown', { bubbles: true, button: 2, clientX: 100, clientY: 100 })
+  );
+  layer.dispatchEvent(
+    new d.window.MouseEvent('pointermove', { bubbles: true, clientX: 300, clientY: 300 })
+  );
+  expect(region.style.left).toBe(left);
+
+  doc.dispatchEvent(new d.window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+  await done;
+  iface.destroy();
+});

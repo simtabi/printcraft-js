@@ -295,6 +295,10 @@ function arrowHead(x1: number, y1: number, x2: number, y2: number, size: number)
  */
 export function mountOverlay(el: HTMLElement, drawing: Drawing): SVGSVGElement | null {
   const doc = el.ownerDocument;
+  // whatever watched the last drawing goes, pen or not: left running, it would
+  // redraw that drawing (an undone stroke included) the next time the host resized
+  observers.get(el)?.disconnect();
+  observers.delete(el);
   el.querySelector(':scope > .prjs-drawing')?.remove();
   if (!drawing.shapes.length) return null;
 
@@ -323,7 +327,6 @@ export function mountOverlay(el: HTMLElement, drawing: Drawing): SVGSVGElement |
       el.querySelector(':scope > .prjs-drawing')?.replaceWith(fresh);
     });
     watch.observe(el);
-    observers.get(el)?.disconnect();
     observers.set(el, watch);
   }
   return svg;

@@ -239,6 +239,10 @@ export function drawArea(
     /* pointer ----------------------------------------------------------- */
 
     function onPointerDown(ev: PointerEvent): void {
+      // only the primary button draws or drags: a right-click on the box is a
+      // request for its menu, and used to start a move that followed the mouse
+      // around while the menu was open
+      if (ev.button !== 0) return;
       const target = ev.target as HTMLElement;
       const handle = target.getAttribute('data-prjs-handle') as Handle | null;
       origin = { x: ev.clientX, y: ev.clientY };
@@ -668,11 +672,9 @@ export function drawArea(
             id: 'reset',
             label: 'Start over',
             icon: 'crop',
-            onSelect: () => {
-              box = null;
-              paint();
-              bar.setStatus('Drag to select an area');
-            }
+            // the same as the region menu's "Start this area over", which also
+            // forgets a box kept for the next visit
+            onSelect: startOver
           },
           {
             id: 'cancel',

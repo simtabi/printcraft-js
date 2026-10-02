@@ -148,7 +148,9 @@ export function openStudio(env: Env, options: StudioOptions = {}): StudioHandle 
   let lastHost: HTMLElement | null = null;
 
   const inScope = (el: Element): boolean => {
-    if (el.closest('[data-prjs-ui]')) return false;
+    // our own surfaces, and the colour picker, which Coloris mounts on <body>
+    // without our marker and which needs its own mouse events
+    if (el.closest('[data-prjs-ui], .clr-picker')) return false;
 
     // `<html>` is the one host a drawing can never be printed from: it sits
     // outside `<body>`, so no target selector reaches it and the mark would be
@@ -195,7 +197,12 @@ export function openStudio(env: Env, options: StudioOptions = {}): StudioHandle 
     }
 
     // an element with no room to draw on is never what was meant
-    if (win.getComputedStyle(host).position === 'static') host.style.position = 'relative';
+    // marked the way mountOverlay marks it, so taking the overlay off (or a
+    // click that drew nothing) puts the element back as it was found
+    if (win.getComputedStyle(host).position === 'static') {
+      if (!host.hasAttribute('data-prjs-was-static')) host.setAttribute('data-prjs-was-static', '');
+      host.style.position = 'relative';
+    }
 
     // a pen reports a pressure that changes; a mouse reports a flat 0.5 and a
     // finger usually 0 or 1. only a real pen's is worth storing.
@@ -258,6 +265,21 @@ export function openStudio(env: Env, options: StudioOptions = {}): StudioHandle 
       width,
       opacity: tool === 'highlight' ? 0.4 : 1
     });
+  };
+
+  /**
+   * The browser took the pointer back — a touch that turned into a scroll, a
+   * pen leaving range. Nothing is drawn, and the preview does not linger.
+   */
+  const abandon = (): void => {
+    if (!host) return;
+    const el = host;
+    preview?.remove();
+    preview = null;
+    host = null;
+    box = null;
+    unmountOverlay(el);
+    mountOverlay(el, drawingOn(el));
   };
 
   const commit = (el: HTMLElement, shape: Shape): void => {
@@ -382,6 +404,7 @@ export function openStudio(env: Env, options: StudioOptions = {}): StudioHandle 
       doc.removeEventListener('pointerdown', start, true);
       doc.removeEventListener('pointermove', move, true);
       doc.removeEventListener('pointerup', finish, true);
+      doc.removeEventListener('pointercancel', abandon, true);
       doc.removeEventListener('keydown', onKey, true);
       doc.removeEventListener('paste', onPaste, true);
       doc.removeEventListener('drop', onDrop, true);
@@ -484,6 +507,7 @@ export function openStudio(env: Env, options: StudioOptions = {}): StudioHandle 
   doc.addEventListener('pointerdown', start, true);
   doc.addEventListener('pointermove', move, true);
   doc.addEventListener('pointerup', finish, true);
+  doc.addEventListener('pointercancel', abandon, true);
   doc.addEventListener('keydown', onKey, true);
   doc.addEventListener('paste', onPaste, true);
   doc.addEventListener('drop', onDrop, true);
