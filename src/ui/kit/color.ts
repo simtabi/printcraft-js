@@ -164,19 +164,33 @@ export function buildColorField(
 const HEX = /^#(?:[0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})$/i;
 const FUNCTIONAL = /^(?:rgba?|hsla?|color)\(/i;
 
-/** Whether a string is a colour we can hand to SVG. Named colours included. */
-export function isColor(value: string): boolean {
+type CssHost = { CSS?: { supports?(property: string, value: string): boolean } };
+
+/**
+ * Whether a string is a colour we can hand to SVG. Named colours included.
+ *
+ * The browser's own parser decides, because only it knows: a shape test passed
+ * `rgb(nope)` for starting with `rgb(` and `notacolor` for being one word, and
+ * an svg handed either draws no ink at all. The shapes are the fallback for a
+ * host with no `CSS` object to ask.
+ */
+export function isColor(value: string, win?: CssHost | null): boolean {
   const v = value.trim();
   if (!v) return false;
-  if (HEX.test(v) || FUNCTIONAL.test(v)) return true;
-  // a named colour, and the cheapest way to know is to ask
-  return /^[a-z]+$/i.test(v);
+  const css = (win || (globalThis as CssHost)).CSS;
+  if (typeof css?.supports === 'function') return css.supports('color', v);
+  return HEX.test(v) || FUNCTIONAL.test(v) || /^[a-z]+$/i.test(v);
 }
 
 /** The field's validator, so a typed value is checked like any other. */
-export function validateColor(value: unknown, label = 'That'): string | null {
+export function validateColor(
+  value: unknown,
+  label = 'That',
+  /** the window whose css parser to ask; the global one otherwise */
+  win?: CssHost | null
+): string | null {
   if (typeof value !== 'string' || !value.trim()) return null;
-  return isColor(value) ? null : label + ' is not a colour Printcraft understands';
+  return isColor(value, win) ? null : label + ' is not a colour Printcraft understands';
 }
 
 /** The same colour at full opacity, for a swatch that should show its hue. */

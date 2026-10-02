@@ -277,6 +277,42 @@ test('validation blocks the primary action and names the problem', async () => {
   expect((await result).action).toBe('send');
 });
 
+test('a colour field asks the css parser, not the shape of the string', async () => {
+  // Anything starting `rgb(` and every bare word used to pass, so `rgb(nope)`
+  // and `notacolor` reached an svg that silently drew no ink.
+  const d = dom('');
+  const doc = d.window.document;
+  const result = ui.modal(
+    {
+      title: 'Ink',
+      fields: [{ type: 'color', name: 'ink', label: 'Ink', value: 'rgb(nope)' }],
+      actions: [{ id: 'ok', label: 'OK', tone: 'primary' }]
+    },
+    env(d)
+  );
+  const field = doc.querySelector<HTMLInputElement>('#prjs-f-ink')!;
+  const errorText = (): string =>
+    [...doc.querySelectorAll('.prjs-error')]
+      .filter((e) => !(e as HTMLElement).hidden)
+      .map((e) => e.textContent)
+      .join(' ');
+  const submit = async (value: string): Promise<void> => {
+    field.value = value;
+    field.dispatchEvent(new d.window.Event('input', { bubbles: true }));
+    doc.querySelector<HTMLElement>('[data-prjs-action="ok"]')!.click();
+    await tick();
+  };
+
+  for (const bad of ['rgb(nope)', 'notacolor', 'rgb(1, 2, 3']) {
+    await submit(bad);
+    expect(errorText(), bad + ' is not a colour').toContain('not a colour');
+  }
+
+  // and a colour written in any form the browser understands still passes
+  await submit('oklch(70% 0.1 200)');
+  expect((await result).action).toBe('ok');
+});
+
 test('a field with `when` appears only while its condition holds', () => {
   const d = dom('');
   const doc = d.window.document;

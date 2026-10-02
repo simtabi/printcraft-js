@@ -265,6 +265,11 @@ call`, with `explain()` naming which layer set each value. A source can be an
   print document now sets it with a zero-specificity `:where()` rule that only
   replaces `static`, and a photographed copy asks for the computed position.
 
+- **A colour field accepted things that are not colours.** Anything starting
+  `rgb(`, `hsl(` or `color(` and every bare word passed, so `rgb(nope)` and
+  `notacolor` reached an svg that drew no ink. The field now asks the browser's
+  css parser.
+
 ### Not fixed
 
 - The ⊗ floating in the Description box in two of the screenshots is not ours.

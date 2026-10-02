@@ -296,7 +296,7 @@ export function buildForm(doc: Document, fields: Field[]): FormHandle {
         } else if (!empty && field.type === 'color') {
           // a colour can be typed as well as picked, and a typo should be caught
           // here rather than by an svg silently drawing nothing
-          message = validateColor(value, field.label);
+          message = validateColor(value, field.label, doc.defaultView);
         }
         if (!message && field.validate) message = field.validate(value as FieldValue, values);
 
