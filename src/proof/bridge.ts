@@ -52,6 +52,10 @@ export function pushMark(el: Element, srcDoc: Document): boolean {
  * Run when the proof closes. The attribute is ours and invisible, but leaving it
  * on somebody's live DOM after the panel has gone is litter, and a later job
  * that measured the same tree would find stale numbers already there.
+ *
+ * This sweeps the whole document, so it is only the fallback for a proof with no
+ * measurement behind it. A job's proof releases through its own measurement,
+ * which takes down that proof's links and leaves another open proof's alone.
  */
 export function releaseSourceLink(srcDoc: Document): number {
   const tagged = srcDoc.querySelectorAll('[' + DATA_ID + ']');

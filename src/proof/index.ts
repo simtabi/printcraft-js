@@ -49,6 +49,14 @@ export interface ProofOptions {
    * waiting on.
    */
   readOnly?: boolean;
+  /**
+   * Takes down this proof's own source links.
+   *
+   * The job that measured the page knows which links are this proof's; sweeping
+   * every `data-prjs-id` in the document would strip the ones a second open
+   * proof is still writing marks through. Without it, the whole page is swept.
+   */
+  releaseLink?: () => void;
 }
 
 export async function mountProof(
@@ -62,6 +70,11 @@ export async function mountProof(
   const decision = new Promise<'print' | 'cancel'>((resolve) => {
     settle = resolve;
   });
+
+  const release = (): void => {
+    if (cfg.releaseLink) cfg.releaseLink();
+    else releaseSourceLink(env.document);
+  };
 
   let answered = false;
   const answer = (verdict: 'print' | 'cancel'): void => {
@@ -126,7 +139,7 @@ export async function mountProof(
           if (!patch) return;
           // the panel goes; the job that replaces it brings the marks with it
           answer('cancel');
-          releaseSourceLink(env.document);
+          release();
           sheet.close();
           cfg.restart!(patch);
         })
@@ -146,7 +159,7 @@ export async function mountProof(
       answer('cancel');
       // the link is ours and invisible, but leaving it on somebody's live dom
       // after the panel has gone is litter
-      releaseSourceLink(env.document);
+      release();
       sheet.close();
     }
   };

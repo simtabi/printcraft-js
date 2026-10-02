@@ -297,6 +297,9 @@ export class Job {
       return import('../proof').then(({ mountProof }) =>
         mountProof(this.options, this.env, {
           readOnly: this.mode === 'inspect',
+          // this proof's links, not every link on the page: a second proof may
+          // be open over another part of it
+          releaseLink: () => void this.measured?.release?.(),
           // changing the paper means running the pipeline again, which the panel
           // cannot do and this can. marks live on the source page rather than on
           // the copy, so the sheet that comes back still has them.
@@ -666,6 +669,9 @@ export class Job {
   private fail(err: unknown): JobRecord {
     if (this.measured) {
       try {
+        // a proof that failed before it opened still holds its links, and the
+        // sweep below leaves held links alone
+        this.measured.release?.();
         this.measured.cleanup();
       } catch {
         /* noop */

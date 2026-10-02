@@ -398,6 +398,44 @@ test('inspect opens the proof sheet, read-only, and resolves a controller', asyn
   Printcraft.devtools.clear();
 });
 
+test('two open proofs keep their own source links, and closing one leaves the other', async () => {
+  // The link is `data-prjs-id`. Each measurement used to count from 1, so two
+  // proofs on one page handed out the same ids for different elements, and
+  // closing either one swept every id in the document, the other's included.
+  const d = dom('<div id="a"><p>alpha one</p><p>alpha two</p></div><div id="b"><p>beta</p></div>');
+  const doc = d.window.document;
+  const env = { document: doc, window: d.window };
+  const one = await Printcraft.inspect({ target: '#a', assetTimeout: 50 }, env);
+  const two = await Printcraft.inspect({ target: '#b', assetTimeout: 50 }, env);
+
+  // every link inside one target, the target itself included
+  const linked = (sel: string): string[] =>
+    [...doc.querySelectorAll(sel + '[data-prjs-id], ' + sel + ' [data-prjs-id]')].map((el) =>
+      el.getAttribute('data-prjs-id')!
+    );
+  const inA = linked('#a');
+  const inB = linked('#b');
+  expect_ok(inA.length && inB.length, 'both proofs tagged their source');
+  expect_eq(
+    inA.filter((id) => inB.includes(id)).length,
+    0,
+    'an id is never handed to two elements'
+  );
+
+  // the second proof's copy still finds its own paragraph on the page
+  const copy = two.document.querySelector('p[data-prjs-id]')!;
+  const id = copy.getAttribute('data-prjs-id');
+  expect_eq(doc.querySelector('[data-prjs-id="' + id + '"]')!.textContent, 'beta');
+
+  one.close();
+  expect_eq(linked('#a').length, 0, 'the closed proof swept its own links');
+  expect_deep(linked('#b'), inB, 'and left the ones the open proof is still using');
+
+  two.close();
+  expect_eq(doc.querySelectorAll('[data-prjs-id]').length, 0, 'and the page ends clean');
+  Printcraft.devtools.clear();
+});
+
 /* boot */
 
 test('_boot is a safe no-op without a document', () => {

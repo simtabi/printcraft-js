@@ -59,6 +59,59 @@ export function resolveTargets(target: PrintTarget, doc: Document): Element[] {
 }
 
 /**
+ * One owner per measurement, so two jobs on one page never hand out the same id.
+ *
+ * A bare counter starting at 1 for every job meant two open proofs tagged
+ * different elements `1`, `2`, `3`…, and a mark made on either was carried to
+ * whichever element `querySelector` found first. The owner prefix is what lets a
+ * proof release its own links and nobody else's.
+ */
+let measureSeq = 0;
+
+/**
+ * Owners whose links a proof is holding open, with how many proofs hold each.
+ *
+ * Two proofs over the same subtree share the id the first one wrote, so an
+ * owner's links come down only when the last proof using them closes, and a
+ * print job's sweep leaves them alone.
+ */
+const heldLinks = new Map<string, number>();
+
+function ownerOf(id: string): string {
+  const at = id.indexOf('-');
+  return at === -1 ? '' : id.slice(0, at);
+}
+
+/** removes every link under the roots that no open proof is holding */
+function sweep(roots: Element[]): void {
+  roots.forEach((rootEl) => {
+    selfAndMatches(rootEl, '[' + DATA_ID + ']').forEach((el) => {
+      if (!heldLinks.has(ownerOf(el.getAttribute(DATA_ID) || ''))) el.removeAttribute(DATA_ID);
+    });
+  });
+}
+
+/** releases what a holding measurement took, and strips an owner nobody holds */
+function releaseOwners(owners: Set<string>, doc: Document | null): number {
+  let removed = 0;
+  for (const owner of owners) {
+    const left = (heldLinks.get(owner) || 1) - 1;
+    if (left > 0) {
+      heldLinks.set(owner, left);
+      continue;
+    }
+    heldLinks.delete(owner);
+    if (!doc) continue;
+    for (const el of doc.querySelectorAll('[' + DATA_ID + '^="' + owner + '-"]')) {
+      el.removeAttribute(DATA_ID);
+      removed++;
+    }
+  }
+  owners.clear();
+  return removed;
+}
+
+/**
  * captures what only the live tree knows (canvas pixels, laid-out image sizes,
  * the resolved `currentSrc`, hidden elements, scrollable regions), tagging each
  * measured element so the matching clone node can be found again.
@@ -71,13 +124,26 @@ export function measureLiveTree(
   tagAll = false
 ): Measurement {
   const meta: MetaMap = {};
+  const owner = 'j' + ++measureSeq;
+  /** the owners this measurement holds open, its own and any it reused */
+  const holds = new Set<string>();
   let counter = 0;
 
   function tag(el: Element): ElementMeta {
     let id = el.getAttribute(DATA_ID);
-    if (!id) {
-      id = String(++counter);
+    // a proof reuses a link another open proof holds, and replaces a stale one:
+    // nothing would keep a leftover on the page for as long as this proof needs it
+    const from = id ? ownerOf(id) : '';
+    if (!id || (tagAll && from !== owner && !heldLinks.has(from))) {
+      id = owner + '-' + ++counter;
       el.setAttribute(DATA_ID, id);
+    }
+    if (tagAll) {
+      const held = ownerOf(id);
+      if (!holds.has(held)) {
+        holds.add(held);
+        heldLinks.set(held, (heldLinks.get(held) || 0) + 1);
+      }
     }
     return (meta[id] ||= {});
   }
@@ -148,12 +214,14 @@ export function measureLiveTree(
     /**
      * sweeps the whole target subtree rather than only the ids this pass wrote,
      * so a tag left behind by an earlier job that threw mid-measure is cleaned up
-     * too instead of polluting the live dom forever.
+     * too instead of polluting the live dom forever. links an open proof is
+     * holding are the one exception: they are in use, not left behind.
      */
     cleanup() {
-      targets.forEach((rootEl) => {
-        selfAndMatches(rootEl, '[' + DATA_ID + ']').forEach((el) => el.removeAttribute(DATA_ID));
-      });
+      sweep(targets);
+    },
+    release() {
+      return releaseOwners(holds, targets[0]?.ownerDocument || null);
     }
   };
 }

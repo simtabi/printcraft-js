@@ -239,6 +239,11 @@ call`, with `explain()` naming which layer set each value. A source can be an
 - **Three docs still described the removed inspector overlay** and its Print /
   Log HTML / Close controls.
 
+- **Two open proofs crossed their links.** Every measurement numbered its
+  `data-prjs-id` links from 1, so two proofs on one page tagged different
+  elements with the same ids, and closing either swept every link in the
+  document. Links now carry a per-job owner, and a proof releases only its own.
+
 ### Not fixed
 
 - The ⊗ floating in the Description box in two of the screenshots is not ours.
