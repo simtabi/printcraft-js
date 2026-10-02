@@ -281,6 +281,11 @@ call`, with `explain()` naming which layer set each value. A source can be an
   printed but could not be seen after a reload. Restoring now repaints it;
   `repaintAll` existed for exactly this and had no caller.
 
+- **A mark made on an empty element reattached after the element gained words.**
+  An anchor with no text was accepted on its selector alone, so a redaction made
+  on an empty slot was put back on whatever that slot held later. It is now
+  reported lost, like any other element whose content changed.
+
 ### Not fixed
 
 - The ⊗ floating in the Description box in two of the screenshots is not ours.

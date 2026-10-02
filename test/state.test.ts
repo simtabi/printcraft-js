@@ -188,6 +188,24 @@ test('a mark whose text changed is lost, not applied to the wrong element', () =
   expect(found.reason).toMatch(/content changed/);
 });
 
+test('an empty element that has since gained words is not the one that was marked', () => {
+  // An anchor made on an element with no text was accepted on its selector
+  // alone, even once that element held words — exactly the "same selector,
+  // different content" case the rule above refuses.
+  const d = dom('<div><p id="slot"></p></div>');
+  const anchor = describeEl(d.window.document.getElementById('slot')!);
+  expect(anchor.text).toBe('');
+
+  const after = dom('<div><p id="slot">Agent Jane Doe</p></div>');
+  const found = resolve(anchor, after.window.document);
+  expect(found.element, 'better to redact nothing than the wrong thing').toBeNull();
+  expect(found.confidence).toBe('lost');
+
+  // unchanged, it is still found exactly
+  const same = dom('<div><p id="slot"></p></div>');
+  expect(resolve(anchor, same.window.document).confidence).toBe('exact');
+});
+
 test('an element that moved but kept its words is found, and marked as a guess', () => {
   const d = dom('<div><p>alpha</p><p>the one we marked</p></div>');
   const anchor = describeEl(d.window.document.querySelectorAll('p')[1]!);

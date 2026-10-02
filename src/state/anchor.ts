@@ -111,9 +111,9 @@ export function resolve(anchor: Anchor, doc: Document): Resolution {
     if (fingerprint(bySelector) === anchor.text) {
       return { element: bySelector, confidence: 'exact' };
     }
-    // the element is there and holds different words. that is a different
-    // element as far as a redaction is concerned.
-    if (!anchor.text) return { element: bySelector, confidence: 'exact' };
+    // otherwise the element is there and holds different words. that is a
+    // different element as far as a redaction is concerned, and an anchor made
+    // on an empty element is no exception: it now holds words it did not have.
   }
 
   // the selector moved but the words did not: find them somewhere else
