@@ -152,6 +152,13 @@ call`, with `explain()` naming which layer set each value. A source can be an
   lock file CI took 5.7.47, which put the UMD bundle at 81.99 kB with nothing in
   this repository changed. The build now bundles the committed file, and CI checks
   it against the range's floor (`vendor-daisyui.mjs --check --floor`).
+- **daisyUI's breakpoint copies are no longer bundled.** Every component arrived
+  again once per breakpoint under `sm:` `md:` `lg:` `xl:` `2xl:`, renamed to
+  `prjs-sm:btn` and the like, which nothing in the kit or the docs uses — sizes
+  and tones go through `data-size` and `data-tone`. Every plain rule, variant
+  included, is unchanged. The `2xl:` copies were also escaped as `.\32 xl\:`,
+  which the rename did not recognise, so they reached the host page unprefixed.
+  The UMD bundle drops from 79.76 to 76.86 kB and core + `/ui` from 56 to 53.17.
 
 ### Fixed
 

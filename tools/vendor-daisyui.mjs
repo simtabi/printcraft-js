@@ -272,6 +272,116 @@ function prefixClasses(css) {
   return out;
 }
 
+/**
+ * A selector that only matches at a breakpoint: `.sm\:btn-lg`, `.\32 xl\:modal`.
+ *
+ * daisyUI repeats each component under `sm:` `md:` `lg:` `xl:` `2xl:` for
+ * Tailwind's responsive utilities. They are no use here and they are most of the
+ * sheet. The kit sizes and tones through `data-size` and `data-tone`, never a
+ * breakpoint class; a page using the kit could not reach them either, because
+ * the rename produces `prjs-sm:btn` — prefixed on the breakpoint, not the
+ * component — which is a spelling nobody would write; and `2xl` arrives escaped
+ * as `\32 xl`, which the rename does not recognise as a class, so those rules
+ * were reaching the host page unprefixed.
+ */
+const RESPONSIVE = /\.(?:sm|md|lg|xl|\\32 ?xl)\\:/;
+
+/** Splits a selector list on its top-level commas. */
+function selectorList(prelude) {
+  const out = [];
+  let depth = 0;
+  let start = 0;
+  for (let i = 0; i < prelude.length; i++) {
+    const ch = prelude[i];
+    if (ch === '\\') i++;
+    else if (ch === '(' || ch === '[') depth++;
+    else if (ch === ')' || ch === ']') depth--;
+    else if (ch === ',' && depth === 0) {
+      out.push(prelude.slice(start, i));
+      start = i + 1;
+    }
+  }
+  out.push(prelude.slice(start));
+  return out;
+}
+
+/** Index just past the block that opens at `open`, skipping strings and comments. */
+function blockEnd(css, open) {
+  let depth = 1;
+  let i = open + 1;
+  let quote = null;
+  while (i < css.length && depth > 0) {
+    const ch = css[i];
+    if (quote) {
+      if (ch === '\\') i++;
+      else if (ch === quote) quote = null;
+    } else if (ch === '/' && css[i + 1] === '*') {
+      const end = css.indexOf('*/', i + 2);
+      i = end === -1 ? css.length : end + 1;
+    } else if (ch === '"' || ch === "'") quote = ch;
+    else if (ch === '{') depth++;
+    else if (ch === '}') depth--;
+    i++;
+  }
+  return i;
+}
+
+/**
+ * Removes every rule whose selectors are all responsive variants.
+ *
+ * A rule listing both a variant and a plain selector keeps the plain one. Group
+ * at-rules (`@media`, `@supports`, `@starting-style`, `@container`) are walked
+ * into and dropped once nothing is left inside them; a style rule's nested
+ * blocks stay with it, kept or dropped as one.
+ */
+function dropResponsiveVariants(css) {
+  let out = '';
+  let i = 0;
+  while (i < css.length) {
+    // the prelude runs to the next `{` or `;` outside a string or comment
+    let j = i;
+    let quote = null;
+    while (j < css.length) {
+      const ch = css[j];
+      if (quote) {
+        if (ch === '\\') j++;
+        else if (ch === quote) quote = null;
+      } else if (ch === '/' && css[j + 1] === '*') {
+        const end = css.indexOf('*/', j + 2);
+        j = end === -1 ? css.length : end + 1;
+      } else if (ch === '"' || ch === "'") quote = ch;
+      else if (ch === '{' || ch === ';') break;
+      j++;
+    }
+    if (j >= css.length) {
+      out += css.slice(i);
+      break;
+    }
+    if (css[j] === ';') {
+      out += css.slice(i, j + 1);
+      i = j + 1;
+      continue;
+    }
+
+    const end = blockEnd(css, j);
+    const prelude = css.slice(i, j);
+    const body = css.slice(j + 1, end - 1);
+    const head = prelude.trim();
+
+    if (/^@(?:media|supports|starting-style|container)\b/.test(head)) {
+      const inner = dropResponsiveVariants(body);
+      if (inner.trim()) out += prelude + '{' + inner + '}';
+    } else if (head.startsWith('@')) {
+      out += css.slice(i, end);
+    } else {
+      const kept = selectorList(prelude).filter((sel) => !RESPONSIVE.test(sel));
+      if (kept.length) out += kept.join(',') + '{' + body + '}';
+    }
+    i = end;
+  }
+  return out;
+}
+
 /** Collapses the whitespace the unwrapping leaves behind. */
 function tidy(css) {
   return css
@@ -296,7 +406,7 @@ for (const name of COMPONENTS) {
     process.exit(1);
   }
   const raw = readFileSync(file, 'utf8');
-  const built = tidy(prefixClasses(unwrapLayers(raw)));
+  const built = tidy(prefixClasses(dropResponsiveVariants(unwrapLayers(raw))));
   parts.push(built);
   sizes.push({ name, raw: raw.length, out: built.length });
 }

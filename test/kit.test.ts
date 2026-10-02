@@ -6,6 +6,7 @@
 
 import { test, expect } from 'vitest';
 import { Printcraft, dom, env } from './harness';
+import { DAISYUI_CSS } from '../src/ui/kit/daisyui-css';
 
 const ui = Printcraft.ui;
 
@@ -565,5 +566,55 @@ test('every surface the kit builds is marked as printcraft ui', () => {
   const surfaces = doc.querySelectorAll('body > *');
   for (const el of surfaces) {
     expect(el.hasAttribute('data-prjs-ui'), el.className || el.tagName).toBe(true);
+  }
+});
+
+/* the vendored daisyUI sheet ------------------------------------------- */
+
+test('the vendored daisyUI sheet has every variant, no breakpoint copies and no bare class', () => {
+  // selectors only: url(), strings and the innermost declaration blocks out first
+  const selectors = DAISYUI_CSS.replace(/url\([^)]*\)/gi, '')
+    .replace(/"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'/g, '')
+    .replace(/\{[^{}]*\}/g, '{}');
+
+  // a class may start with an escape: Tailwind writes `2xl:` as `.\32 xl\:`,
+  // which an identifier-only pattern skips straight over
+  const classes = [
+    ...selectors.matchAll(/\.((?:\\[0-9a-fA-F]{1,6} ?|[a-zA-Z_-])(?:\\.|[\w-])*)/g)
+  ].map((m) => m[1]!);
+  const unique = new Set(classes);
+
+  expect(classes.length, 'the pattern stopped matching the sheet').toBeGreaterThan(200);
+
+  const bare = [...unique].filter((c) => c !== 'prjs' && !c.startsWith('prjs-'));
+  expect(bare, 'these would reach the host page').toEqual([]);
+
+  // daisyUI repeats each component under sm: md: lg: xl: 2xl:; the kit sizes
+  // through data-size, and the renamed `prjs-sm:btn` is a spelling nobody writes
+  const responsive = [...unique].filter((c) => /^prjs-(?:sm|md|lg|xl|2xl)\\:/.test(c));
+  expect(responsive, 'breakpoint variants are dead weight in the bundle').toEqual([]);
+
+  // and the variants the docs promise are all still there
+  for (const variant of [
+    'prjs-btn-outline',
+    'prjs-btn-ghost',
+    'prjs-btn-soft',
+    'prjs-btn-primary',
+    'prjs-btn-xs',
+    'prjs-btn-xl',
+    'prjs-input-sm',
+    'prjs-select-error',
+    'prjs-textarea-lg',
+    'prjs-range-xs',
+    'prjs-checkbox-primary',
+    'prjs-radio-xl',
+    'prjs-modal-box',
+    'prjs-modal-bottom',
+    'prjs-card-body',
+    'prjs-badge-soft',
+    'prjs-kbd-sm',
+    'prjs-fieldset-legend'
+  ]) {
+    expect(unique.has(variant), variant + ' is missing').toBe(true);
   }
 });
