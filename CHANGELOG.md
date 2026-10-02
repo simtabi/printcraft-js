@@ -365,6 +365,10 @@ call`, with `explain()` naming which layer set each value. A source can be an
   `{ store: 'main' }` threw and its layer was skipped. A store is now recognised
   by having `get` and `set`.
 
+- **Two region tools shared one selection.** A single slot held the open
+  selection, so a second tool took it over and region actions from the first
+  page acted on the second. Each document now answers for its own.
+
 ### Not fixed
 
 - The ⊗ floating in the Description box in two of the screenshots is not ours.

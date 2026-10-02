@@ -989,3 +989,29 @@ test('Printcraft.ui.memory is the remembering interface, not a fresh one', async
   expect((await ui.memory.export()).recent).toEqual(['stamp']);
   iface.destroy();
 });
+
+test('two region tools each answer for their own selection', async () => {
+  // one module-level slot held "the" open selection, so the second tool to open
+  // took it over: a region action from the first page acted on the second, and
+  // once the second closed the first had no selection at all
+  const one = dom('<p>one</p>');
+  const two = dom('<p>two</p>');
+  const firstDone = Printcraft.ui.drawArea({}, env(one)) as Promise<{ action: string }>;
+  const secondDone = Printcraft.ui.drawArea({}, env(two)) as Promise<{ action: string }>;
+  drag(one, [10, 10], [200, 120]);
+  drag(two, [10, 10], [200, 120]);
+
+  const iface = ui.create({ contextMenu: false, keyboard: false }, env(one));
+  iface.run('region-cancel');
+  expect((await firstDone).action, 'the first page cancelled its own').toBe('cancel');
+  expect(
+    two.window.document.querySelector('[data-prjs-draw]'),
+    'the second is untouched'
+  ).toBeTruthy();
+
+  const other = ui.create({ contextMenu: false, keyboard: false }, env(two));
+  other.run('region-cancel');
+  expect((await secondDone).action).toBe('cancel');
+  iface.destroy();
+  other.destroy();
+});

@@ -634,7 +634,7 @@ export function drawArea(
         layer.style.display = 'block';
         paint();
       }
-    });
+    }, doc);
 
     function finish(action: 'cancel'): void {
       if (settled) return;
