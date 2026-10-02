@@ -227,6 +227,26 @@ export function measureLiveTree(
 }
 
 /**
+ * Tags a tree for a proof's links without measuring anything.
+ *
+ * A drawn region clones the whole body and measures none of it, so a proof of
+ * one had nothing linking its copy back to the page: a mark made on it could not
+ * be written through, and a Settings rebuild lost it. Measuring would change what
+ * the clip prints, so this only tags.
+ */
+export function linkTree(roots: Element[], win: Window): Measurement {
+  return measureLiveTree(roots, LINK_ONLY, win, true);
+}
+
+const LINK_ONLY = {
+  printCanvas: false,
+  removeImages: false,
+  forceLazyImages: false,
+  revealHiddenElements: false,
+  extendScrollableAreas: false
+} as ResolvedOptions;
+
+/**
  * copies live field state into clone markup. `cloneNode` carries attributes, not
  * the value/checked/selected *properties*, so a printed form would otherwise come
  * out blank. passwords and file inputs are deliberately never serialized.

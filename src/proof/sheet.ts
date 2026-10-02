@@ -236,6 +236,16 @@ class ProofSheet extends Surface {
     if (this.settingsBtn) this.settingsBtn.hidden = false;
   }
 
+  /**
+   * Hides Settings again, once a mark has been made that a rebuild would lose.
+   * Returns whether it was showing.
+   */
+  disableSettings(): boolean {
+    const was = !!this.settingsBtn && !this.settingsBtn.hidden;
+    if (this.settingsBtn) this.settingsBtn.hidden = true;
+    return was;
+  }
+
   /** The mounted document, once the frame has one. */
   get frameDoc(): Document | null {
     return this.frame.contentDocument;

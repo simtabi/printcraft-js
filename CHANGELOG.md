@@ -244,6 +244,13 @@ call`, with `explain()` naming which layer set each value. A source can be an
   elements with the same ids, and closing either swept every link in the
   document. Links now carry a per-job owner, and a proof releases only its own.
 
+- **A proof of a drawn region could not keep a mark.** The clip path measured
+  nothing, so no part of a region proof linked back to the page, and Settings
+  rebuilt it without the marks. A reflowed region is now tagged like any other
+  target. A mark with nothing behind it — a captured region's raster, a page
+  number, a cover sheet — still prints with that sheet, and Settings switches off
+  for the proof so a rebuild cannot lose it.
+
 ### Not fixed
 
 - The ⊗ floating in the Description box in two of the screenshots is not ours.

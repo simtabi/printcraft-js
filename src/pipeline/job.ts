@@ -18,6 +18,7 @@ import {
   clipSourceWidth,
   cloneTargets,
   measureLiveTree,
+  linkTree,
   resolveTargets
 } from './measure';
 import { applyPrivacy, applyRedaction, sanitizeClone } from '../privacy/redact';
@@ -197,6 +198,11 @@ export class Job {
         options.clipSourceWidth = clipSourceWidth(env.document, options.clipRect);
       }
       this.record.targetCount = 1;
+      // a reflowed region is live markup in the proof, so it can carry links
+      // back to the page. a captured one is a raster with nothing to link.
+      if (this.keepsSourceLink && options.clipMode !== 'capture' && env.document.body) {
+        this.measured = linkTree([env.document.body], env.window);
+      }
       return [buildClipClone(env.document, options.clipRect, options)];
     }
 

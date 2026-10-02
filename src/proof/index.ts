@@ -116,10 +116,16 @@ export async function mountProof(
           // it away. see ./bridge.
           onChange: (el) => {
             if (!pushMark(el, env.document)) {
+              // the mark is on this sheet and prints with it, but a rebuild
+              // would start from the page and lose it: a cover sheet, a page
+              // number, a captured region. so the rebuild goes away instead.
+              const rebuildable = sheet.disableSettings();
               void import('../ui/kit').then(({ toast }) =>
                 toast(
                   {
-                    message: 'That part of the sheet cannot hold a note',
+                    message: rebuildable
+                      ? 'That mark stays on this sheet only, so Settings is off until it prints'
+                      : 'That mark stays on this sheet only',
                     tone: 'warn'
                   },
                   env

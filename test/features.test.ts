@@ -436,6 +436,27 @@ test('two open proofs keep their own source links, and closing one leaves the ot
   Printcraft.devtools.clear();
 });
 
+test('a proof of a drawn region links its copy back to the page', async () => {
+  // The clip path cloned the body without measuring it, so nothing in a region
+  // proof carried `data-prjs-id`: a mark made on it had no page element to be
+  // written to, and the Settings rebuild threw it away.
+  const d = dom('<section id="s"><p id="para">inside the region</p></section>');
+  const doc = d.window.document;
+  const ctl = await Printcraft.inspect(
+    { clipRect: { x: 0, y: 0, width: 300, height: 200 }, clipMode: 'reflow', assetTimeout: 50 },
+    { document: doc, window: d.window }
+  );
+
+  const copy = ctl.document.querySelector('.prjs-clip-inner p')!;
+  const id = copy.getAttribute('data-prjs-id');
+  expect_ok(id, 'the copy carries the link');
+  expect_eq(doc.querySelector('[data-prjs-id="' + id + '"]'), doc.getElementById('para'));
+
+  ctl.close();
+  expect_eq(doc.querySelectorAll('[data-prjs-id]').length, 0, 'and closing takes it down');
+  Printcraft.devtools.clear();
+});
+
 /* boot */
 
 test('_boot is a safe no-op without a document', () => {

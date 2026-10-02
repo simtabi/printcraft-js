@@ -75,7 +75,13 @@ is litter, and a later job measuring the same tree would find stale numbers.
 
 A part of the sheet the pipeline _generated_ rather than cloned — a page number,
 a cover sheet — has nothing behind it, so a mark there has nowhere to live once
-the sheet is rebuilt. The studio says so rather than losing it quietly.
+the sheet is rebuilt. It still prints with this sheet, and the studio says so and
+switches **Settings** off for that proof rather than letting a rebuild lose it
+quietly.
+
+A drawn region follows the same rule. With `clipMode: 'reflow'` the region is
+live markup and carries links like anything else; with the default `'capture'` it
+is a raster, so there is nothing behind any of it to link to.
 
 ## Changing the sheet while looking at it
 
