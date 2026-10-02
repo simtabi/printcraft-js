@@ -16,7 +16,7 @@ import {
   memoryStore,
   resolveConfig,
   sessionStore,
-  type Session
+  Session
 } from '../state';
 import type { Env, PrintcraftOptions } from '../types';
 
@@ -32,6 +32,8 @@ export function makeUiSurface({ deps: uiDeps }: Attachment) {
    * ceremony. `Printcraft.ui.create()` makes another for anyone who needs two.
    */
   let shared: ui.PrintcraftInterface | null = null;
+  /** what `memory` is with no persisting interface: remembers nothing, installs nothing */
+  let fallbackMemory: Session | null = null;
   const iface = (env?: Env): ui.PrintcraftInterface => {
     if (!shared || !shared.isLive) shared = ui.createInterface(uiDeps, {}, env);
     return shared;
@@ -130,7 +132,9 @@ export function makeUiSurface({ deps: uiDeps }: Attachment) {
      * here so `create({ persist: httpStore({ url }) })` needs no second import.
      */
     get memory(): Session {
-      return iface().memory;
+      // the interface that persists, when there is one: the shared interface
+      // never does, and creating it here installed a second menu and keymap
+      return ui.rememberingMemory() || (fallbackMemory ||= new Session());
     },
     stores: {
       memory: memoryStore,

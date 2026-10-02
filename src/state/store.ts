@@ -104,6 +104,9 @@ function fromStorage(backing: Storage, label: string, options: WebStoreOptions =
     try {
       const env = JSON.parse(raw) as Envelope<T>;
       if (!env || typeof env !== 'object' || !('d' in env)) return null;
+      // written by a newer build in a shape this one does not know. absent to
+      // us, but left in place: that build still owns it
+      if (typeof env.v === 'number' && env.v > SCHEMA_VERSION) return null;
       if (options.ttl && Date.now() - env.t > options.ttl) {
         backing.removeItem(fullKey);
         return null;
@@ -248,7 +251,10 @@ export function httpStore(options: HttpStoreOptions): Store {
       credentials: options.credentials,
       headers: { 'content-type': 'application/json', ...options.headers, ...init?.headers }
     });
-    if (!res.ok && res.status !== 404) {
+    // 404 is "nothing stored" for a read or a removal; for a write it means the
+    // url is wrong, and treating that as success would lose every save silently
+    const method = init?.method || 'GET';
+    if (!res.ok && (res.status !== 404 || method === 'PUT')) {
       throw new PrintcraftError('PC_STORE_FAILED', 'the state service answered ' + res.status, {
         hint: 'check the url, the method it allows, and its cors headers.',
         context: { url: base + path, status: res.status }

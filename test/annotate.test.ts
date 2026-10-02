@@ -346,7 +346,6 @@ test('remounting without a pen stroke stops the old resize watcher', async () =>
       this.rec.off = true;
     }
   };
-  const { mountOverlay } = await import('../src/annotate/render');
   mountOverlay(host, { v: 1, shapes: [shape({ kind: 'pen' }), shape({ id: 's2', kind: 'box' })] });
   expect(made).toHaveLength(1);
   mountOverlay(host, { v: 1, shapes: [shape({ id: 's2', kind: 'box' })] });

@@ -21,6 +21,18 @@ import type { Env, PrintcraftOptions } from '../types';
 /** How many recently used actions the palette lifts to the top. */
 const RECENT_SHOWN = 5;
 
+/** The interface whose memory `Printcraft.ui.memory` means: the last one that persists. */
+let remembering: PrintcraftInterface | null = null;
+
+/** The memory of the live interface created with `persist`, if there is one. */
+export function rememberingMemory(): Session | null {
+  return remembering?.isLive ? remembering.memory : null;
+}
+
+function rememberAs(iface: PrintcraftInterface | null, unless?: PrintcraftInterface): void {
+  if (!unless || remembering === unless) remembering = iface;
+}
+
 export interface InterfaceOptions {
   /** merged into every job this interface starts */
   base?: PrintcraftOptions;
@@ -142,6 +154,7 @@ export class PrintcraftInterface {
     }
 
     if (options.persist) {
+      rememberAs(this);
       this.rememberFromNowOn();
       this.loadRemembered();
     }
@@ -166,11 +179,23 @@ export class PrintcraftInterface {
     // marks arrive in bursts — a drag over six paragraphs is six mutations — so
     // the write is coalesced rather than run once per attribute
     let pending: ReturnType<typeof setTimeout> | undefined;
+    const write = (): void => {
+      pending = undefined;
+      this.guard('marks', this.memory.saveMarks(doc));
+    };
     const save = (): void => {
       clearTimeout(pending);
       if (!this.live) return;
-      pending = setTimeout(() => this.guard('marks', this.memory.saveMarks(doc)), 250);
+      pending = setTimeout(write, 250);
     };
+    /** runs a save that is waiting, now: the page or the interface is going away */
+    const flush = (): void => {
+      if (pending === undefined) return;
+      clearTimeout(pending);
+      write();
+    };
+    const win = this.env.window;
+    win.addEventListener?.('pagehide', flush);
 
     // Held, not saved, while the restore is running. Putting saved marks back
     // writes the same attributes an edit does, and saving that would overwrite
@@ -191,44 +216,55 @@ export class PrintcraftInterface {
       attributeFilter: ['data-printcraft-note', 'data-printcraft-redact', 'data-printcraft-drawing']
     });
 
-    this.restoring = this.memory.restoreMarks(doc).then(
-      async (report) => {
-        // a drawing put back is only an attribute until something paints it:
-        // it would print, and be invisible on the page. loaded on demand, like
-        // every other way into the drawing code.
-        if (report.restored.some((m) => m.kind === 'drawing')) {
-          try {
-            (await import('../annotate')).repaintAll(doc);
-          } catch {
-            /* the marks are back either way; only the on-screen overlay is missing */
+    this.restoring = this.memory
+      .restoreMarks(doc, () => this.live)
+      .then(
+        async (report) => {
+          // destroyed while the store was answering: nothing was applied, and
+          // nothing should be painted, announced or saved on its behalf
+          if (!this.live) return report;
+          // a drawing put back is only an attribute until something paints it:
+          // it would print, and be invisible on the page. loaded on demand, like
+          // every other way into the drawing code.
+          if (report.restored.some((m) => m.kind === 'drawing')) {
+            try {
+              (await import('../annotate')).repaintAll(doc);
+            } catch {
+              /* the marks are back either way; only the on-screen overlay is missing */
+            }
           }
-        }
 
-        // what changed while restoring that restoring did not write was the
-        // user, and is saved like any other edit
-        const restored = new Set<Node>(report.restored.map((m) => m.element));
-        const seen = (held || []).concat(watcher?.takeRecords() || []);
-        held = null;
-        if (seen.some((r) => !restored.has(r.target))) save();
+          // what changed while restoring that restoring did not write was the
+          // user, and is saved like any other edit
+          const restored = new Set<Node>(report.restored.map((m) => m.element));
+          const seen = (held || []).concat(watcher?.takeRecords() || []);
+          held = null;
+          if (seen.some((r) => !restored.has(r.target))) save();
 
-        if (report.lost.length) {
-          this.deps.emit('state:lost', { marks: report.lost });
+          if (report.lost.length) {
+            this.deps.emit('state:lost', { marks: report.lost });
+          }
+          this.options.onRestore?.(report);
+          return report;
+        },
+        (error: unknown) => {
+          // a store that cannot be read must not stop later edits being saved,
+          // and must not surface as an unhandled rejection from a constructor
+          held = null;
+          this.deps.emit('state:error', { what: 'marks', error });
+          return { restored: [], lost: [] };
         }
-        this.options.onRestore?.(report);
-        return report;
-      },
-      (error: unknown) => {
-        // a store that cannot be read must not stop later edits being saved,
-        // and must not surface as an unhandled rejection from a constructor
-        held = null;
-        this.deps.emit('state:error', { what: 'marks', error });
-        return { restored: [], lost: [] };
-      }
-    );
+      );
 
     this.cleanups.push(() => {
-      clearTimeout(pending);
+      // a change made in the last 250ms is written, not dropped
+      if (watcher?.takeRecords().length) {
+        clearTimeout(pending);
+        write();
+      } else flush();
+      win.removeEventListener?.('pagehide', flush);
       watcher?.disconnect();
+      rememberAs(null, this);
     });
   }
 

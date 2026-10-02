@@ -37,7 +37,12 @@ export {
   type ResolvedAction
 } from './actions';
 export { buildActions, contributeActions, markCount, GROUPS } from './catalogue';
-export { PrintcraftInterface, createInterface, type InterfaceOptions } from './instance';
+export {
+  PrintcraftInterface,
+  createInterface,
+  rememberingMemory,
+  type InterfaceOptions
+} from './instance';
 export { notesPanel, type NotesPanelOptions, type NotesPanelResult } from './notes';
 
 export * from './kit';

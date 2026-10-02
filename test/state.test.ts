@@ -135,6 +135,32 @@ test('a 404 is empty, and a 500 is an error with a code', async () => {
   await expect(broken.get('k')).rejects.toMatchObject({ code: 'PC_STORE_FAILED' });
 });
 
+test('a write the state service cannot find is an error, not a silent no-op', async () => {
+  // 404 meant "nothing stored" for every method, so a wrong url swallowed
+  // every PUT and the marks were never saved anywhere.
+  const missing = httpStore({
+    url: 'https://example.test/wrong',
+    fetch: (() => Promise.resolve(new Response(null, { status: 404 }))) as unknown as typeof fetch
+  });
+  await expect(missing.set('marks', [])).rejects.toMatchObject({ code: 'PC_STORE_FAILED' });
+  // removing what is already gone is still fine
+  await expect(missing.remove('marks')).resolves.toBeUndefined();
+});
+
+test('a record from a newer schema is left alone, not misread', async () => {
+  // the envelope's version was written and never read, so a record a newer
+  // build wrote in a different shape reached this one as if it were current
+  const d = dom('');
+  const win = d.window as unknown as Window;
+  win.localStorage.setItem('v:k', JSON.stringify({ v: 99, t: Date.now(), d: { future: true } }));
+  const store = localStore({ window: win, prefix: 'v:' });
+  expect(await store.get('k')).toBeNull();
+  expect(
+    win.localStorage.getItem('v:k'),
+    'and not deleted: the newer build still owns it'
+  ).not.toBeNull();
+});
+
 test('a custom store needs only get and set', async () => {
   const backing = new Map<string, unknown>();
   const store = customStore({
@@ -343,6 +369,80 @@ test('an anchor saved before fingerprints existed keeps the old rule', () => {
 });
 
 /* the session ------------------------------------------------------------- */
+
+test('two quick updates to the same record both land', async () => {
+  // used() and rememberOptions() read, then write. Over a store that answers
+  // slowly, two at once both read the old list and the second write won.
+  const backing = new Map<string, unknown>();
+  const slow = customStore({
+    get: async (k) => {
+      await new Promise((r) => setTimeout(r, 5));
+      return backing.get(k) ?? null;
+    },
+    set: async (k, v) => {
+      await new Promise((r) => setTimeout(r, 5));
+      backing.set(k, v);
+    }
+  });
+  const session = new Session({ store: slow, scope: 'p' });
+  await Promise.all([session.used('a'), session.used('b')]);
+  expect(await session.recent()).toEqual(['b', 'a']);
+});
+
+test('marks that were lost stay stored when the page is saved again', async () => {
+  // saveMarks rewrote the record from the live page, so the first edit after a
+  // restore deleted every mark that restore had reported lost
+  const d = dom('<p id="here">Still here</p>');
+  const doc = d.window.document;
+  const store = memoryStore();
+  await store.set('p|marks', [
+    {
+      kind: 'note',
+      anchor: { selector: '#here', text: 'Still here', tag: 'p', index: 0 },
+      data: 'kept',
+      at: 1
+    },
+    {
+      kind: 'redaction',
+      anchor: { selector: '#gone', text: 'Another build', tag: 'p', index: 0 },
+      at: 1
+    }
+  ]);
+  const session = new Session({ store, scope: 'p' });
+  expect((await session.restoreMarks(doc)).lost).toHaveLength(1);
+
+  doc.getElementById('here')!.setAttribute('data-printcraft-redact', '');
+  await session.saveMarks(doc);
+  const kinds = (
+    (await store.get('p|marks')) as Array<{ kind: string; anchor: { selector: string } }>
+  ).map((m) => m.anchor.selector + ' ' + m.kind);
+  expect(kinds).toContain('#gone redaction');
+
+  // forgetting them is still possible
+  await session.clearMarks();
+  await session.saveMarks(doc);
+  const after = (await store.get('p|marks')) as Array<{ anchor: { selector: string } }>;
+  expect(after.some((m) => m.anchor.selector === '#gone')).toBe(false);
+});
+
+test('a restore that finishes after its page went away applies nothing', async () => {
+  const d = dom('<p id="here">Still here</p>');
+  const store = memoryStore();
+  await store.set('p|marks', [
+    {
+      kind: 'note',
+      anchor: { selector: '#here', text: 'Still here', tag: 'p', index: 0 },
+      data: 'n',
+      at: 1
+    }
+  ]);
+  const session = new Session({ store, scope: 'p' });
+  const report = await session.restoreMarks(d.window.document, () => false);
+  expect(report.restored).toHaveLength(0);
+  expect(d.window.document.getElementById('here')!.hasAttribute('data-printcraft-note')).toBe(
+    false
+  );
+});
 
 test('marks survive a reload', async () => {
   const store = memoryStore();

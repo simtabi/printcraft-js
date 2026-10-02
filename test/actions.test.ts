@@ -964,3 +964,28 @@ test("the toolbar's Start over forgets a kept selection too", async () => {
   await done;
   iface.destroy();
 });
+
+test('a mark made just before the interface goes away is still saved', async () => {
+  // destroy() cleared the 250ms debounce instead of running it, so a redaction
+  // followed by an unmount or a reload inside that window was never written
+  const d = dom('<p id="t">Secret</p>');
+  const store = savedStore([]);
+  const iface = remembering(d, store);
+  await iface.restored();
+  d.window.document.getElementById('t')!.setAttribute('data-printcraft-redact', '');
+  await settle(5);
+  iface.destroy();
+  await settle(5);
+  expect(store.data.get('page|marks'), 'written on the way out').toHaveLength(1);
+});
+
+test('Printcraft.ui.memory is the remembering interface, not a fresh one', async () => {
+  // it returned the shared interface's own session, which is never persisted,
+  // so export() read nothing a persisting interface had saved
+  const d = dom('<p>x</p>');
+  const store = savedStore([]);
+  const iface = remembering(d, store);
+  await iface.memory.used('stamp');
+  expect((await ui.memory.export()).recent).toEqual(['stamp']);
+  iface.destroy();
+});

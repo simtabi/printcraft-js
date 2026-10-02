@@ -160,6 +160,14 @@ export class Session {
   private readonly scope: string;
   private readonly recentLimit: number;
   private readonly bus: Announcer | undefined;
+  /**
+   * Marks the last restore could not place. Kept and written back with every
+   * save, so editing the page does not delete them: a later build of the page
+   * may have the element again.
+   */
+  private unresolved: StoredMark[] = [];
+  /** one write after another, so two read-modify-writes cannot interleave */
+  private queue: Promise<unknown> = Promise.resolve();
 
   constructor(options: SessionOptions = {}) {
     this.store = options.store || memoryStore();
@@ -175,6 +183,13 @@ export class Session {
 
   private key(part: string): string {
     return this.scope + '|' + part;
+  }
+
+  /** Runs after every write queued before it, failed or not. */
+  private serial<T>(work: () => Promise<T>): Promise<T> {
+    const run = this.queue.then(work, work);
+    this.queue = run.catch(() => {});
+    return run;
   }
 
   private announce(event: string, detail: Record<string, unknown>): void {
@@ -194,7 +209,11 @@ export class Session {
    * the notes panel does: the attributes are the truth, and a second copy is a
    * second thing to keep in step.
    */
-  async saveMarks(doc: Document): Promise<number> {
+  saveMarks(doc: Document): Promise<number> {
+    return this.serial(() => this.writeMarks(doc));
+  }
+
+  private async writeMarks(doc: Document): Promise<number> {
     const marks: StoredMark[] = [];
     const now = Date.now();
 
@@ -218,6 +237,8 @@ export class Session {
       });
     }
 
+    // the ones that could not be placed are still somebody's work
+    marks.push(...this.unresolved);
     await this.store.set(this.key(KEYS.marks), marks);
     this.announce('state:save', { what: 'marks', count: marks.length, store: this.store.name });
     return marks.length;
@@ -231,12 +252,17 @@ export class Session {
    * mean redacting the wrong paragraph, and a privacy tool that does that once
    * is worse than one that admits it does not know.
    */
-  async restoreMarks(doc: Document): Promise<RestoreReport> {
+  async restoreMarks(
+    doc: Document,
+    /** asked once the store has answered; false applies nothing (the page went away) */
+    stillWanted: () => boolean = () => true
+  ): Promise<RestoreReport> {
     // anything that is not a mark — a different build's format, a hand-edited
     // store, a truncated write — is skipped, never thrown on
     const raw = await this.store.get<unknown>(this.key(KEYS.marks));
     const saved = Array.isArray(raw) ? raw.filter(isMark) : [];
     const report: RestoreReport = { restored: [], lost: [] };
+    if (!stillWanted()) return report;
 
     for (const mark of saved) {
       const found = resolve(mark.anchor, doc);
@@ -255,6 +281,7 @@ export class Session {
       report.restored.push({ ...mark, element: found.element, confidence: found.confidence });
     }
 
+    this.unresolved = report.lost.map(({ reason: _reason, ...mark }) => mark);
     this.announce('state:load', {
       what: 'marks',
       restored: report.restored.length,
@@ -265,6 +292,7 @@ export class Session {
   }
 
   async clearMarks(): Promise<void> {
+    this.unresolved = [];
     await this.store.remove(this.key(KEYS.marks));
     this.announce('state:clear', { what: 'marks' });
   }
@@ -283,7 +311,11 @@ export class Session {
    * the switches. A target selector is about one job and a hook is a function,
    * so neither belongs in storage.
    */
-  async rememberOptions(options: Record<string, unknown>): Promise<void> {
+  rememberOptions(options: Record<string, unknown>): Promise<void> {
+    return this.serial(() => this.writeOptions(options));
+  }
+
+  private async writeOptions(options: Record<string, unknown>): Promise<void> {
     const next = { ...(await this.options()), ...rememberedOptions(options) };
     await this.store.set(this.key(KEYS.options), next);
     this.announce('state:save', { what: 'options', keys: Object.keys(next).length });
@@ -304,7 +336,11 @@ export class Session {
    * rise to the top instead of sitting under whatever happens to be alphabetically
    * first.
    */
-  async used(actionId: string): Promise<void> {
+  used(actionId: string): Promise<void> {
+    return this.serial(() => this.writeUsed(actionId));
+  }
+
+  private async writeUsed(actionId: string): Promise<void> {
     const list = await this.recent();
     const next = [actionId, ...list.filter((id) => id !== actionId)].slice(0, this.recentLimit);
     await this.store.set(this.key(KEYS.recent), next);
@@ -357,6 +393,7 @@ export class Session {
 
   /** Forgets this page. Other pages in the same store are untouched. */
   async forget(): Promise<void> {
+    this.unresolved = [];
     await Promise.all(Object.values(KEYS).map((part) => this.store.remove(this.key(part))));
     this.announce('state:clear', { what: 'all', scope: this.scope });
   }

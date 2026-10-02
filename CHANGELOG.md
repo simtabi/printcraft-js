@@ -334,6 +334,20 @@ call`, with `explain()` naming which layer set each value. A source can be an
   kept the old box for the next visit, and a right-click on the box started a
   move that followed the mouse.
 
+- **Memory lost work in four ways.** The first edit after a restore deleted
+  every mark the restore had reported lost; they are now kept and written back
+  until `clearMarks()` or `forget()`. `destroy()` dropped a save still waiting
+  on its 250ms debounce, and so did leaving the page; both now write it.
+  `used()` and `rememberOptions()` raced over a slow store and dropped updates;
+  writes are now queued. A restore that finished after `destroy()` still wrote
+  marks onto the page.
+- **`httpStore` treated a 404 on `PUT` as success**, so a wrong url swallowed
+  every save. A record a newer build wrote to `localStore` was read as if it
+  were current; it is now left alone.
+- **`Printcraft.ui.memory` read the wrong session.** It returned the shared
+  interface's, which never persists, and reading it installed a second menu and
+  keymap. It is now the live interface created with `persist`.
+
 ### Not fixed
 
 - The ⊗ floating in the Description box in two of the screenshots is not ours.
