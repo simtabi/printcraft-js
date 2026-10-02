@@ -1,7 +1,7 @@
 // the data-driven layer: emitter, data attributes, json config, hooks, per-job
 // listeners, devtools records, and the inspector.
 
-import { test } from 'vitest';
+import { test, expect } from 'vitest';
 import { Printcraft, I, dom, stubPrint } from './harness';
 import {
   expect_eq,
@@ -498,6 +498,78 @@ test('a drawing never overrides where a stylesheet positioned its host', async (
   expect_eq(badge.style.position, '', 'no inline override on a positioned host');
   expect_eq(view.getComputedStyle(badge).position, 'absolute');
   expect_eq(view.getComputedStyle(para).position, 'relative', 'a static host still gets one');
+  ctl.close();
+  Printcraft.devtools.clear();
+});
+
+/** waits for something the proof builds asynchronously */
+async function until<T>(read: () => T | null | undefined | false, ms = 1500): Promise<T> {
+  const end = Date.now() + ms;
+  for (;;) {
+    const v = read();
+    if (v) return v;
+    if (Date.now() > end) throw new Error('timed out waiting');
+    await new Promise((r) => setTimeout(r, 10));
+  }
+}
+
+test('a rebuild that fails is reported, not left as an unhandled rejection', async () => {
+  // Settings rebuilds through `void runJob(...)`; a failure there rethrew into a
+  // promise nobody held. Here the target is gone by the time Apply is pressed.
+  const d = dom('<div id="r"><p>proof me</p></div>');
+  const doc = d.window.document;
+  const errors: unknown[] = [];
+  const onError = (p: { error: unknown }) => errors.push(p.error);
+  Printcraft.on('job:error', onError);
+  try {
+    const job = Printcraft.proof(
+      { target: '#r', assetTimeout: 50 },
+      { document: doc, window: d.window }
+    );
+    const settings = await until(() =>
+      doc.querySelector<HTMLElement>('[data-prjs-proof] [data-prjs-act="settings"]:not([hidden])')
+    );
+    settings.click();
+    const apply = await until(() => doc.querySelector<HTMLElement>('[data-prjs-action="apply"]'));
+    (doc.querySelector('#prjs-f-landscape') as HTMLInputElement).click();
+    doc.getElementById('r')!.remove();
+    apply.click();
+    expect((await job).status, 'the original job resolves cancelled').toBe('cancelled');
+    await until(() => errors.length);
+    expect((errors[0] as { code?: string }).code).toBe('PC_TARGET_NOT_FOUND');
+  } finally {
+    Printcraft.off('job:error', onError);
+    Printcraft.devtools.clear();
+  }
+});
+
+test('closing an inspected proof with Escape takes its links down', async () => {
+  // Read-only, Cancel/Escape/x only closed the sheet; the links came down only
+  // through controller.close(), so a dismissed inspect left every data-prjs-id
+  // on the page and held for good.
+  const d = dom('<div id="r"><p>look</p></div>');
+  const doc = d.window.document;
+  await Printcraft.inspect({ target: '#r', assetTimeout: 50 }, { document: doc, window: d.window });
+  expect(doc.querySelectorAll('#r [data-prjs-id]').length).toBeGreaterThan(0);
+  doc.dispatchEvent(
+    new d.window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true })
+  );
+  expect(doc.querySelector('[data-prjs-proof]'), 'closed').toBeNull();
+  expect(doc.querySelectorAll('[data-prjs-id]').length, 'and the page is clean').toBe(0);
+  Printcraft.devtools.clear();
+});
+
+test('an unpaginated proof shows no empty page rail', async () => {
+  const d = dom('<div id="r"><p>flowed</p></div>');
+  const doc = d.window.document;
+  const ctl = await Printcraft.inspect(
+    { target: '#r', assetTimeout: 50 },
+    { document: doc, window: d.window }
+  );
+  const rail = doc.querySelector('[data-prjs-proof-rail]') as HTMLElement;
+  expect(rail.hidden, 'nothing to list when the browser flows it').toBe(true);
+  expect(rail.getAttribute('role')).toBe('navigation');
+  expect(doc.querySelector('.prjs-proof-zoom-value')!.getAttribute('aria-live')).toBe('polite');
   ctl.close();
   Printcraft.devtools.clear();
 });

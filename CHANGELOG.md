@@ -318,6 +318,14 @@ call`, with `explain()` naming which layer set each value. A source can be an
 - **Enter on Cancel ran the primary action.** A modal turned every Enter into
   its primary button; Enter on a button now means that button.
 
+- **Proof lifecycle gaps.** A Settings rebuild that failed rejected into a
+  promise nobody held; it is now reported through `job:error` only. An inspected
+  proof closed with Escape or Cancel left its source links on the page. A
+  flowed (unpaginated) proof showed an empty page rail. A double-click on
+  Settings opened two dialogs and could start two rebuilds, and a chunk that
+  failed to load surfaced as an unhandled rejection. The rail is now a labelled
+  navigation landmark marking the current page, and zoom changes are announced.
+
 ### Not fixed
 
 - The ⊗ floating in the Description box in two of the screenshots is not ours.

@@ -96,7 +96,18 @@ export async function mountProof(
     : () => answer('print');
   sheet.onCancel = () => {
     answer('cancel');
+    // read-only, nothing tears the mount down after this: an inspected proof
+    // closed with Escape or Cancel would otherwise leave its links on the page
+    release();
     sheet.close();
+  };
+
+  /**
+   * A button whose code failed to load, or threw, does nothing rather than
+   * surfacing as an unhandled rejection; it is said in the console.
+   */
+  const failed = (what: string) => (error: unknown) => {
+    env.window.console?.error('Printcraft: the proof could not open ' + what, error);
   };
 
   /**
@@ -120,28 +131,36 @@ export async function mountProof(
               // would start from the page and lose it: a cover sheet, a page
               // number, a captured region. so the rebuild goes away instead.
               const rebuildable = sheet.disableSettings();
-              void import('../ui/kit').then(({ toast }) =>
-                toast(
-                  {
-                    message: rebuildable
-                      ? 'That mark stays on this sheet only, so Settings is off until it prints'
-                      : 'That mark stays on this sheet only',
-                    tone: 'warn'
-                  },
-                  env
+              void import('../ui/kit')
+                .then(({ toast }) =>
+                  toast(
+                    {
+                      message: rebuildable
+                        ? 'That mark stays on this sheet only, so Settings is off until it prints'
+                        : 'That mark stays on this sheet only',
+                      tone: 'warn'
+                    },
+                    env
+                  )
                 )
-              );
+                .catch(failed('its notice'));
             }
           }
         }
       );
-    });
+    }, failed('the drawing tools'));
   };
 
   if (cfg.restart) {
+    // one Settings dialog at a time: a double-click before the code loaded
+    // used to open two, and applying both started two rebuilds
+    let asking = false;
     sheet.onSettings = () => {
-      void import('./settings').then(({ askForSettings }) =>
-        askForSettings(options, env).then((patch) => {
+      if (asking) return;
+      asking = true;
+      void import('./settings')
+        .then(({ askForSettings }) => askForSettings(options, env))
+        .then((patch) => {
           if (!patch) return;
           // the panel goes; the job that replaces it brings the marks with it
           answer('cancel');
@@ -149,7 +168,10 @@ export async function mountProof(
           sheet.close();
           cfg.restart!(patch);
         })
-      );
+        .catch(failed('its settings'))
+        .finally(() => {
+          asking = false;
+        });
     };
     sheet.enableSettings();
   }

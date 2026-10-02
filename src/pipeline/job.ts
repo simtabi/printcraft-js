@@ -246,7 +246,9 @@ export class Job {
     // set and needs no normalising pass of its own
     const next = { ...this.options, ...patch } as ResolvedOptions;
     this.fire('job:restart', { patch });
-    void runJob(next, this.env, null, this.bus, 'proof');
+    // nobody holds this promise, so a rebuild that fails must not reject into
+    // the void: `fail()` has already fired `job:error` and logged it
+    runJob(next, this.env, null, this.bus, 'proof').catch(() => {});
   }
 
   /** the ordered transform chain. some stages can swap the clone root outright. */

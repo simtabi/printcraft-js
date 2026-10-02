@@ -107,7 +107,12 @@ class ProofSheet extends Surface {
         })
       )
       .lastElementChild?.appendChild(doc.createTextNode('−'));
-    this.zoomLabel = h(doc, 'span', { class: 'prjs-proof-zoom-value', text: '100%' });
+    // announced, so a zoom change is heard as well as seen
+    this.zoomLabel = h(doc, 'span', {
+      class: 'prjs-proof-zoom-value',
+      text: '100%',
+      attrs: { 'aria-live': 'polite' }
+    });
     zoomBox.appendChild(this.zoomLabel);
     zoomBox
       .appendChild(
@@ -141,10 +146,13 @@ class ProofSheet extends Surface {
 
     const body = h(doc, 'div', { class: 'prjs-proof-body' });
 
-    this.rail = h(doc, 'div', {
+    // hidden until the paginator says there is more than one sheet: a flowed
+    // document never calls setPages, and showed an empty bordered column
+    this.rail = h(doc, 'nav', {
       class: 'prjs-proof-rail',
-      attrs: { 'data-prjs-proof-rail': '', 'aria-label': 'Pages' }
+      attrs: { 'data-prjs-proof-rail': '', 'aria-label': 'Pages', role: 'navigation' }
     });
+    this.rail.hidden = true;
     body.appendChild(this.rail);
 
     this.stage = h(doc, 'div', {
@@ -302,10 +310,10 @@ class ProofSheet extends Surface {
     const target = sheets[n - 1];
 
     for (const tab of this.rail.querySelectorAll('[data-prjs-page]')) {
-      tab.setAttribute(
-        'data-active',
-        tab.getAttribute('data-prjs-page') === String(n) ? 'true' : 'false'
-      );
+      const here = tab.getAttribute('data-prjs-page') === String(n);
+      tab.setAttribute('data-active', here ? 'true' : 'false');
+      if (here) tab.setAttribute('aria-current', 'page');
+      else tab.removeAttribute('aria-current');
     }
 
     if (target) {
