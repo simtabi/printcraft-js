@@ -61,6 +61,10 @@ export interface ActionContext {
    * catalogue was built at boot.
    */
   registry?: ActionRegistry;
+  /** action ids, most recently used first. the palette lifts them to the top. */
+  recent?: readonly string[];
+  /** told when an action actually runs, after `when` has allowed it */
+  onRun?: (id: string) => void;
 }
 
 export interface Action {
@@ -219,6 +223,7 @@ export class ActionRegistry {
       const verdict = action.when(ctx);
       if (verdict === false || typeof verdict === 'string') return undefined;
     }
+    ctx.onRun?.(id);
     return action.run(ctx);
   }
 

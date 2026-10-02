@@ -29,6 +29,11 @@ export type ContextMenuEntry = MenuEntry<MenuContext>;
 export interface ContextMenuOptions {
   /** merged into every job the menu starts */
   base?: PrintcraftOptions;
+  /**
+   * Read each time the menu opens, over `base`. How an interface hands over
+   * options that change after the menu is installed.
+   */
+  context?: () => Partial<ActionContext>;
   /** action ids to keep, in the order you want them */
   items?: string[];
   /** extra actions, appended */
@@ -176,9 +181,19 @@ export function openActionMenu(
 
 /** Opens the palette over the same registry. */
 export function openActionPalette(registry: ActionRegistry, ctx: ActionContext): void {
+  let items = actionsToPaletteItems(registry, ctx);
+  // what this person actually does rises to the top, under its own heading,
+  // instead of sitting wherever the catalogue happened to put it
+  const lifted = (ctx.recent || []).filter((id) => items.some((i) => i.id === id && !i.disabled));
+  if (lifted.length) {
+    items = [
+      ...lifted.map((id) => ({ ...items.find((i) => i.id === id)!, group: 'Recently used' })),
+      ...items.filter((i) => !lifted.includes(i.id))
+    ];
+  }
   openPalette(
     {
-      items: actionsToPaletteItems(registry, ctx),
+      items,
       placeholder: 'Print, redact, note, preview…',
       onPick: (id) => void registry.run(id, { ...ctx, via: 'palette' })
     },
@@ -215,7 +230,14 @@ export function contextMenu(
     open?.close();
 
     const me = ev as MouseEvent;
-    const ctx: ActionContext = { target, env: scope, base, via: 'menu', scopes: PAGE_SCOPES };
+    const ctx: ActionContext = {
+      target,
+      env: scope,
+      base,
+      ...cfg.context?.(),
+      via: 'menu',
+      scopes: PAGE_SCOPES
+    };
 
     open = openActionMenu(
       registry,

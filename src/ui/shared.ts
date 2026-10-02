@@ -4,6 +4,7 @@
 // out of their own screenshot and the menu never opens on top of itself.
 
 import { DEFAULT_THEME } from './kit/theme';
+import type { Session } from '../state';
 import type { Env, InspectController, JobRecord, PrintcraftOptions } from '../types';
 
 type PrintFn = (options: PrintcraftOptions, env?: Env) => Promise<JobRecord | InspectController>;
@@ -13,6 +14,11 @@ export interface UiDeps {
   print: PrintFn;
   inspect: PrintFn;
   emit: (name: string, payload?: unknown) => unknown;
+  /**
+   * Where a tool keeps unfinished work. Present only on an interface created
+   * with `persist`, so a tool opened on its own remembers nothing.
+   */
+  memory?: Session;
 }
 
 /** just under the inspector overlay, which must be able to cover the ui. */

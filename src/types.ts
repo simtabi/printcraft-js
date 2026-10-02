@@ -263,7 +263,8 @@ export type PrintcraftEvent =
   | 'state:save'
   | 'state:load'
   | 'state:clear'
-  | 'state:lost';
+  | 'state:lost'
+  | 'state:error';
 
 export type JobStatus = 'running' | 'done' | 'cancelled' | 'inspected' | 'error';
 

@@ -73,6 +73,25 @@ const MM_PER_PX = 25.4 / 96;
 
 const mm = (px: number): number => Math.round(px * MM_PER_PX);
 
+/** What the tool leaves in memory while a selection is unfinished. */
+interface RegionProgress {
+  kind: 'region';
+  box: Box;
+  scroll: { x: number; y: number };
+}
+
+function isProgress(v: unknown): v is RegionProgress {
+  const p = v as RegionProgress | null;
+  const finite = (n: unknown): boolean => typeof n === 'number' && Number.isFinite(n);
+  return (
+    !!p &&
+    p.kind === 'region' &&
+    !!p.box &&
+    !!p.scroll &&
+    [p.box.x, p.box.y, p.box.w, p.box.h, p.scroll.x, p.scroll.y].every(finite)
+  );
+}
+
 /**
  * Opens the selection overlay. Resolves with the print job once confirmed, or
  * `{ action: 'cancel' }` if dismissed.
@@ -277,7 +296,46 @@ export function drawArea(
       // deliberately not printing here: the selection is now editable, and only
       // the toolbar commits it
       paint();
+      keepProgress();
     }
+
+    /* unfinished work ---------------------------------------------------- */
+
+    // With `persist` on, a selection that was drawn and never printed or
+    // cancelled survives a reload: the next time the tool opens, the box is
+    // where it was left. Printing or cancelling forgets it.
+    const memory = deps.memory;
+    const remember = (value: RegionProgress | null): void => {
+      memory?.saveProgress(value).catch((error: unknown) => {
+        deps.emit('state:error', { what: 'progress', error });
+      });
+    };
+    function keepProgress(): void {
+      if (memory && box && !settled) {
+        remember({
+          kind: 'region',
+          box: { ...box },
+          scroll: { x: win.scrollX || 0, y: win.scrollY || 0 }
+        });
+      }
+    }
+    memory
+      ?.progress<unknown>()
+      .then((saved) => {
+        // only into an untouched tool: a box drawn while the read was pending wins
+        if (settled || box || !isProgress(saved)) return;
+        try {
+          win.scrollTo(saved.scroll.x, saved.scroll.y);
+        } catch {
+          /* a window that will not scroll still gets the box */
+        }
+        box = clampToViewport(saved.box);
+        paint();
+        bar?.setStatus('Picked up the area you were selecting');
+      })
+      .catch((error: unknown) => {
+        deps.emit('state:error', { what: 'progress', error });
+      });
 
     function resize(from: Box, handle: Handle, dx: number, dy: number): Box {
       let left = from.x;
@@ -345,6 +403,7 @@ export function drawArea(
 
       box = clampToViewport(next);
       paint();
+      keepProgress();
     }
 
     /* committing --------------------------------------------------------- */
@@ -373,6 +432,7 @@ export function drawArea(
       }
 
       teardown();
+      remember(null);
       deps.emit('ui:draw', { rect, title: details.title, description: details.description });
 
       const jobOptions: PrintcraftOptions = { ...opts, clipRect: rect, target: null };
@@ -503,6 +563,7 @@ export function drawArea(
 
     function startOver(): void {
       box = null;
+      if (memory) remember(null);
       paint();
       bar?.setStatus('Drag to select an area');
       bar?.setDisabled('print', true);
@@ -572,6 +633,7 @@ export function drawArea(
       if (settled) return;
       settled = true;
       teardown();
+      remember(null);
       resolve({ action });
     }
 

@@ -6,7 +6,7 @@
 // view reflects it.
 
 import { test, expect, vi } from 'vitest';
-import { Printcraft, dom, env, I } from './harness';
+import { Printcraft, dom, env, I, stubPrint } from './harness';
 
 const ui = Printcraft.ui;
 
@@ -685,5 +685,251 @@ test('a restored drawing is painted on the page, not only stored on it', async (
   const host = d.window.document.getElementById('total')!;
   expect(host.getAttribute('data-printcraft-drawing')).toBe(drawing);
   expect(host.querySelector(':scope > svg.prjs-drawing'), 'the overlay is on screen').toBeTruthy();
+  iface.destroy();
+});
+
+/* remembering the rest: options, activity, progress ----------------------- */
+
+const settle = (ms = 30): Promise<void> => new Promise((r) => setTimeout(r, ms));
+
+/** an interface over a test store, with no menu or keymap to get in the way */
+function remembering(
+  d: ReturnType<typeof dom>,
+  store: unknown,
+  extra: Record<string, unknown> = {}
+) {
+  return ui.create(
+    { persist: store, scopeKey: 'page', contextMenu: false, keyboard: false, ...extra },
+    env(d)
+  );
+}
+
+test("a printed job's paper and margins are remembered, under the host's own base", async () => {
+  const d = dom('<p id="t">x</p>');
+  const store = savedStore([]);
+  const restore = stubPrint(d);
+  const first = remembering(d, store, { base: { proof: false, assetTimeout: 50 } });
+  first.configure({ setPrintSize: 'A5', pageMargin: '12mm', target: '#t' });
+  const job = await first.run('print-page');
+  restore();
+  expect(job.status).toBe('done');
+  await settle();
+  // only what is worth carrying: the target and the timeout are about one job
+  expect(store.data.get('page|options')).toEqual({ setPrintSize: 'A5', pageMargin: '12mm' });
+  first.destroy();
+
+  // the next visit starts from it, and a choice the host makes in code wins
+  const next = remembering(d, store, { base: { pageMargin: '20mm' } });
+  await settle();
+  expect(next.context().base).toMatchObject({ setPrintSize: 'A5', pageMargin: '20mm' });
+  next.destroy();
+});
+
+test('actions that run are remembered, and the palette offers them first', async () => {
+  const d = dom('<p>x</p>');
+  const store = savedStore([]);
+  const ran: string[] = [];
+  const first = remembering(d, store, {
+    actions: [{ id: 'stamp', label: 'Stamp it', group: 'Mark up', run: () => ran.push('stamp') }]
+  });
+  first.run('stamp');
+  await settle();
+  expect(ran).toEqual(['stamp']);
+  expect(store.data.get('page|recent')).toEqual(['stamp']);
+  first.destroy();
+
+  const next = remembering(d, store, {
+    actions: [{ id: 'stamp', label: 'Stamp it', group: 'Mark up', run: () => {} }]
+  });
+  await settle();
+  // jsdom has no layout, so nothing to scroll
+  d.window.HTMLElement.prototype.scrollIntoView = () => {};
+  next.palette();
+  const rows = [...d.window.document.querySelectorAll('[data-prjs-palette] [data-prjs-item]')];
+  expect(rows[0]!.getAttribute('data-prjs-item'), 'the recent action leads').toBe('stamp');
+  expect(d.window.document.querySelector('[data-prjs-palette] .prjs-group')!.textContent).toBe(
+    'Recently used'
+  );
+  next.destroy();
+});
+
+/** drags a box on the region tool's overlay */
+function drag(d: ReturnType<typeof dom>, from: [number, number], to: [number, number]): void {
+  const layer = d.window.document.querySelector('[data-prjs-draw]')!;
+  const at = (type: string, [x, y]: [number, number]) =>
+    layer.dispatchEvent(
+      new d.window.MouseEvent(type, { bubbles: true, clientX: x, clientY: y }) as unknown as Event
+    );
+  at('pointerdown', from);
+  at('pointermove', to);
+  at('pointerup', to);
+}
+
+test('an unfinished region selection survives a reload, and cancelling forgets it', async () => {
+  const d = dom('<p>x</p>');
+  const doc = d.window.document;
+  const store = savedStore([]);
+  const first = remembering(d, store);
+  void first.run('draw');
+  drag(d, [40, 50], [240, 170]);
+  await settle();
+  expect(store.data.get('page|progress')).toMatchObject({
+    kind: 'region',
+    box: { x: 40, y: 50, w: 200, h: 120 }
+  });
+  first.destroy();
+  // the page went away with the tool still open
+  doc.querySelector('[data-prjs-draw]')!.remove();
+  for (const n of doc.querySelectorAll('[data-prjs-ui]')) n.remove();
+
+  const next = remembering(d, store);
+  const done = next.run('draw') as Promise<{ action: string }>;
+  await settle();
+  const region = doc.querySelector('[data-prjs-region]') as HTMLElement;
+  expect(region.style.display, 'the box is back').toBe('block');
+  expect([region.style.left, region.style.top, region.style.width]).toEqual([
+    '40px',
+    '50px',
+    '200px'
+  ]);
+
+  doc.dispatchEvent(new d.window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+  expect((await done).action).toBe('cancel');
+  await settle();
+  expect(store.data.has('page|progress'), 'cancelling forgets it').toBe(false);
+  next.destroy();
+});
+
+test('storage holding something else entirely degrades to remembering nothing', async () => {
+  // a different build's format, a hand-edited store, a truncated write: none of
+  // it may throw, and none of it may reach a job
+  const d = dom('<p id="here">Still here</p>');
+  const store = savedStore([]);
+  store.data.set('page|marks', 'not a list');
+  store.data.set('page|options', [1, 2, 3]);
+  store.data.set('page|recent', { not: 'a list' });
+  store.data.set('page|progress', { kind: 'region', box: 'nowhere' });
+  const iface = remembering(d, store);
+  expect(await iface.restored()).toEqual({ restored: [], lost: [] });
+  await settle();
+  expect(iface.context().base).toEqual({});
+  expect(iface.context().recent).toEqual([]);
+
+  const done = iface.run('draw') as Promise<{ action: string }>;
+  await settle();
+  expect((d.window.document.querySelector('[data-prjs-region]') as HTMLElement).style.display).toBe(
+    'none'
+  );
+  d.window.document.dispatchEvent(
+    new d.window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true })
+  );
+  await done;
+
+  // and a mark list with one bad entry keeps the good one
+  store.data.set('page|marks', [
+    { kind: 'note', anchor: anchorFor('#here', 'Still here'), data: 'kept', at: 1 },
+    { kind: 'note' },
+    null
+  ]);
+  const again = remembering(d, store);
+  expect((await again.restored()).restored).toHaveLength(1);
+  iface.destroy();
+  again.destroy();
+});
+
+test('a store that is full or unreachable is reported, and printing carries on', async () => {
+  const d = dom('<p id="t">x</p>');
+  const refused = () => Promise.reject(Object.assign(new Error('full'), { code: 'PC_STORE_FULL' }));
+  const store = {
+    name: 'broken',
+    get: refused,
+    set: refused,
+    remove: refused,
+    keys: refused,
+    clear: refused
+  };
+  const errors: string[] = [];
+  const onError = (p: { what: string }) => errors.push(p.what);
+  Printcraft.on('state:error', onError);
+  const restore = stubPrint(d);
+  try {
+    const iface = remembering(d, store, { base: { proof: false, assetTimeout: 50, target: '#t' } });
+    expect(await iface.restored(), 'a refused read is an empty restore').toEqual({
+      restored: [],
+      lost: []
+    });
+    const job = await iface.run('print-page');
+    expect(job.status).toBe('done');
+    d.window.document.getElementById('t')!.setAttribute('data-printcraft-note', 'n');
+    await settle(320);
+    // sorted in place: built on the line above
+    // oxlint-disable-next-line no-array-sort
+    expect([...new Set(errors)].sort()).toEqual(['marks', 'options', 'recent']);
+    iface.destroy();
+  } finally {
+    restore();
+    Printcraft.off('state:error', onError);
+  }
+});
+
+test('persist off writes nothing anywhere', async () => {
+  const d = dom('<p id="t">x</p>');
+  const storage = d.window.localStorage;
+  const restore = stubPrint(d);
+  const iface = ui.create(
+    { contextMenu: false, keyboard: false, base: { proof: false, assetTimeout: 50, target: '#t' } },
+    env(d)
+  );
+  await iface.run('print-page');
+  void iface.run('draw');
+  drag(d, [10, 10], [200, 120]);
+  d.window.document.getElementById('t')!.setAttribute('data-printcraft-redact', '');
+  await settle(320);
+  restore();
+  d.window.document.dispatchEvent(
+    new d.window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true })
+  );
+  expect(storage.length, 'nothing in localStorage').toBe(0);
+  expect(await iface.memory.export()).toEqual({
+    scope: expect.any(String),
+    marks: null,
+    options: null,
+    recent: null,
+    progress: null
+  });
+  iface.destroy();
+});
+
+test('configure() reaches the right-click menu, not only the palette and keys', async () => {
+  // The menu captured `base` when it was installed, and configure() replaces
+  // the object, so every job started from a right-click ignored it.
+  const d = dom('<p id="t">x</p>');
+  const doc = d.window.document;
+  let seen: Record<string, unknown> | null = null;
+  const iface = ui.create(
+    {
+      keyboard: false,
+      actions: [
+        {
+          id: 'peek',
+          label: 'Peek',
+          run: (ctx: { base: Record<string, unknown> }) => (seen = ctx.base)
+        }
+      ]
+    },
+    env(d)
+  );
+  iface.configure({ documentTitle: 'Configured later' });
+  doc.getElementById('t')!.dispatchEvent(
+    new d.window.MouseEvent('contextmenu', {
+      bubbles: true,
+      cancelable: true,
+      clientX: 5,
+      clientY: 5
+    })
+  );
+  (doc.querySelector('[data-prjs-menu] [data-prjs-item="peek"]') as HTMLElement).click();
+  await settle();
+  expect(seen).toMatchObject({ documentTitle: 'Configured later' });
   iface.destroy();
 });

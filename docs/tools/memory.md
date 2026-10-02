@@ -24,10 +24,25 @@ redaction's neighbouring text is exactly the content someone is trying to contro
 | **Options**       | paper, orientation, margins, watermark, the switches       |
 | **Configuration** | the resolved set, and which layer set each value           |
 | **Activity**      | recent action ids, most recent first                       |
-| **Progress**      | a region selection or drawing that was never finished      |
+| **Progress**      | a region selection that was drawn and never printed        |
 
 Everything is namespaced by page, so two documents in one app do not inherit each other's
 redactions. `scopeKey` overrides the default, which is origin plus path.
+
+- **Options** are written when a job from the interface actually prints (status `done`,
+  not a cancelled proof), and read back when the interface is created. They sit _under_
+  the interface's own `base` and `configure()`, so a choice the host makes in code always
+  wins over one the user made last time. Only the twelve settings above are kept, and only
+  in a shape a job accepts; a job that still refuses them with `PC_OPTIONS_INVALID` makes
+  the interface forget them, so one failed print is the worst case.
+- **Activity** is every action that runs from the menu, the palette, the keyboard or
+  `run()`. The palette lifts the five most recent to the top under _Recently used_.
+- **Progress** is the region tool's box. Close the tab with a selection drawn and the next
+  time the tool opens, the box is where you left it. Printing it, cancelling or starting
+  over forgets it. A drawing has no unfinished state to keep: each shape is a mark the
+  moment the pointer lifts.
+
+With `persist` off, none of this happens and nothing is written anywhere.
 
 ## Where it goes
 
@@ -104,9 +119,18 @@ await Printcraft.ui.memory.forget(); // this page only
 `export()` is plain JSON, so a host that wants marks in its own database can take them
 without implementing a store.
 
+## When storage misbehaves
+
+A read that returns something other than what was written — another build's format, a
+hand-edited store, a truncated write — is skipped entry by entry and never thrown on. A
+read or write that fails outright — a full quota, a state service that is down — is
+reported as `state:error` and printing carries on. Neither ever surfaces as an unhandled
+promise rejection.
+
 ## Events
 
 ```js
+Printcraft.on('state:error', ({ what, error }) => {});
 Printcraft.on('state:save', ({ what, count }) => {});
 Printcraft.on('state:load', ({ restored, lost }) => {});
 Printcraft.on('state:lost', ({ marks }) => {});

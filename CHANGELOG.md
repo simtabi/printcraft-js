@@ -286,6 +286,17 @@ call`, with `explain()` naming which layer set each value. A source can be an
   on an empty slot was put back on whatever that slot held later. It is now
   reported lost, like any other element whose content changed.
 
+- **`persist` only remembered marks.** Options, activity and progress were
+  documented and never wired up. An interface created with `persist` now
+  remembers the settings of every job it prints (under the host's own `base`),
+  lifts recently used actions to the top of the palette, and brings back a region
+  selection that was drawn and never printed. A failed store read or write is
+  reported as `state:error` instead of an unhandled rejection, and data in the
+  wrong shape is skipped rather than thrown on.
+- **`configure()` never reached the right-click menu.** The menu captured the
+  options object when it was installed and `configure()` replaces it, so jobs
+  started from a right-click ignored it. The menu now reads them when it opens.
+
 ### Not fixed
 
 - The ⊗ floating in the Description box in two of the screenshots is not ours.

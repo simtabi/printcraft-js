@@ -18,6 +18,9 @@ import { defaultEnv, type UiDeps } from './shared';
 import { Session, defaultStore, scopeFor, type RestoreReport, type Store } from '../state';
 import type { Env, PrintcraftOptions } from '../types';
 
+/** How many recently used actions the palette lifts to the top. */
+const RECENT_SHOWN = 5;
+
 export interface InterfaceOptions {
   /** merged into every job this interface starts */
   base?: PrintcraftOptions;
@@ -75,20 +78,46 @@ export class PrintcraftInterface {
   readonly memory: Session;
 
   private base: PrintcraftOptions;
+  /** the options a previous visit left, under everything the host passed */
+  private remembered: PrintcraftOptions = {};
+  /** action ids, most recent first, mirrored from memory for the palette */
+  private recent: string[] = [];
+  private readonly deps: UiDeps;
   private readonly cleanups: Array<() => void> = [];
   private lastTarget: Element | null = null;
   private live = true;
   private restoring: Promise<RestoreReport> | null = null;
 
   constructor(
-    private readonly deps: UiDeps,
+    deps: UiDeps,
     private readonly options: InterfaceOptions = {},
     env?: Env
   ) {
     this.env = env || defaultEnv();
     this.base = options.base || {};
 
-    this.actions = options.registry || new ActionRegistry(buildActions(deps));
+    this.memory = new Session({
+      store: options.persist
+        ? options.persist === true
+          ? defaultStore(this.env.window)
+          : options.persist
+        : undefined,
+      scope: options.scopeKey || scopeFor(this.env.window),
+      bus: deps
+    });
+
+    // with persistence on, every job this interface prints is remembered, and
+    // its tools can keep unfinished work. without it the deps pass through
+    // untouched and nothing is written anywhere.
+    this.deps = options.persist
+      ? {
+          ...deps,
+          memory: this.memory,
+          print: (opts, scope) => this.rememberJob(deps.print(opts, scope), opts)
+        }
+      : deps;
+
+    this.actions = options.registry || new ActionRegistry(buildActions(this.deps));
     for (const action of options.actions || []) this.actions.add(action);
     if (options.items) {
       for (const id of this.actions.ids()) {
@@ -112,16 +141,10 @@ export class PrintcraftInterface {
       });
     }
 
-    this.memory = new Session({
-      store: options.persist
-        ? options.persist === true
-          ? defaultStore(this.env.window)
-          : options.persist
-        : undefined,
-      scope: options.scopeKey || scopeFor(this.env.window),
-      bus: deps
-    });
-    if (options.persist) this.rememberFromNowOn();
+    if (options.persist) {
+      this.rememberFromNowOn();
+      this.loadRemembered();
+    }
 
     if (options.contextMenu !== false) this.enableContextMenu();
     if (options.keyboard !== false) this.enableKeyboard();
@@ -145,7 +168,8 @@ export class PrintcraftInterface {
     let pending: ReturnType<typeof setTimeout> | undefined;
     const save = (): void => {
       clearTimeout(pending);
-      pending = setTimeout(() => void this.memory.saveMarks(doc), 250);
+      if (!this.live) return;
+      pending = setTimeout(() => this.guard('marks', this.memory.saveMarks(doc)), 250);
     };
 
     // Held, not saved, while the restore is running. Putting saved marks back
@@ -193,10 +217,12 @@ export class PrintcraftInterface {
         this.options.onRestore?.(report);
         return report;
       },
-      (err: unknown) => {
-        // a store that cannot be read must not stop later edits being saved
+      (error: unknown) => {
+        // a store that cannot be read must not stop later edits being saved,
+        // and must not surface as an unhandled rejection from a constructor
         held = null;
-        throw err;
+        this.deps.emit('state:error', { what: 'marks', error });
+        return { restored: [], lost: [] };
       }
     );
 
@@ -204,6 +230,76 @@ export class PrintcraftInterface {
       clearTimeout(pending);
       watcher?.disconnect();
     });
+  }
+
+  /**
+   * Reads back the options and activity a previous visit left.
+   *
+   * Remembered options sit *under* the host's own `base`, so a choice the host
+   * made in code always wins over one the user made last time.
+   */
+  private loadRemembered(): void {
+    this.guard(
+      'options',
+      this.memory.options().then((opts) => {
+        this.remembered = opts;
+      })
+    );
+    this.guard(
+      'recent',
+      this.memory.recent().then((ids) => {
+        this.recent = ids;
+      })
+    );
+  }
+
+  /** Remembers what a printed job chose, once it has actually printed. */
+  private rememberJob<T>(job: Promise<T>, opts: PrintcraftOptions): Promise<T> {
+    return job.then(
+      (record) => {
+        if ((record as { status?: string } | null)?.status === 'done') {
+          this.guard('options', this.memory.rememberOptions(opts as Record<string, unknown>));
+        }
+        return record;
+      },
+      (error: unknown) => {
+        // remembered options a job refuses would fail every later print the
+        // same way. drop them, so the next one starts from the host's base.
+        if (
+          (error as { code?: string } | null)?.code === 'PC_OPTIONS_INVALID' &&
+          Object.keys(this.remembered).length
+        ) {
+          this.remembered = {};
+          this.guard('options', this.memory.forgetOptions());
+        }
+        throw error;
+      }
+    );
+  }
+
+  /** Notes that an action ran, for the palette's ordering. */
+  private used(id: string): void {
+    if (!this.options.persist || id === 'palette') return;
+    this.recent = [id, ...this.recent.filter((r) => r !== id)];
+    this.guard('recent', this.memory.used(id));
+  }
+
+  /**
+   * A write or read that failed is reported, never thrown.
+   *
+   * Every store call here is fire-and-forget from the user's point of view: a
+   * full quota or a state service that is down must not break printing, and an
+   * unhandled rejection is exactly that in some hosts.
+   */
+  private guard(what: string, work: Promise<unknown>): void {
+    work.catch((error: unknown) => {
+      this.deps.emit('state:error', { what, error });
+    });
+  }
+
+  /** The options a job from this interface starts with. */
+  private jobBase(): PrintcraftOptions {
+    return { ...this.remembered, ...this.base };
   }
 
   /** Resolves once saved marks have been put back. Immediate when off. */
@@ -214,7 +310,15 @@ export class PrintcraftInterface {
   /* what an action is handed ------------------------------------------- */
 
   context(via: ActionContext['via'] = 'api'): ActionContext {
-    return { target: this.lastTarget, env: this.env, base: this.base, via, registry: this.actions };
+    return {
+      target: this.lastTarget,
+      env: this.env,
+      base: this.jobBase(),
+      via,
+      registry: this.actions,
+      recent: this.recent.slice(0, RECENT_SHOWN),
+      onRun: (id) => this.used(id)
+    };
   }
 
   /** Remembers what the user last aimed at, so the palette knows too. */
@@ -246,7 +350,12 @@ export class PrintcraftInterface {
     const off = contextMenu(
       this.actions,
       {
-        base: this.base,
+        // read when the menu opens, not when it is installed: `configure()` and
+        // remembered options both arrive later
+        context: () => {
+          const { base, recent, onRun } = this.context('menu');
+          return { base, recent, onRun };
+        },
         ...(this.options.title ? { title: this.options.title } : {}),
         ...(this.options.description ? { description: this.options.description } : {}),
         shouldOpen: (target) => this.inScope(target)
@@ -285,7 +394,7 @@ export class PrintcraftInterface {
 
   /** Every note and redaction on the page. */
   notes(): Promise<unknown> {
-    return notesPanel(this.deps, { base: this.base }, this.env);
+    return notesPanel(this.deps, { base: this.jobBase() }, this.env);
   }
 
   /** Runs an action by id, as though it had been chosen from the menu. */

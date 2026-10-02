@@ -73,6 +73,71 @@ const KEYS = {
   progress: 'progress'
 } as const;
 
+/**
+ * The options worth carrying from one visit to the next, and what each may hold.
+ *
+ * A target selector is about one job and a hook is a function, so neither
+ * belongs in storage. The checks are the shape only: a value from an older
+ * build, another tab or a hand-edited store that fails one is dropped rather
+ * than handed to a job that would refuse it.
+ */
+const isPlain = (v: unknown): boolean =>
+  !!v &&
+  typeof v === 'object' &&
+  !Array.isArray(v) &&
+  Object.getPrototypeOf(v) === Object.prototype;
+const str = (v: unknown): boolean => v === null || typeof v === 'string';
+const bool = (v: unknown): boolean => typeof v === 'boolean';
+const loose = (v: unknown): boolean => v === null || bool(v) || typeof v === 'string' || isPlain(v);
+const REMEMBERED: Record<string, (v: unknown) => boolean> = {
+  setPrintSize: str,
+  orientation: (v) => v === 'portrait' || v === 'landscape',
+  pageMargin: str,
+  pagePadding: (v) => typeof v === 'string' || isPlain(v),
+  paginate: (v) => bool(v) || isPlain(v),
+  pageNumbers: (v) => bool(v) || isPlain(v),
+  hideBrowserHeaderFooter: bool,
+  watermark: loose,
+  coverPage: loose,
+  notesPage: loose,
+  printHeading: bool,
+  privacy: (v) => v === null || v === true || isPlain(v)
+};
+
+/** Only the remembered options, and only values of a shape a job accepts. */
+export function rememberedOptions(raw: unknown): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  if (!isPlain(raw)) return out;
+  for (const [name, ok] of Object.entries(REMEMBERED)) {
+    const value = (raw as Record<string, unknown>)[name];
+    // a function, a Date or a class instance does not survive storage, so it
+    // is not remembered even in a store that could hold it
+    if (value !== undefined && ok(value) && survivesJson(value)) out[name] = value;
+  }
+  return out;
+}
+
+function survivesJson(value: unknown): boolean {
+  try {
+    return JSON.stringify(JSON.parse(JSON.stringify(value))) === JSON.stringify(value);
+  } catch {
+    return false;
+  }
+}
+
+/** A stored mark with everything `restoreMarks` reads, or not one at all. */
+function isMark(m: unknown): m is StoredMark {
+  if (!isPlain(m)) return false;
+  const { kind, anchor } = m as StoredMark;
+  return (
+    (kind === 'note' || kind === 'redaction' || kind === 'drawing') &&
+    isPlain(anchor) &&
+    typeof anchor.selector === 'string' &&
+    typeof anchor.tag === 'string' &&
+    typeof anchor.text === 'string'
+  );
+}
+
 /** The default namespace: origin plus path, no query, no hash. */
 export function scopeFor(win: Window): string {
   try {
@@ -167,7 +232,10 @@ export class Session {
    * is worse than one that admits it does not know.
    */
   async restoreMarks(doc: Document): Promise<RestoreReport> {
-    const saved = (await this.store.get<StoredMark[]>(this.key(KEYS.marks))) || [];
+    // anything that is not a mark — a different build's format, a hand-edited
+    // store, a truncated write — is skipped, never thrown on
+    const raw = await this.store.get<unknown>(this.key(KEYS.marks));
+    const saved = Array.isArray(raw) ? raw.filter(isMark) : [];
     const report: RestoreReport = { restored: [], lost: [] };
 
     for (const mark of saved) {
@@ -205,7 +273,7 @@ export class Session {
 
   /** The print options last used, so the next job starts where the last ended. */
   async options(): Promise<Record<string, unknown>> {
-    return (await this.store.get<Record<string, unknown>>(this.key(KEYS.options))) || {};
+    return rememberedOptions(await this.store.get<unknown>(this.key(KEYS.options)));
   }
 
   /**
@@ -216,25 +284,7 @@ export class Session {
    * so neither belongs in storage.
    */
   async rememberOptions(options: Record<string, unknown>): Promise<void> {
-    const keep = [
-      'setPrintSize',
-      'orientation',
-      'pageMargin',
-      'pagePadding',
-      'paginate',
-      'pageNumbers',
-      'hideBrowserHeaderFooter',
-      'watermark',
-      'coverPage',
-      'notesPage',
-      'printHeading',
-      'privacy'
-    ];
-
-    const next = { ...(await this.options()) };
-    for (const name of keep) {
-      if (options[name] !== undefined) next[name] = options[name];
-    }
+    const next = { ...(await this.options()), ...rememberedOptions(options) };
     await this.store.set(this.key(KEYS.options), next);
     this.announce('state:save', { what: 'options', keys: Object.keys(next).length });
   }
@@ -243,7 +293,8 @@ export class Session {
 
   /** Action ids, most recent first. */
   async recent(): Promise<string[]> {
-    return (await this.store.get<string[]>(this.key(KEYS.recent))) || [];
+    const raw = await this.store.get<unknown>(this.key(KEYS.recent));
+    return Array.isArray(raw) ? raw.filter((id): id is string => typeof id === 'string') : [];
   }
 
   /**
@@ -257,6 +308,13 @@ export class Session {
     const list = await this.recent();
     const next = [actionId, ...list.filter((id) => id !== actionId)].slice(0, this.recentLimit);
     await this.store.set(this.key(KEYS.recent), next);
+    this.announce('state:save', { what: 'recent', count: next.length, store: this.store.name });
+  }
+
+  /** Forgets the remembered options, when they turned out to be ones a job refuses. */
+  async forgetOptions(): Promise<void> {
+    await this.store.remove(this.key(KEYS.options));
+    this.announce('state:clear', { what: 'options' });
   }
 
   /* work in progress ----------------------------------------------------- */

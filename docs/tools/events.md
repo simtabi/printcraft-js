@@ -76,6 +76,7 @@ options).
 | `state:load`       | Something was read back               | `what`, `restored`, `lost`, `store`   |
 | `state:lost`       | Saved marks had nowhere to go         | `marks`                               |
 | `state:clear`      | The store was emptied                 | `what`, `scope`                       |
+| `state:error`      | A store read or write failed          | `what`, `error`                       |
 | `config:skipped`   | A config could not be fetched         | `source`, `reason`                    |
 
 ## Hooks
