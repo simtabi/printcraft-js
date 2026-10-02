@@ -277,6 +277,7 @@
           .marks(true)
           .watermark('DECLASSIFIED', 0.12)
           .footer('released under demo act §4')
+          .set({ proof: true })
           .print();
       }
     ],
@@ -369,6 +370,7 @@
       'A transform puts the secret back after redaction. Nothing prints.',
       function () {
         Printcraft.print({
+          proof: true,
           target: '#memo',
           redactSelectorList: ['.codename'],
           transforms: [
@@ -497,7 +499,10 @@
 
   function run(number, spec) {
     console.log('job', number, 'started');
-    var started = typeof spec === 'function' ? spec() : Printcraft.print(spec);
+    // a person pressed this, so it goes through the proof sheet like every
+    // other interactive path; the job's own options still win
+    var started =
+      typeof spec === 'function' ? spec() : Printcraft.print(Object.assign({ proof: true }, spec));
 
     started
       .then(function (job) {

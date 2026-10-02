@@ -31,6 +31,21 @@ export interface UiDeps {
  */
 export const Z = DEFAULT_THEME.z + 40;
 
+/**
+ * Every print a person starts goes through the proof sheet.
+ *
+ * Choose what to print, look at the assembled document, annotate it or think
+ * better of it, and only then print. One helper, used at every handoff the ui
+ * makes, so a new surface cannot forget it. A host still opts a surface out with
+ * `proof: false` in its base options.
+ *
+ * `Printcraft.print()` from code is deliberately not routed this way — an
+ * unattended job must not sit waiting for somebody who is not there.
+ */
+export function viaProof<T extends PrintcraftOptions>(options: T): T {
+  return { proof: true, ...options };
+}
+
 export const FONT = 'font:13px/1.4 ui-monospace,Consolas,Menlo,monospace;';
 
 export function defaultEnv(): Env {

@@ -17,8 +17,7 @@ import { pickSections } from './picker';
 import { printDialog } from './print-dialog';
 import { toast } from './kit';
 import type { Action, ActionContext } from './actions';
-import type { PrintcraftOptions } from '../types';
-import type { UiDeps } from './shared';
+import { viaProof, type UiDeps } from './shared';
 
 /**
  * Actions contributed by a layer that is not always loaded.
@@ -60,18 +59,6 @@ export function buildActions(deps: UiDeps): Action[] {
 function stockActions(deps: UiDeps): Action[] {
   /** the element an action should aim at, falling back to the whole page */
   const aim = (ctx: ActionContext): Element | string => ctx.target || 'body';
-
-  /**
-   * Every print started by a person goes through the proof sheet.
-   *
-   * This is the whole flow change: choose what to print, look at the assembled
-   * document, annotate it or think better of it, and only then print. A caller
-   * can still pass `proof: false` in `base` to opt a surface out.
-   *
-   * `Printcraft.print()` from code is deliberately not routed this way — an
-   * unattended job must not sit waiting for somebody who is not there.
-   */
-  const viaProof = (base: PrintcraftOptions): PrintcraftOptions => ({ proof: true, ...base });
 
   return [
     /* print --------------------------------------------------------------- */

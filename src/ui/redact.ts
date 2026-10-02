@@ -11,7 +11,7 @@
 
 import { h as node, confirm, modal, openToolbar, toast, type ToolbarHandle } from './kit';
 import { computeRect } from './annotations';
-import { defaultEnv, el, Z, type UiDeps, suppressNativeMenu } from './shared';
+import { defaultEnv, el, viaProof, Z, type UiDeps, suppressNativeMenu } from './shared';
 import { runsInRect, secretsOf, type TextRun } from '../privacy/marking';
 import type { ClipRect, Env, InspectController, JobRecord, PrintcraftOptions } from '../types';
 
@@ -246,14 +246,14 @@ export function redactArea(
       const runs = marks.flatMap((m) => m.runs);
       resolve(
         deps.print(
-          {
+          viaProof({
             ...opts,
             target: opts.scope || opts.target || 'body',
             redactRuns: [...(opts.redactRuns || []), ...runs],
             // a job whose whole point is destroying text should not print when
             // the destruction did not take
             redactionPolicy: opts.redactionPolicy || 'strict'
-          },
+          }),
           scope
         )
       );

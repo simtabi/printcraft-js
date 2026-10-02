@@ -12,7 +12,7 @@ import { openRegionMenu } from './menu';
 import { holdRegion } from './region';
 import type { ActionRegistry } from './actions';
 import { computeRect } from './annotations';
-import { defaultEnv, el, Z, type UiDeps } from './shared';
+import { defaultEnv, el, viaProof, Z, type UiDeps } from './shared';
 import type { ClipRect, Env, InspectController, JobRecord, PrintcraftOptions } from '../types';
 
 export interface DrawResult {
@@ -385,7 +385,7 @@ export function drawArea(
       }
 
       settled = true;
-      resolve(deps.print(jobOptions, scope));
+      resolve(deps.print(viaProof(jobOptions), scope));
     }
 
     /** the confirm step: what will print, plus an optional caption */

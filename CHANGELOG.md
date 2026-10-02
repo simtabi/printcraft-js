@@ -251,6 +251,13 @@ call`, with `explain()` naming which layer set each value. A source can be an
   number, a cover sheet — still prints with that sheet, and Settings switches off
   for the proof so a rebuild cannot lose it.
 
+- **Most interactive prints skipped the proof.** Only Print this element and
+  Print the page went through it; picking sections, the region tool, area
+  redaction, the notes panel, the settings dialog and the demo's job tickets all
+  went straight to the printer. Every handoff now goes through one helper that
+  honours `proof: false`, and the settings dialog no longer reports pages "sent
+  to the printer" for a proof that was cancelled.
+
 ### Not fixed
 
 - The ⊗ floating in the Description box in two of the screenshots is not ours.

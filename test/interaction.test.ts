@@ -421,6 +421,56 @@ test('picker selects elements and redact action stamps them', async () => {
   expect_eq(doc.querySelector('[data-prjs-act="print"]'), null);
 });
 
+test('picking sections opens the proof sheet before anything prints', async () => {
+  // The proof was wired into two catalogue actions only. Picking sections, the
+  // region tool, area redaction, the notes panel and the settings dialog all
+  // handed straight to the printer, so most of what a person can choose to print
+  // never reached the sheet that is meant to sit in front of it.
+  const d = dom('<section id="a"><p>one</p></section><section id="b"><p>two</p></section>');
+  const doc = d.window.document;
+  const done = Printcraft.ui.pickSections({ assetTimeout: 50 }, env(d));
+  doc
+    .querySelector('#a p')
+    .dispatchEvent(new d.window.MouseEvent('click', { bubbles: true, cancelable: true }));
+  doc
+    .querySelector('[data-prjs-act="print"]')
+    .dispatchEvent(new d.window.MouseEvent('click', { bubbles: true }));
+
+  let proof: Element | null = null;
+  for (let i = 0; i < 50 && !proof; i++) {
+    await new Promise((r) => setTimeout(r, 10));
+    proof = doc.querySelector('[data-prjs-proof]');
+  }
+  expect_ok(proof, 'the proof sheet opened');
+  expect_eq(doc.querySelector('iframe[data-prjs-frame]:not(.prjs-proof-frame)'), null);
+
+  (proof!.querySelector('[data-prjs-act="cancel"]') as HTMLElement).click();
+  const job = await done;
+  expect_eq(job.status, 'cancelled', 'cancel on the proof means nothing printed');
+});
+
+test('proof: false in the base still opts a surface out', async () => {
+  const d = dom('<section id="a"><p>one</p></section>');
+  const doc = d.window.document;
+  const done = Printcraft.ui.pickSections(
+    {
+      proof: false,
+      assetTimeout: 50,
+      hooks: { beforePrint: () => false }
+    },
+    env(d)
+  );
+  doc
+    .querySelector('#a p')
+    .dispatchEvent(new d.window.MouseEvent('click', { bubbles: true, cancelable: true }));
+  doc
+    .querySelector('[data-prjs-act="print"]')
+    .dispatchEvent(new d.window.MouseEvent('click', { bubbles: true }));
+  const job = await done;
+  expect_eq(job.status, 'cancelled');
+  expect_eq(doc.querySelector('[data-prjs-proof]'), null, 'straight through, no sheet');
+});
+
 test('draw overlay cancels on escape and cleans up', async () => {
   const d = dom('<div>page</div>');
   const doc = d.window.document;

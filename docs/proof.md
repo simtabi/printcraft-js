@@ -36,7 +36,8 @@ Printcraft.print({ target: '#report', proof: true }); // the same thing
 ```
 
 Right-click, the command palette, the keyboard and the demo's buttons all go
-through it. **`Printcraft.print()` called from code does not** — an unattended
+through it — every surface that ends in printing: an element, the page, picked
+sections, a drawn region, area redaction, the notes panel and the settings dialog. **`Printcraft.print()` called from code does not** — an unattended
 job must not sit waiting for somebody who is not there. Pass `proof: true` when a
 person is present.
 

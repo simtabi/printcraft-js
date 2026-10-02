@@ -12,7 +12,7 @@
 import { unmountOverlay as unmountDrawing } from '../annotate/render';
 import { annotations, clearAnnotations, removeNote, toggleRedact, type Mark } from './annotations';
 import { h, confirm, iconNode, modal, toast, tooltip } from './kit';
-import { defaultEnv, type UiDeps } from './shared';
+import { defaultEnv, viaProof, type UiDeps } from './shared';
 import type { Env, PrintcraftOptions } from '../types';
 
 export interface NotesPanelOptions {
@@ -223,7 +223,7 @@ export async function notesPanel(
   }
 
   if (result.action === 'print') {
-    void deps.print({ ...options.base, target: options.target || 'body' }, scope);
+    void deps.print(viaProof({ ...options.base, target: options.target || 'body' }), scope);
     return { action: 'print', ...counts };
   }
 
