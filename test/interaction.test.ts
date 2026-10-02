@@ -168,6 +168,32 @@ test('clipRect validates and builds a clipped whole-body clone', () => {
   expect_eq(inner.querySelector('#f').getAttribute('value'), 'typed', 'form state preserved');
 });
 
+test('a clip carries the text styles its content inherited from <body>', () => {
+  // The clip moves the body's children into a div, and capture renders that div
+  // in an svg foreignObject where no `body`, `html` or body-class rule reaches.
+  // Without these the region re-laid-out in the fallback serif, every line
+  // wrapped differently, and on the demo the "redaction" capture framed the
+  // sections below the memo: the redaction bars were not even in the image.
+  const o = I.normalizeOptions({ clipRect: { x: 0, y: 3000, width: 600, height: 200 } });
+  const d = dom(`<style>
+      body.page { font-family: Georgia, serif; font-size: 18px; line-height: 1.5;
+                  letter-spacing: 1px; color: rgb(23, 24, 27); }
+    </style><p id="a">alpha</p>`);
+  d.window.document.body.className = 'page';
+  const inner = I.buildClipClone(d.window.document, o.clipRect, o).querySelector(
+    '.prjs-clip-inner'
+  );
+  const style = inner.getAttribute('style');
+  expect_match(style, /font-family:\s*Georgia, serif;/, 'the body font');
+  expect_match(style, /font-size:\s*18px;/, 'the body size');
+  expect_match(style, /letter-spacing:\s*1px;/, 'the body tracking');
+  expect_match(style, /color:\s*rgb\(23, 24, 27\);/, 'the body ink');
+  // a unitless line-height must stay a ratio: copied as a length, a 36px
+  // heading inherits 27px lines and the drift comes back the other way
+  expect_match(style, /line-height:\s*1\.5;/, 'the body leading, as a ratio');
+  expect_match(style, /left:-?0px;top:-3000px/, 'the offset is unchanged');
+});
+
 test('a clipRect job runs end-to-end and cancels cleanly via hook', async () => {
   const d = dom('<h1>title</h1><p>body copy</p>');
   let sawViewport = false;

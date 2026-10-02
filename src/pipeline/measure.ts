@@ -286,13 +286,100 @@ export function buildClipClone(
   inner.className = 'prjs-clip-inner';
   inner.setAttribute(
     'style',
-    'position:absolute;left:' + -rect.x + 'px;top:' + -rect.y + 'px;width:' + sourceWidth + 'px;'
+    'position:absolute;left:' +
+      -rect.x +
+      'px;top:' +
+      -rect.y +
+      'px;width:' +
+      sourceWidth +
+      'px;' +
+      inheritedText(srcDoc)
   );
 
   while (bodyClone.firstChild) inner.appendChild(bodyClone.firstChild);
   stage.appendChild(inner);
   viewport.appendChild(stage);
   return viewport;
+}
+
+/**
+ * The text properties `<body>` hands down, as an inline declaration.
+ *
+ * The clip moves the body's children into a plain div, and a capture then
+ * renders that div inside an svg foreignObject, where no `html`, `body` or
+ * `:root` rule and no class on `<body>` can reach it. Everything that inherited
+ * its font from the body fell back to the user agent's serif, every line wrapped
+ * differently, and on a long page the content drifted hundreds of pixels: the
+ * region framed whatever slid into the rectangle rather than what was selected,
+ * so a redacted block could be pushed out of its own capture entirely.
+ * Measured on the demo: the memo sits at 3789px live and the capture showed the
+ * sections below it.
+ */
+const INHERITED_TEXT = [
+  'font-family',
+  'font-size',
+  'font-weight',
+  'font-style',
+  'font-stretch',
+  'font-variant',
+  'font-feature-settings',
+  'font-variation-settings',
+  'font-kerning',
+  'line-height',
+  'letter-spacing',
+  'word-spacing',
+  'text-transform',
+  'text-rendering',
+  'text-align',
+  'white-space',
+  'direction',
+  'writing-mode',
+  'tab-size',
+  'color'
+];
+
+function inheritedText(srcDoc: Document): string {
+  const body = srcDoc.body;
+  const view = srcDoc.defaultView;
+  if (!body || !view || typeof view.getComputedStyle !== 'function') return '';
+  const cs = view.getComputedStyle(body);
+  let out = '';
+  for (const prop of INHERITED_TEXT) {
+    const value =
+      prop === 'line-height' ? inheritedLineHeight(body, cs) : cs.getPropertyValue(prop);
+    // a value carrying a quote or semicolon is written as-is by the engine, so
+    // it is safe inside an attribute; an empty one is left to the cascade
+    if (value && value.indexOf(';') === -1) out += prop + ':' + value + ';';
+  }
+  return out;
+}
+
+/**
+ * `line-height` is the one inherited property whose computed value lies.
+ *
+ * A unitless `1.5` inherits as a ratio, so a 36px heading gets 54px lines; the
+ * computed value on the body reads `24px`, and copying that gives the heading
+ * 24px lines instead. So ask a probe: a child at a different font size shows
+ * whether the body passes down a ratio or a length.
+ */
+function inheritedLineHeight(body: Element, cs: CSSStyleDeclaration): string {
+  const value = cs.getPropertyValue('line-height');
+  const own = parseFloat(value);
+  const size = parseFloat(cs.getPropertyValue('font-size'));
+  if (!value.endsWith('px') || !own || !size) return value;
+
+  const doc = body.ownerDocument;
+  const view = doc.defaultView;
+  if (!view) return value;
+  const probe = doc.createElement('span');
+  probe.setAttribute('style', 'position:absolute;visibility:hidden;font-size:' + size * 2 + 'px;');
+  body.appendChild(probe);
+  const child = parseFloat(view.getComputedStyle(probe).getPropertyValue('line-height'));
+  probe.remove();
+
+  // the child doubled with its font: a ratio. unchanged: a length, copied as-is
+  if (child && Math.abs(child - own * 2) < 0.5) return String(Math.round((own / size) * 1e4) / 1e4);
+  return value;
 }
 
 /** the layout width the rectangle's coordinates were measured against */
