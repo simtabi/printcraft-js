@@ -72,9 +72,17 @@ async function ensureColoris(doc: Document): Promise<void> {
       api.init();
       return api;
     });
+    // a failure is not remembered: the next field tries again rather than the
+    // page going without a picker until it reloads
+    loading.catch(() => {
+      loading = null;
+    });
   }
 
-  const api = (await loading) as { coloris(o: Record<string, unknown>): void };
+  const api = (await loading) as {
+    coloris(o: Record<string, unknown>): void;
+    setInstance?(selector: string, o: Record<string, unknown>): void;
+  };
   api.coloris({
     el: '.prjs-color-input',
     parent: (doc.body || doc.documentElement) as unknown as string,
@@ -87,6 +95,8 @@ async function ensureColoris(doc: Document): Promise<void> {
     focusInput: false,
     selectInput: false
   });
+  // per field: one that asked for no opacity channel gets none
+  api.setInstance?.('.prjs-color-input[data-alpha="false"]', { alpha: false });
 }
 
 /**

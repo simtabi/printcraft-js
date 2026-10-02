@@ -374,6 +374,11 @@ call`, with `explain()` naming which layer set each value. A source can be an
   shortcut opened the browser's own dialog. The proof now hears both from its
   frame, leaving a key the drawing tools already handled to them.
 
+- **The colour picker ignored `alpha: false`, and a failed load was final.**
+  Opacity was configured once for every field, and a picker that failed to load
+  never tried again until a reload. A field without alpha now gets a picker
+  without it, and the next field retries a failed load.
+
 ### Not fixed
 
 - The ⊗ floating in the Description box in two of the screenshots is not ours.
