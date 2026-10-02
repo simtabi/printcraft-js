@@ -621,3 +621,55 @@ test('explain names the layer for every setting', async () => {
 
   expect(explain(config)).toEqual(['pageMargin = 20mm  (call)', 'setPrintSize = A4  (defaults)']);
 });
+
+/* follow-ups -------------------------------------------------------------- */
+
+test('clearing an http store never empties the whole collection by accident', async () => {
+  // clear() sent DELETE to the collection itself, which on a per-user state
+  // service is every page's marks, not this one's
+  const seen: string[] = [];
+  const fetcher = ((url: string, init?: RequestInit) => {
+    seen.push((init?.method || 'GET') + ' ' + url);
+    if (!init?.method && url.endsWith('/state'))
+      return Promise.resolve(Response.json(['pc:page|marks', 'pc:page|recent', 'someone-else']));
+    return Promise.resolve(new Response(null, { status: 204 }));
+  }) as unknown as typeof fetch;
+
+  const scoped = httpStore({ url: 'https://example.test/state', prefix: 'pc:', fetch: fetcher });
+  expect(await scoped.keys()).toEqual(['page|marks', 'page|recent']);
+  await scoped.clear();
+  expect(seen.filter((s) => s.startsWith('DELETE'))).toEqual([
+    'DELETE https://example.test/state/pc%3Apage%7Cmarks',
+    'DELETE https://example.test/state/pc%3Apage%7Crecent'
+  ]);
+
+  seen.length = 0;
+  const bare = httpStore({ url: 'https://example.test/state', fetch: fetcher });
+  await expect(bare.clear()).rejects.toMatchObject({ code: 'PC_STORE_FAILED' });
+  expect(seen, 'nothing was deleted').toEqual([]);
+  await bare.clear({ all: true });
+  expect(seen).toEqual(['DELETE https://example.test/state']);
+});
+
+test('a config object with a store key is config, not a store', async () => {
+  // any plain object with a truthy `store` key was taken for a store source,
+  // so `{ store: 'main' }` threw and the whole layer was silently skipped
+  const config = await resolveConfig({ call: { store: 'main', pageMargin: '12mm' } });
+  expect(config.values).toEqual({ store: 'main', pageMargin: '12mm' });
+});
+
+test("a limit on the local store counts this page's records, not every page's", async () => {
+  // every page shares the `printcraft:` prefix, so a limit evicted the oldest
+  // records on the origin, which were another page's marks
+  const d = dom('');
+  const store = localStore({ window: d.window as unknown as Window, prefix: 'cap2:', limit: 2 });
+  await store.set('/a|marks', 1);
+  await store.set('/a|options', 1);
+  for (const part of ['marks', 'options', 'recent']) {
+    // eslint-disable-next-line no-await-in-loop
+    await store.set('/b|' + part, 1);
+  }
+  const left = await store.keys();
+  expect(left, 'page a untouched').toEqual(expect.arrayContaining(['/a|marks', '/a|options']));
+  expect(left.filter((k) => k.startsWith('/b|'))).toHaveLength(2);
+});

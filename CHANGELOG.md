@@ -355,6 +355,16 @@ call`, with `explain()` naming which layer set each value. A source can be an
   options save now sends `count` and `store` like the others. The annotate page
   described a toolbar that cycled colours, which became the Pen form.
 
+- **`httpStore().clear()` emptied the whole collection** — on a per-user state
+  service, every page's marks. It now deletes only keys under its new `prefix`
+  option, one at a time, and without a prefix refuses unless called as
+  `clear({ all: true })`.
+- **A `localStore` `limit` evicted other pages' records.** Every page shares the
+  prefix; the limit now counts one page's records at a time.
+- **A config object with a `store` key was taken for a store source**, so
+  `{ store: 'main' }` threw and its layer was skipped. A store is now recognised
+  by having `get` and `set`.
+
 ### Not fixed
 
 - The ⊗ floating in the Description box in two of the screenshots is not ours.
