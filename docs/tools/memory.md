@@ -108,6 +108,42 @@ const report = await ui.restored();
 Guessing would eventually mean redacting the wrong paragraph. A privacy tool that does that
 once is worse than one that says it does not know.
 
+### Elements with no words
+
+An image, a form field or an empty container has no text to compare, and an
+`nth-of-type` path points at a different element the moment a sibling of the same tag is
+inserted. So an anchor made on one records two more things, and both have to match:
+
+| Field     | What it holds                                                                     |
+| --------- | --------------------------------------------------------------------------------- |
+| `shape`   | the tag; `src`/`srcset`/`href` file names, `alt`, `name`, `type`, `role`,         |
+|           | `aria-label`, `title`, `for`; authored `data-*`; the `width`/`height` ratio; the  |
+|           | tags it contains                                                                  |
+| `context` | up to 32 characters of text either side of it, from the nearest ancestor with any |
+
+Classes, inline styles and a field's current value are left out: they change when the
+element did not. So are `data-` attributes that look generated (`data-v-3f2a1c`, long
+numbers or hex runs), a query string on a file name, and Printcraft's own overlay.
+
+The scheme follows the one annotation tools use. The W3C Web Annotation model pairs a
+locating selector with a `TextQuoteSelector` whose `prefix` and `suffix` confirm it, and
+Hypothesis anchors by trying the structural locator first, checking it against the quote,
+and only then searching for the quote elsewhere. Here the selector proposes, the shape
+stands in for the quote, and the surrounding text plays `prefix`/`suffix`:
+
+| Confidence | For an element with no words                                                        |
+| ---------- | ----------------------------------------------------------------------------------- |
+| `exact`    | the selector matched, and the shape and context are unchanged                       |
+| `likely`   | the selector missed, and exactly one element on the page has that shape and context |
+| `lost`     | anything else                                                                       |
+
+An element so plain that nothing tells it apart — no naming attributes, no children, no
+words around it — is trusted only through an `id`, and is otherwise `lost`.
+
+**Anchors saved before 3.0 shipped** carry neither field. They keep the rule they were made
+under: an element with no words is matched on its selector, and refused if it has since
+gained words.
+
 ## Reading and moving it
 
 ```js

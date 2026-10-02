@@ -230,6 +230,118 @@ test('text that now appears twice is refused rather than guessed between', () =>
   expect(found.reason).toMatch(/2 elements/);
 });
 
+/* anchors with no words --------------------------------------------------- */
+//
+// An image, an input or an empty container has no text to fingerprint, so the
+// selector alone used to decide, and an nth-of-type path points at a different
+// element the moment a same-tag sibling is inserted. These carry a structural
+// fingerprint instead, and the quote of the text either side of them.
+
+const page = (html: string) => dom('<main id="doc">' + html + '</main>').window.document;
+
+test('an image with no id is found again on the same page, exactly', () => {
+  const doc = page('<p>Figure one</p><img src="/media/chart-q3.png?v=7" alt="Q3"><p>Caption</p>');
+  const anchor = describeEl(doc.querySelector('img')!);
+  expect(anchor.text).toBe('');
+  expect(anchor.shape, 'a structural fingerprint is stored').toContain('chart-q3.png');
+
+  const found = resolve(
+    anchor,
+    page('<p>Figure one</p><img src="/media/chart-q3.png?v=8" alt="Q3"><p>Caption</p>')
+  );
+  expect(found.confidence, 'a cache-busting query is not a different image').toBe('exact');
+});
+
+test('an unrelated image inserted beside it does not move the mark onto it', () => {
+  const doc = page('<p>Intro</p><img src="logo.svg" alt="Logo"><p>Body</p>');
+  const anchor = describeEl(doc.querySelector('img')!);
+
+  const after = page(
+    '<img src="banner.jpg" alt="Sale"><p>Intro</p><img src="logo.svg" alt="Logo"><p>Body</p>'
+  );
+  const found = resolve(anchor, after);
+  expect(found.element!.getAttribute('src'), 'the logo, not the banner').toBe('logo.svg');
+  expect(found.confidence).toBe('likely');
+});
+
+test('a different image at the same path is refused', () => {
+  const doc = page('<p>Intro</p><img src="signature-jane.png" alt="Signed">');
+  const anchor = describeEl(doc.querySelector('img')!);
+  const found = resolve(anchor, page('<p>Intro</p><img src="signature-john.png" alt="Signed">'));
+  expect(found.element).toBeNull();
+  expect(found.confidence).toBe('lost');
+});
+
+test('an input is told apart by its name and type, not its value', () => {
+  const doc = page('<label>Email <input name="email" type="email" value="a@b.co"></label>');
+  const anchor = describeEl(doc.querySelector('input')!);
+  expect(
+    resolve(
+      anchor,
+      page('<label>Email <input name="email" type="email" value="other@x.io"></label>')
+    ).confidence
+  ).toBe('exact');
+  expect(
+    resolve(anchor, page('<label>Email <input name="phone" type="tel"></label>')).element
+  ).toBeNull();
+});
+
+test('an empty container is told apart by what it holds', () => {
+  const doc = page('<p>Chart</p><div><canvas width="400" height="200"></canvas></div>');
+  const anchor = describeEl(doc.querySelector('#doc > div')!);
+  expect(resolve(anchor, page('<p>Chart</p><div><img src="x.png"></div>')).element).toBeNull();
+});
+
+test('two identical images are told apart by the words around them', () => {
+  const doc = page(
+    '<p>Before the first</p><img src="tick.svg"><p>Between them</p><img src="tick.svg"><p>After</p>'
+  );
+  const second = doc.querySelectorAll('img')[1]!;
+  const anchor = describeEl(second);
+
+  // a third copy goes in at the top, so nth-of-type(2) is now the first tick
+  const after = page(
+    '<img src="tick.svg"><p>Before the first</p><img src="tick.svg"><p>Between them</p><img src="tick.svg"><p>After</p>'
+  );
+  const found = resolve(anchor, after);
+  expect(found.element, 'the one between "Between them" and "After"').toBe(
+    after.querySelectorAll('img')[2]
+  );
+});
+
+test('an empty element with nothing to tell it apart is only trusted by id', () => {
+  const doc = page('<div></div><div></div>');
+  const anchor = describeEl(doc.querySelectorAll('div')[1]!);
+  const found = resolve(anchor, page('<div></div><div></div>'));
+  expect(found.element, 'two bare divs are indistinguishable').toBeNull();
+  expect(found.reason).toMatch(/nothing/);
+
+  const byId = page('<div id="slot"></div>');
+  const idAnchor = describeEl(byId.getElementById('slot')!);
+  expect(resolve(idAnchor, page('<div id="slot"></div>')).confidence).toBe('exact');
+});
+
+test("a drawing's own overlay is not part of its host's fingerprint", () => {
+  // the svg is on the page while a drawing is shown and absent after a reload
+  // until it is repainted; counting it would lose every drawing on an empty box
+  const doc = page('<p>Sketch here</p><div data-slot="sketch"></div>');
+  const host = doc.querySelector('[data-slot]')!;
+  const overlay = doc.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  overlay.setAttribute('data-prjs-ui', '');
+  host.appendChild(overlay);
+  const anchor = describeEl(host);
+  expect(resolve(anchor, page('<p>Sketch here</p><div data-slot="sketch"></div>')).confidence).toBe(
+    'exact'
+  );
+});
+
+test('an anchor saved before fingerprints existed keeps the old rule', () => {
+  // no `shape`: resolved on the selector alone, as 3.0 betas did
+  const legacy = { selector: '#doc > img', text: '', tag: 'img', index: 0 };
+  const found = resolve(legacy, page('<img src="anything.png">'));
+  expect(found.confidence).toBe('exact');
+});
+
 /* the session ------------------------------------------------------------- */
 
 test('marks survive a reload', async () => {

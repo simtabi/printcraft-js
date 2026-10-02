@@ -297,6 +297,13 @@ call`, with `explain()` naming which layer set each value. A source can be an
   options object when it was installed and `configure()` replaces it, so jobs
   started from a right-click ignored it. The menu now reads them when it opens.
 
+- **A mark on an image, a field or an empty box could reattach to the wrong
+  one.** With no text to compare, an anchor was matched on its selector alone,
+  and an `nth-of-type` path moves when a sibling of the same tag is inserted.
+  Such anchors now store a structural fingerprint and the text either side, and
+  both must match; an element nothing distinguishes is trusted only by `id`.
+  Anchors saved without the new fields keep the old rule.
+
 ### Not fixed
 
 - The ⊗ floating in the Description box in two of the screenshots is not ours.
