@@ -27,7 +27,7 @@ if (run.status !== 0 && !/Tarball Details/.test(output)) {
 // `npm warn publish <correction>` line each. Only that block counts — other publish warnings
 // (a dry run without a login prints "requires you to be logged in") are not manifest changes.
 const lines = output.split('\n');
-const header = lines.findIndex((line) => /^npm warn publish errors corrected:/.test(line));
+const header = lines.findIndex((line) => line.startsWith('npm warn publish errors corrected:'));
 const corrections = [];
 if (header !== -1) {
   for (const line of lines.slice(header + 1)) {
