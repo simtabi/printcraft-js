@@ -190,11 +190,10 @@ export function applyDrawings(clone: Element, doc: Document): void {
     if (!drawing.shapes.length) return;
 
     // the overlay is absolutely positioned, so its host has to be a containing
-    // block. only `static` is not one, and inline styles are already stripped
-    // by the time this runs.
+    // block. whether it already is depends on stylesheets this detached copy
+    // cannot see, so it is left to css: see `buildPageCss`, and `rasterize`
+    // for a copy that is photographed instead.
     const host = el as HTMLElement;
-    const current = host.style.position;
-    if (!current) host.style.position = 'relative';
 
     // the box the print copy will lay out in, not the one on screen: a pen
     // stroke's outline is computed against its host's proportions, and the

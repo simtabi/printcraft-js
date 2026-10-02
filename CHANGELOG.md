@@ -258,6 +258,13 @@ call`, with `explain()` naming which layer set each value. A source can be an
   honours `proof: false`, and the settings dialog no longer reports pages "sent
   to the printer" for a proof that was cancelled.
 
+- **A drawing moved a positioned element on paper.** The overlay needs a
+  containing block, and the transform gave every host without an inline
+  `position` an inline `position: relative`, so an element a stylesheet
+  positioned — `.badge { position: absolute }` — was pulled back into flow. The
+  print document now sets it with a zero-specificity `:where()` rule that only
+  replaces `static`, and a photographed copy asks for the computed position.
+
 ### Not fixed
 
 - The ⊗ floating in the Description box in two of the screenshots is not ours.

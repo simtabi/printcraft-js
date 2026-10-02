@@ -51,6 +51,11 @@ export function buildPageCss(options: ResolvedOptions): string {
   breakAfter.forEach((s) => css.push(s + ' { break-after: page; page-break-after: always; }'));
   avoidBreak.forEach((s) => css.push(s + ' { break-inside: avoid; page-break-inside: avoid; }'));
   css.push('[data-' + NS + '-reveal] { display: revert !important; }');
+  // a drawing's overlay needs its host to be a containing block. `:where` has
+  // no specificity, so it only replaces `static`: a host a stylesheet or an
+  // inline style positioned keeps that position, where an inline
+  // `position: relative` on every host used to move a `.badge` on paper
+  css.push(':where([data-' + NS + '-drawing]) { position: relative; }');
 
   css.push(
     '.prjs-heading { margin: 0 0 18px; padding-bottom: 12px;' +

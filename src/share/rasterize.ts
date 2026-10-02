@@ -220,6 +220,14 @@ export async function rasterize(el: Element, options: RasterizeOptions = {}): Pr
   const timeout = options.assetTimeout ?? 8000;
   const skipped: string[] = [];
 
+  // parked in a document now, so a drawing's host can be asked for its
+  // computed position before the copy that gets photographed is taken. the
+  // print document does this with css; a photograph only has the page's.
+  for (const svg of el.querySelectorAll('.prjs-drawing')) {
+    const host = svg.parentElement;
+    if (host && view.getComputedStyle(host).position === 'static') host.style.position = 'relative';
+  }
+
   const box = el.getBoundingClientRect();
   const width = Math.max(1, Math.round(options.width || box.width || 1));
   const height = Math.max(1, Math.round(options.height || box.height || 1));

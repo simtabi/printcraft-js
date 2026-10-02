@@ -457,6 +457,51 @@ test('a proof of a drawn region links its copy back to the page', async () => {
   Printcraft.devtools.clear();
 });
 
+test('a drawing never overrides where a stylesheet positioned its host', async () => {
+  // The overlay needs its host to be a containing block, and the transform
+  // decided that from the inline style alone, on a clone with no layout. A host
+  // positioned by a stylesheet read as static and was given an inline
+  // `position: relative`, which moved it on paper.
+  const drawing = JSON.stringify({
+    v: 1,
+    shapes: [
+      {
+        id: 's1',
+        kind: 'ellipse',
+        points: [
+          { x: 0.1, y: 0.1 },
+          { x: 0.6, y: 0.7 }
+        ],
+        color: '#dc2626',
+        width: 3,
+        opacity: 1
+      }
+    ]
+  });
+  const d = dom(
+    '<style>.badge { position: absolute; top: 4px; }</style>' +
+      '<div id="r"><span class="badge">new</span><p>plain</p></div>'
+  );
+  const doc = d.window.document;
+  doc.querySelector('.badge')!.setAttribute('data-printcraft-drawing', drawing);
+  doc.querySelector('#r p')!.setAttribute('data-printcraft-drawing', drawing);
+
+  const ctl = await Printcraft.inspect(
+    { target: '#r', keepSourceCSS: true, assetTimeout: 50 },
+    { document: doc, window: d.window }
+  );
+  const view = ctl.document.defaultView!;
+  const badge = ctl.document.querySelector('.badge') as HTMLElement;
+  const para = ctl.document.querySelector('#r p') as HTMLElement;
+  expect_ok(badge.querySelector('.prjs-drawing'), 'the drawing is on the copy');
+
+  expect_eq(badge.style.position, '', 'no inline override on a positioned host');
+  expect_eq(view.getComputedStyle(badge).position, 'absolute');
+  expect_eq(view.getComputedStyle(para).position, 'relative', 'a static host still gets one');
+  ctl.close();
+  Printcraft.devtools.clear();
+});
+
 /* boot */
 
 test('_boot is a safe no-op without a document', () => {
