@@ -1,7 +1,7 @@
 // the 1.1 feature set: sanitizer, redaction, privacy auto-redaction, printer
 // marks, annotations, clip-rect printing, the fluent builder, and the ui layer.
 
-import { test } from 'vitest';
+import { test, expect } from 'vitest';
 import { Printcraft, I, BLOCK, dom, env } from './harness';
 import {
   expect_eq,
@@ -539,4 +539,38 @@ test('capture says what to do when the environment cannot rasterize', async () =
 
   expect_match(String(caught), /could not capture the selected region/);
   expect_match(String(caught), /clipMode: "reflow"/);
+});
+
+test('a dialog over the region tool keeps its keys to itself', async () => {
+  // The tool's keydown listener stayed live under its own confirm dialog: arrow
+  // keys in the Title field moved the hidden box, and Escape cancelled the whole
+  // tool rather than closing the dialog.
+  const d = dom('<div>page</div>');
+  const doc = d.window.document;
+  const done = Printcraft.ui.drawArea({}, env(d));
+  const key = (k: string): void =>
+    void doc.dispatchEvent(
+      new d.window.KeyboardEvent('keydown', { key: k, bubbles: true, cancelable: true })
+    );
+
+  const layer = doc.querySelector('[data-prjs-draw]')!;
+  for (const [type, x, y] of [
+    ['pointerdown', 20, 20],
+    ['pointermove', 220, 140],
+    ['pointerup', 220, 140]
+  ] as const) {
+    layer.dispatchEvent(new d.window.MouseEvent(type, { bubbles: true, clientX: x, clientY: y }));
+  }
+  const region = doc.querySelector('[data-prjs-region]') as HTMLElement;
+  const left = region.style.left;
+
+  const dialog = Printcraft.ui.modal({ title: 'Over the tool' }, env(d));
+  key('ArrowRight');
+  expect(region.style.left, 'the box did not move').toBe(left);
+  key('Escape');
+  await dialog;
+  expect(doc.querySelector('[data-prjs-draw]'), 'the tool is still open').toBeTruthy();
+
+  key('Escape');
+  expect((await done).action).toBe('cancel');
 });

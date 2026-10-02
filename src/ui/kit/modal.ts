@@ -160,7 +160,10 @@ class Modal extends Surface {
     scrim.addEventListener('keydown', (ev) => {
       const key = (ev as KeyboardEvent).key;
       const target = ev.target as HTMLElement | null;
-      if (key !== 'Enter' || target?.tagName === 'TEXTAREA') return;
+      // a textarea takes Enter as a newline, and a button or link as a click on
+      // itself: Enter on Cancel means Cancel, not the primary action
+      if (key !== 'Enter' || (target && /^(TEXTAREA|BUTTON|A|SELECT)$/.test(target.tagName)))
+        return;
       const primary = actions.find((a) => a.tone === 'primary');
       if (primary) {
         ev.preventDefault();

@@ -138,6 +138,77 @@ test('focus goes back where it came from', async () => {
   expect(d.window.document.activeElement, 'returned to the opener').toBe(opener);
 });
 
+test('a dialog opened over another takes the keyboard, and only it', async () => {
+  // Every surface listens on the document in capture, and the one opened first
+  // ran first: Escape in a dialog over the proof cancelled the proof too, and Tab
+  // in it was pulled back to the dialog underneath on every press.
+  const d = dom('');
+  const doc = d.window.document;
+  const under = ui.modal(
+    {
+      title: 'Under',
+      actions: [
+        { id: 'u1', label: 'Under one' },
+        { id: 'u2', label: 'Under two' }
+      ]
+    },
+    env(d)
+  );
+  let underDone = false;
+  void under.then(() => (underDone = true));
+  const over = ui.modal(
+    {
+      title: 'Over',
+      actions: [
+        { id: 'o1', label: 'Over one' },
+        { id: 'o2', label: 'Over two' }
+      ]
+    },
+    env(d)
+  );
+  const overButtons = [...doc.querySelectorAll<HTMLElement>('[data-prjs-action^="o"]')];
+  overButtons[0]!.focus();
+  key(d, 'Tab');
+  // jsdom does not move focus on Tab itself; what matters is nobody yanked it
+  expect(doc.activeElement, 'Tab stays in the dialog on top').toBe(overButtons[0]);
+
+  key(d, 'Escape');
+  expect((await over).action).toBeNull();
+  await tick();
+  expect(underDone, 'the dialog underneath is still open').toBe(false);
+
+  key(d, 'Escape');
+  expect((await under).action).toBeNull();
+});
+
+test('Enter on a secondary button does what that button says', async () => {
+  // The scrim turned every Enter into the primary action, so a keyboard user on
+  // Cancel who pressed Enter got Apply.
+  const d = dom('');
+  const doc = d.window.document;
+  const result = ui.modal(
+    {
+      title: 'Apply?',
+      actions: [
+        { id: 'cancel', label: 'Cancel', tone: 'ghost' },
+        { id: 'apply', label: 'Apply', tone: 'primary' }
+      ]
+    },
+    env(d)
+  );
+  const cancel = doc.querySelector<HTMLButtonElement>('[data-prjs-action="cancel"]')!;
+  cancel.focus();
+  const enter = new d.window.KeyboardEvent('keydown', {
+    key: 'Enter',
+    bubbles: true,
+    cancelable: true
+  });
+  cancel.dispatchEvent(enter);
+  // a real browser turns an unprevented Enter on a button into a click
+  if (!enter.defaultPrevented) cancel.click();
+  expect((await result).action).toBe('cancel');
+});
+
 /* prompt replacement ---------------------------------------------------- */
 
 test('prompt collects a value and cancel yields null', async () => {

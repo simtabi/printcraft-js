@@ -23,7 +23,7 @@ export {
   type Tone,
   type ToneInput
 } from './theme';
-export { Surface, openSurfaceCount, type SurfaceOptions } from './surface';
+export { Surface, openSurfaceCount, modalOpenOn, type SurfaceOptions } from './surface';
 export { place, applyPlacement, type Anchor, type Placement } from './position';
 export {
   tooltip,

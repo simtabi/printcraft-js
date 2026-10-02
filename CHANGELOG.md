@@ -309,6 +309,15 @@ call`, with `explain()` naming which layer set each value. A source can be an
   the kit's surfaces in both schemes. It is now `#6b6d74` light and `#909299`
   dark, at least 4.5:1 on both surfaces, and a test checks every text colour.
 
+- **Keys reached the surface underneath a dialog.** Every surface listened on
+  the document in capture and the one opened first heard a key first, so Escape
+  in the proof's Settings dialog cancelled the proof, Tab in it was pulled back
+  to the proof on every press, arrow keys in the region tool's Title field moved
+  the hidden box, and Escape or Ctrl+Z in the studio's Pen and Text dialogs
+  closed the studio or undid a mark. Only the topmost dialog answers now.
+- **Enter on Cancel ran the primary action.** A modal turned every Enter into
+  its primary button; Enter on a button now means that button.
+
 ### Not fixed
 
 - The ⊗ floating in the Description box in two of the screenshots is not ours.

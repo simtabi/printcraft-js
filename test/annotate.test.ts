@@ -294,3 +294,37 @@ test('the live overlay is marked as interface, and the printed one is not', () =
   expect(overlayNode(doc, drawing([shape()]), false).hasAttribute('data-prjs-ui')).toBe(true);
   expect(overlayNode(doc, drawing([shape()]), true).hasAttribute('data-prjs-ui')).toBe(false);
 });
+
+test('a dialog over the studio keeps Escape and undo to itself', async () => {
+  // The studio listened on the document in capture: Escape in its own Pen or
+  // Text dialog closed the whole studio, and Ctrl+Z in the text field undid a
+  // mark instead of the typing.
+  const d = dom('<p id="p" style="width:200px;height:40px">mark me</p>');
+  const doc = d.window.document;
+  const { openStudio } = await import('../src/annotate');
+  const { modal } = await import('../src/ui/kit');
+  const studio = openStudio({
+    document: doc,
+    window: d.window as unknown as Window & typeof globalThis
+  });
+  const key = (k: string, init: KeyboardEventInit = {}): KeyboardEvent => {
+    const ev = new d.window.KeyboardEvent('keydown', {
+      key: k,
+      bubbles: true,
+      cancelable: true,
+      ...init
+    });
+    doc.dispatchEvent(ev);
+    return ev;
+  };
+
+  const dialog = modal(
+    { title: 'Text' },
+    { document: doc, window: d.window as unknown as Window & typeof globalThis }
+  );
+  expect(key('z', { ctrlKey: true }).defaultPrevented, "undo is the field's").toBe(false);
+  key('Escape');
+  await dialog;
+  expect(studio.isOpen, 'the studio is still open').toBe(true);
+  studio.close();
+});

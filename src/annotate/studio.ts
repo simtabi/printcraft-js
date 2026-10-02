@@ -22,7 +22,14 @@ import {
 import { chooseImage, imageFrom, placeAt, prepareImage } from './image';
 import { mountOverlay, overlayNode, unmountOverlay } from './render';
 import { NS } from '../support';
-import { modal, openToolbar, toast, type ToolbarChip, type ToolbarHandle } from '../ui/kit';
+import {
+  modal,
+  modalOpenOn,
+  openToolbar,
+  toast,
+  type ToolbarChip,
+  type ToolbarHandle
+} from '../ui/kit';
 import type { Env } from '../types';
 
 const DRAW_ATTR = 'data-' + NS + '-drawing';
@@ -458,6 +465,9 @@ export function openStudio(env: Env, options: StudioOptions = {}): StudioHandle 
   };
 
   const onKey = (ev: Event): void => {
+    // the Pen and Text dialogs open over the studio, and Escape or Ctrl+Z there
+    // belongs to the dialog and its text field
+    if (modalOpenOn(doc)) return;
     const e = ev as KeyboardEvent;
     if (e.key === 'Escape') {
       e.preventDefault();

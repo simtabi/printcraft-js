@@ -7,7 +7,7 @@
 // The confirm step shows what will actually print and takes an optional title
 // and description.
 
-import { h as node, modal, openToolbar, toast, type ToolbarHandle } from './kit';
+import { h as node, modal, modalOpenOn, openToolbar, toast, type ToolbarHandle } from './kit';
 import { openRegionMenu } from './menu';
 import { holdRegion } from './region';
 import type { ActionRegistry } from './actions';
@@ -369,6 +369,9 @@ export function drawArea(
     /* keyboard ---------------------------------------------------------- */
 
     function onKey(ev: KeyboardEvent): void {
+      // the confirm step is a dialog over this tool, and its keys are its own:
+      // arrows move a caret there, Enter submits it, Escape goes back to here
+      if (modalOpenOn(doc)) return;
       if (ev.key === 'Escape') {
         ev.preventDefault();
         finish('cancel');
