@@ -365,3 +365,15 @@ test('every option is documented', () => {
     'in PrintcraftOptions but not in docs/tools/options.md'
   ).toEqual([]);
 });
+
+test('bin paths carry no ./ prefix, which npm 11 drops at publish time', () => {
+  // npm 11.13 normalises package.json on publish and removes a bin entry whose path starts
+  // with "./" ("script name ... was invalid and removed"), so the CLI would silently not ship.
+  const pkg = JSON.parse(read('package.json')) as { bin?: Record<string, string> };
+  const bins = Object.entries(pkg.bin ?? {});
+  expect(bins.length).toBeGreaterThan(0);
+  for (const [name, path] of bins) {
+    expect(path, `bin.${name}`).not.toMatch(/^\.\//);
+    expect(existsSync(at(path)), `bin.${name} -> ${path}`).toBe(true);
+  }
+});
