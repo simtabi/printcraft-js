@@ -7,6 +7,7 @@
 import { test, expect } from 'vitest';
 import { Printcraft, dom, env } from './harness';
 import { DAISYUI_CSS } from '../src/ui/kit/daisyui-css';
+import { ensureStyles } from '../src/ui/kit/theme';
 
 const ui = Printcraft.ui;
 
@@ -653,4 +654,46 @@ test('the vendored daisyUI sheet has every variant, no breakpoint copies and no 
   ]) {
     expect(unique.has(variant), variant + ' is missing').toBe(true);
   }
+});
+
+/* contrast ---------------------------------------------------------------- */
+
+/** WCAG 2.x relative luminance contrast of two `#rrggbb` colours */
+function contrast(a: string, b: string): number {
+  const lum = (hex: string): number => {
+    const [r, g, bl] = [1, 3, 5].map((i) => {
+      const c = parseInt(hex.slice(i, i + 2), 16) / 255;
+      return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+    });
+    return 0.2126 * r! + 0.7152 * g! + 0.0722 * bl!;
+  };
+  const hi = Math.max(lum(a), lum(b));
+  const lo = Math.min(lum(a), lum(b));
+  return (hi + 0.05) / (lo + 0.05);
+}
+
+test('every text colour in the kit reaches 4.5:1 in both schemes', () => {
+  // The faint ink sets group headings and "where" lines at 10-11px, which is
+  // body text as far as WCAG is concerned, and it sat at 3.1-3.4:1.
+  const d = dom('');
+  ensureStyles(d.window.document);
+  const css = [...d.window.document.querySelectorAll('style')].map((s) => s.textContent).join('\n');
+  const values = (name: string): string[] =>
+    [...css.matchAll(new RegExp('--prjs-' + name + ':\\s*(#[0-9a-f]{6})', 'gi'))].map((m) => m[1]!);
+
+  const schemes = [0, 1];
+  let checked = 0;
+  for (const s of schemes) {
+    const surfaces = [values('color-base-100')[s]!, values('color-base-200')[s]!];
+    for (const ink of ['color-base-content', 'ink-soft', 'ink-faint']) {
+      for (const surface of surfaces) {
+        const fg = values(ink)[s]!;
+        expect(contrast(fg, surface), ink + ' ' + fg + ' on ' + surface).toBeGreaterThanOrEqual(
+          4.5
+        );
+        checked++;
+      }
+    }
+  }
+  expect(checked, 'both schemes were found in the sheet').toBe(12);
 });

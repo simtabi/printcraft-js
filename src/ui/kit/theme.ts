@@ -165,7 +165,7 @@ export const DEFAULT_THEME: Theme = {
   baseContent: '#17181b',
 
   inkSoft: '#55575e',
-  inkFaint: '#8a8c93',
+  inkFaint: '#6b6d74',
   ruleSoft: '#ececea',
 
   primary: solid('#0f766e'),
@@ -211,7 +211,7 @@ const DARK: { base: Record<string, string>; tones: Record<ToneKey, [string, stri
     base300: '#3a3b41',
     baseContent: '#f2f2f0',
     inkSoft: '#a8aab2',
-    inkFaint: '#74767e',
+    inkFaint: '#909299',
     ruleSoft: '#2e2f34'
   },
   tones: {

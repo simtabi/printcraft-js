@@ -304,6 +304,11 @@ call`, with `explain()` naming which layer set each value. A source can be an
   both must match; an element nothing distinguishes is trusted only by `id`.
   Anchors saved without the new fields keep the old rule.
 
+- **Faint text failed contrast.** Group headings, the palette placeholder and
+  the notes panel's "where" lines use the faint ink at 10-11px, at 3.1-3.4:1 on
+  the kit's surfaces in both schemes. It is now `#6b6d74` light and `#909299`
+  dark, at least 4.5:1 on both surfaces, and a test checks every text colour.
+
 ### Not fixed
 
 - The ⊗ floating in the Description box in two of the screenshots is not ours.
