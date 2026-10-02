@@ -37,7 +37,12 @@ export {
   type ResolvedAction
 } from './actions';
 export { buildActions, contributeActions, markCount, GROUPS } from './catalogue';
-export { PrintcraftInterface, createInterface, type InterfaceOptions } from './instance';
+export {
+  PrintcraftInterface,
+  createInterface,
+  rememberingMemory,
+  type InterfaceOptions
+} from './instance';
 export { notesPanel, type NotesPanelOptions, type NotesPanelResult } from './notes';
 
 export * from './kit';
@@ -52,3 +57,7 @@ export {
   type PrintDialogResult
 } from './print-dialog';
 export type { UiDeps } from './shared';
+
+// the stores, so `import { localStore } from '@simtabi/printcraft/ui'` works as
+// docs/tools/memory.md shows. they are already in this chunk, behind `persist`.
+export { memoryStore, localStore, sessionStore, httpStore, customStore } from '../state';

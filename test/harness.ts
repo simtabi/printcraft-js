@@ -35,7 +35,9 @@ export function env(d: JSDOM): { document: Document; window: Window } {
  */
 export function stubPrint(d: JSDOM, events?: string[]): () => void {
   const mo = new d.window.MutationObserver(() => {
-    const f = d.window.document.querySelector('iframe[data-pc-frame]') as HTMLIFrameElement | null;
+    const f = d.window.document.querySelector(
+      'iframe[data-prjs-frame]'
+    ) as HTMLIFrameElement | null;
     const win = f?.contentWindow as (Window & { print: { _stub?: boolean } }) | null | undefined;
     if (win && !win.print?._stub) {
       const stub = Object.assign(

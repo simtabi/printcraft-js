@@ -4,7 +4,7 @@
 export const NS = 'printcraft';
 
 /** temporary attribute linking a measured live element to its clone. */
-export const DATA_ID = 'data-pc-id';
+export const DATA_ID = 'data-prjs-id';
 
 /** tags that cannot be a print target: cloning one produces nothing printable. */
 export const FORBIDDEN_TAGS = [

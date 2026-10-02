@@ -10,7 +10,7 @@
 // "Page numbers" and "dpa" finds "Draw a print area". Matched characters are
 // marked in the result, which is what makes it obvious why something ranked.
 
-import { h, iconNode, root } from './dom';
+import { button, h, iconNode, root } from './dom';
 import { Surface, type SurfaceOptions } from './surface';
 import type { Env } from '../../types';
 
@@ -123,7 +123,7 @@ function marked(doc: Document, label: string, hits: number[]): DocumentFragment 
 
   const flush = (): void => {
     if (!run) return;
-    if (runIsHit) frag.appendChild(h(doc, 'span', { class: 'pc-k-match', text: run }));
+    if (runIsHit) frag.appendChild(h(doc, 'span', { class: 'prjs-match', text: run }));
     else frag.appendChild(doc.createTextNode(run));
     run = '';
   };
@@ -157,53 +157,69 @@ class Palette extends Surface {
 
   protected build(): HTMLElement {
     const doc = this.doc;
-    const scrim = root(doc, 'div', { class: 'pc-k pc-k-scrim' });
+    const scrim = root(doc, 'div', { class: 'prjs prjs-scrim' });
     const panel = h(doc, 'div', {
-      class: 'pc-k-palette',
+      class: 'prjs-palette',
       attrs: {
         role: 'dialog',
         'aria-modal': 'true',
         'aria-label': 'Commands',
-        'data-pc-palette': ''
+        'data-prjs-palette': ''
       }
     });
 
     /* search */
-    const search = h(doc, 'div', { class: 'pc-k-palette-search' });
+    const search = h(doc, 'div', { class: 'prjs-palette-search' });
     search.appendChild(iconNode(doc, 'inspect'));
 
     this.input = h(doc, 'input', {
-      class: 'pc-k-palette-input',
+      class: 'prjs-palette-input',
       attrs: {
         type: 'text',
         placeholder: this.spec.placeholder || 'Search commands…',
         role: 'combobox',
         'aria-expanded': 'true',
-        'aria-controls': 'pc-palette-list',
+        'aria-controls': 'prjs-palette-list',
         'aria-autocomplete': 'list',
         autocomplete: 'off',
         spellcheck: 'false'
       }
     }) as HTMLInputElement;
     search.appendChild(this.input);
+
+    // Escape closes it, and the footer says so, but a surface with no visible
+    // way out is a surface some people will not open twice.
+    const dismiss = button(doc, {
+      label: '',
+      tone: 'ghost',
+      icon: 'close',
+      attrs: {
+        'aria-label': 'Close',
+        'data-size': 'sm',
+        'data-icon-only': '',
+        'data-prjs-modal-close': ''
+      },
+      onClick: () => this.close()
+    });
+    search.appendChild(dismiss);
     panel.appendChild(search);
 
     /* results */
     this.list = h(doc, 'div', {
-      class: 'pc-k-palette-list',
-      attrs: { id: 'pc-palette-list', role: 'listbox' }
+      class: 'prjs-palette-list',
+      attrs: { id: 'prjs-palette-list', role: 'listbox' }
     });
     panel.appendChild(this.list);
 
     /* the hints along the bottom, which is where people learn the keyboard */
-    const foot = h(doc, 'div', { class: 'pc-k-palette-foot' });
+    const foot = h(doc, 'div', { class: 'prjs-palette-foot' });
     for (const [caps, what] of [
       [['↑', '↓'], 'navigate'],
       [['↵'], 'run'],
       [['Esc'], 'close']
     ] as Array<[string[], string]>) {
       const hint = h(doc, 'span');
-      for (const cap of caps) hint.appendChild(h(doc, 'kbd', { class: 'pc-k-kbd', text: cap }));
+      for (const cap of caps) hint.appendChild(h(doc, 'kbd', { class: 'prjs-kbd', text: cap }));
       hint.appendChild(doc.createTextNode(' ' + what));
       foot.appendChild(hint);
     }
@@ -255,7 +271,7 @@ class Palette extends Surface {
     if (!ranked.length) {
       this.list.appendChild(
         h(doc, 'div', {
-          class: 'pc-k-palette-empty',
+          class: 'prjs-palette-empty',
           text: query ? 'Nothing matches “' + query + '”' : this.spec.emptyLabel || 'No commands'
         })
       );
@@ -267,39 +283,39 @@ class Palette extends Surface {
       // groups only make sense while the list is in its natural order
       if (!query.trim() && item.group && item.group !== group) {
         group = item.group;
-        this.list.appendChild(h(doc, 'div', { class: 'pc-k-group', text: group }));
+        this.list.appendChild(h(doc, 'div', { class: 'prjs-group', text: group }));
       }
 
       const row = h(doc, 'button', {
-        class: 'pc-k-item',
+        class: 'prjs-item',
         attrs: {
           type: 'button',
           role: 'option',
           'aria-selected': 'false',
-          'data-pc-item': item.id,
+          'data-prjs-item': item.id,
           ...(item.tone ? { 'data-tone': item.tone } : {})
         }
       });
 
       if (item.icon) {
         row.appendChild(
-          h(doc, 'span', { class: 'pc-k-item-icon', children: [iconNode(doc, item.icon)] })
+          h(doc, 'span', { class: 'prjs-item-icon', children: [iconNode(doc, item.icon)] })
         );
       }
 
-      const text = h(doc, 'span', { class: 'pc-k-item-text' });
-      const label = h(doc, 'span', { class: 'pc-k-item-label' });
+      const text = h(doc, 'span', { class: 'prjs-item-text' });
+      const label = h(doc, 'span', { class: 'prjs-item-label' });
       label.appendChild(marked(doc, item.label, hits));
       text.appendChild(label);
       if (item.description) {
-        text.appendChild(h(doc, 'span', { class: 'pc-k-item-hint', text: item.description }));
+        text.appendChild(h(doc, 'span', { class: 'prjs-item-hint', text: item.description }));
       }
       row.appendChild(text);
 
       if (item.keys?.length) {
-        const caps = h(doc, 'span', { class: 'pc-k-item-kbd' });
+        const caps = h(doc, 'span', { class: 'prjs-item-kbd' });
         for (const cap of item.keys)
-          caps.appendChild(h(doc, 'kbd', { class: 'pc-k-kbd', text: cap }));
+          caps.appendChild(h(doc, 'kbd', { class: 'prjs-kbd', text: cap }));
         row.appendChild(caps);
       }
 
@@ -327,8 +343,8 @@ class Palette extends Surface {
       row.el.setAttribute('data-active', active ? 'true' : 'false');
       row.el.setAttribute('aria-selected', active ? 'true' : 'false');
       if (active) {
-        this.input.setAttribute('aria-activedescendant', 'pc-opt-' + i);
-        row.el.id = 'pc-opt-' + i;
+        this.input.setAttribute('aria-activedescendant', 'prjs-opt-' + i);
+        row.el.id = 'prjs-opt-' + i;
         row.el.scrollIntoView({ block: 'nearest' });
       }
     });

@@ -71,6 +71,19 @@ both are drawn as a block above the content when either is set.
 | `printHeading`        | boolean           | `true`  | `false` leaves the title for the filename alone |
 | `printHeadingMeta`    | boolean \| string | `false` | `true` stamps the date; a string prints it      |
 
+### Extra sheets
+
+See [Cover and notes pages](../pages.md).
+
+| Option      | Type                          | Default | What it does                                                    |
+| ----------- | ----------------------------- | ------- | --------------------------------------------------------------- |
+| `coverPage` | boolean \| object \| function | `null`  | The title and description on a sheet of their own, at the front |
+| `notesPage` | boolean \| object \| function | `null`  | Every note, redaction and drawing listed at the back            |
+
+An object takes `{ title, description, meta, template }`; a function is handed
+`(doc, options)` and returns the node. `notesPage: true` on a document nobody
+marked prints no sheet rather than an empty one.
+
 > Selector options are interpolated into a generated stylesheet, so `{`, `}`, `<`
 > and `/*` are rejected at normalization time. Combinators, pseudo-classes and
 > attribute selectors (`table > tbody tr`, `.a:not(.b)`, `a[href*="@"]`) all
@@ -99,6 +112,17 @@ both are drawn as a block above the content when either is set.
 | `transforms`               | `{selector, fn}[]`      | `[]`                | Per-selector clone transforms. Return `null` to drop, an element to replace   |
 | `customMethodMap`          | object                  | `null`              | Legacy tag-keyed transform chain                                              |
 | `annotations`              | `{selector, text}[]`    | `[]`                | See [Annotations](annotations.md)                                             |
+
+## Before it prints
+
+| Option  | Type    | Default | What it does                                              |
+| ------- | ------- | ------- | --------------------------------------------------------- |
+| `proof` | boolean | `false` | Show the assembled document and wait, instead of printing |
+
+On for the menu, the palette, the keyboard and anywhere else a person is present;
+off for `Printcraft.print()` called from code, so an unattended job does not sit
+waiting for somebody who is not there. `Printcraft.proof(options)` is the same
+thing from the other direction. See [the proof sheet](../proof.md).
 
 ## Where the job goes
 

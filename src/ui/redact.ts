@@ -11,7 +11,7 @@
 
 import { h as node, confirm, modal, openToolbar, toast, type ToolbarHandle } from './kit';
 import { computeRect } from './annotations';
-import { defaultEnv, el, Z, type UiDeps } from './shared';
+import { defaultEnv, el, viaProof, Z, type UiDeps, suppressNativeMenu } from './shared';
 import { runsInRect, secretsOf, type TextRun } from '../privacy/marking';
 import type { ClipRect, Env, InspectController, JobRecord, PrintcraftOptions } from '../types';
 
@@ -66,7 +66,8 @@ export function redactArea(
       'div',
       'position:fixed;inset:0;z-index:' + Z + ';cursor:crosshair;background:rgba(23,24,27,.18);'
     );
-    layer.setAttribute('data-pc-redact-layer', '');
+    layer.setAttribute('data-prjs-redact-layer', '');
+    const unsuppress = suppressNativeMenu(layer);
 
     let bar: ToolbarHandle | null = null;
 
@@ -151,7 +152,7 @@ export function redactArea(
       }
 
       live.setAttribute('style', markStyle(rect, false));
-      live.setAttribute('data-pc-mark', String(nextId));
+      live.setAttribute('data-prjs-mark', String(nextId));
       marks.push({ id: nextId++, rect, runs, box: live });
       live = null;
 
@@ -245,14 +246,14 @@ export function redactArea(
       const runs = marks.flatMap((m) => m.runs);
       resolve(
         deps.print(
-          {
+          viaProof({
             ...opts,
             target: opts.scope || opts.target || 'body',
             redactRuns: [...(opts.redactRuns || []), ...runs],
             // a job whose whole point is destroying text should not print when
             // the destruction did not take
             redactionPolicy: opts.redactionPolicy || 'strict'
-          },
+          }),
           scope
         )
       );
@@ -284,6 +285,7 @@ export function redactArea(
     }
 
     function teardown(): void {
+      unsuppress();
       doc.removeEventListener('keydown', onKey, true);
       win.removeEventListener('scroll', reposition);
       bar?.close();

@@ -32,7 +32,7 @@ async function captureSrc(page: Page, rect: Record<string, number>): Promise<str
       assetTimeout: 5000,
       hooks: {
         beforePrint(ctx: { document: Document }) {
-          src = ctx.document.querySelector<HTMLImageElement>('img.pc-capture')?.src ?? null;
+          src = ctx.document.querySelector<HTMLImageElement>('img.prjs-capture')?.src ?? null;
           return false;
         }
       }
@@ -68,14 +68,14 @@ async function pixelAt(page: Page, src: string, fx: number, fy = 0.5): Promise<n
 
 test.beforeEach(async ({ page }) => {
   await page.goto(DEMO);
-  await expect(page.locator('#tickets .pc-ticket').first()).toBeVisible();
+  await expect(page.locator('#tickets .prjs-ticket').first()).toBeVisible();
 });
 
 /* what actually prints -------------------------------------------------- */
 
 test('a captured region contains the pixels that were selected', async ({ page }) => {
   const rect = await page.evaluate(() => {
-    const r = document.querySelector('.pc-rule')!.getBoundingClientRect();
+    const r = document.querySelector('.prjs-rule')!.getBoundingClientRect();
     return {
       x: Math.round(r.left + scrollX),
       y: Math.round(r.top + scrollY),
@@ -158,7 +158,7 @@ test('redaction is applied before the capture is taken', async ({ page }) => {
       assetTimeout: 5000,
       hooks: {
         beforePrint(ctx: { document: Document }) {
-          out = ctx.document.querySelector<HTMLImageElement>('img.pc-capture')?.src ?? null;
+          out = ctx.document.querySelector<HTMLImageElement>('img.prjs-capture')?.src ?? null;
           return false;
         }
       }
@@ -198,7 +198,7 @@ async function openDraw(page: Page): Promise<void> {
     ).Printcraft;
     (window as unknown as { __drawn?: unknown }).__drawn = pc.ui.drawArea({});
   });
-  await expect(page.locator('[data-pc-draw]')).toBeVisible();
+  await expect(page.locator('[data-prjs-draw]')).toBeVisible();
 }
 
 async function dragBox(page: Page, from: [number, number], to: [number, number]): Promise<void> {
@@ -212,14 +212,14 @@ test('drawing gives a box with eight handles and live dimensions', async ({ page
   await openDraw(page);
   await dragBox(page, [200, 200], [600, 450]);
 
-  await expect(page.locator('[data-pc-region]')).toBeVisible();
-  await expect(page.locator('[data-pc-handle]')).toHaveCount(8);
-  await expect(page.locator('[data-pc-dims]')).toContainText('400 × 250 px');
-  await expect(page.locator('[data-pc-dims]'), 'and in millimetres').toContainText('mm');
+  await expect(page.locator('[data-prjs-region]')).toBeVisible();
+  await expect(page.locator('[data-prjs-handle]')).toHaveCount(8);
+  await expect(page.locator('[data-prjs-dims]')).toContainText('400 × 250 px');
+  await expect(page.locator('[data-prjs-dims]'), 'and in millimetres').toContainText('mm');
 
   // releasing the mouse must not print anything: the selection is still editable
-  await expect(page.locator('[data-pc-modal]')).toHaveCount(0);
-  await expect(page.locator('[data-pc-draw]')).toBeVisible();
+  await expect(page.locator('[data-prjs-modal]')).toHaveCount(0);
+  await expect(page.locator('[data-prjs-draw]')).toBeVisible();
 });
 
 test('the box can be moved and resized after it is drawn', async ({ page }) => {
@@ -228,7 +228,7 @@ test('the box can be moved and resized after it is drawn', async ({ page }) => {
 
   const boxOf = async (): Promise<{ x: number; y: number; w: number; h: number }> =>
     page.evaluate(() => {
-      const r = document.querySelector('[data-pc-region]')!.getBoundingClientRect();
+      const r = document.querySelector('[data-prjs-region]')!.getBoundingClientRect();
       return {
         x: Math.round(r.left),
         y: Math.round(r.top),
@@ -248,7 +248,7 @@ test('the box can be moved and resized after it is drawn', async ({ page }) => {
   expect(moved.w, 'and kept its size').toBe(300);
 
   // drag the south-east handle to resize
-  const se = page.locator('[data-pc-handle="se"]');
+  const se = page.locator('[data-prjs-handle="se"]');
   const grip = (await se.boundingBox())!;
   await dragBox(page, [grip.x + 6, grip.y + 6], [grip.x + 106, grip.y + 56]);
   const resized = await boxOf();
@@ -264,19 +264,19 @@ test('arrow keys nudge, and alt+arrows resize', async ({ page }) => {
   await page.keyboard.press('ArrowRight');
   await page.keyboard.press('ArrowRight');
   let box = await page.evaluate(() =>
-    Math.round(document.querySelector('[data-pc-region]')!.getBoundingClientRect().left)
+    Math.round(document.querySelector('[data-prjs-region]')!.getBoundingClientRect().left)
   );
   expect(box, 'one pixel per press').toBe(202);
 
   await page.keyboard.press('Shift+ArrowRight');
   box = await page.evaluate(() =>
-    Math.round(document.querySelector('[data-pc-region]')!.getBoundingClientRect().left)
+    Math.round(document.querySelector('[data-prjs-region]')!.getBoundingClientRect().left)
   );
   expect(box, 'ten with shift').toBe(212);
 
   await page.keyboard.press('Alt+ArrowDown');
   const height = await page.evaluate(() =>
-    Math.round(document.querySelector('[data-pc-region]')!.getBoundingClientRect().height)
+    Math.round(document.querySelector('[data-prjs-region]')!.getBoundingClientRect().height)
   );
   expect(height, 'alt grows instead of moving').toBe(151);
 });
@@ -284,33 +284,33 @@ test('arrow keys nudge, and alt+arrows resize', async ({ page }) => {
 test('confirming asks for an optional title and description first', async ({ page }) => {
   await openDraw(page);
   await dragBox(page, [150, 250], [650, 550]);
-  await page.locator('[data-pc-act="print"]').click();
+  await page.locator('[data-prjs-act="print"]').click();
 
-  const modal = page.locator('[data-pc-modal]');
+  const modal = page.locator('[data-prjs-modal]');
   await expect(modal).toBeVisible();
-  await expect(modal.locator('.pc-k-title')).toHaveText('Print this area?');
-  await expect(modal.locator('.pc-k-sub'), 'the size, in both units').toContainText('500 × 300 px');
-  await expect(modal.locator('#pc-f-title')).toBeVisible();
-  await expect(modal.locator('#pc-f-description')).toBeVisible();
+  await expect(modal.locator('.prjs-title')).toHaveText('Print this area?');
+  await expect(modal.locator('.prjs-sub'), 'the size, in both units').toContainText('500 × 300 px');
+  await expect(modal.locator('#prjs-f-title')).toBeVisible();
+  await expect(modal.locator('#prjs-f-description')).toBeVisible();
   // `toBeVisible` is too weak on its own: the broken preview was a real element
   // at 77×54 with the content pushed outside it, and passed. The preview tests
   // below check the pixels.
   await expect(modal.locator('img'), 'a preview of what will print').toBeVisible();
 
   // both captions are optional, so the primary action works with them empty
-  await expect(modal.locator('[data-pc-action="print"]')).toBeEnabled();
+  await expect(modal.locator('[data-prjs-action="print"]')).toBeEnabled();
 });
 
 test('keep adjusting returns to the selection with the box intact', async ({ page }) => {
   await openDraw(page);
   await dragBox(page, [200, 200], [500, 400]);
-  await page.locator('[data-pc-act="print"]').click();
-  await page.locator('[data-pc-action="back"]').click();
+  await page.locator('[data-prjs-act="print"]').click();
+  await page.locator('[data-prjs-action="back"]').click();
 
-  await expect(page.locator('[data-pc-modal]')).toHaveCount(0);
-  await expect(page.locator('[data-pc-draw]')).toBeVisible();
+  await expect(page.locator('[data-prjs-modal]')).toHaveCount(0);
+  await expect(page.locator('[data-prjs-draw]')).toBeVisible();
   const box = await page.evaluate(() => {
-    const r = document.querySelector('[data-pc-region]')!.getBoundingClientRect();
+    const r = document.querySelector('[data-prjs-region]')!.getBoundingClientRect();
     return { w: Math.round(r.width), h: Math.round(r.height) };
   });
   expect(box, 'still the box that was drawn').toMatchObject({ w: 300, h: 200 });
@@ -321,24 +321,24 @@ test('escape and cancel both leave the page untouched', async ({ page }) => {
   await dragBox(page, [200, 200], [400, 300]);
   await page.keyboard.press('Escape');
 
-  await expect(page.locator('[data-pc-draw]')).toHaveCount(0);
-  await expect(page.locator('[data-pc-toolbar]')).toHaveCount(0);
+  await expect(page.locator('[data-prjs-draw]')).toHaveCount(0);
+  await expect(page.locator('[data-prjs-toolbar]')).toHaveCount(0);
   const result = await page.evaluate(
     () => (window as unknown as { __drawn: Promise<{ action: string }> }).__drawn
   );
   expect(result).toMatchObject({ action: 'cancel' });
 
   await openDraw(page);
-  await page.locator('[data-pc-act="cancel"]').click();
-  await expect(page.locator('[data-pc-draw]')).toHaveCount(0);
+  await page.locator('[data-prjs-act="cancel"]').click();
+  await expect(page.locator('[data-prjs-draw]')).toHaveCount(0);
 });
 
 test('a selection too small to be useful cannot be confirmed', async ({ page }) => {
   await openDraw(page);
   await dragBox(page, [300, 300], [308, 306]);
 
-  await expect(page.locator('[data-pc-act="print"]')).toBeDisabled();
-  await expect(page.locator('[data-pc-toolbar]')).toContainText('Too small');
+  await expect(page.locator('[data-prjs-act="print"]')).toBeDisabled();
+  await expect(page.locator('[data-prjs-toolbar]')).toContainText('Too small');
 });
 
 /* the preview ----------------------------------------------------------- */
@@ -360,8 +360,8 @@ interface Preview {
 
 async function readPreview(page: Page): Promise<Preview> {
   return page.evaluate(() => {
-    const modal = document.querySelector('[data-pc-modal]')!;
-    const img = modal.querySelector<HTMLImageElement>('.pc-k-body img')!;
+    const modal = document.querySelector('[data-prjs-modal]')!;
+    const img = modal.querySelector<HTMLImageElement>('.prjs-modal-body img')!;
     const box = img.getBoundingClientRect();
 
     const canvas = document.createElement('canvas');
@@ -390,8 +390,8 @@ async function readPreview(page: Page): Promise<Preview> {
 test('the preview is the region itself, at a size you can see', async ({ page }) => {
   await openDraw(page);
   await dragBox(page, [180, 200], [780, 620]);
-  await page.locator('[data-pc-act="print"]').click();
-  await expect(page.locator('[data-pc-modal]')).toBeVisible();
+  await page.locator('[data-prjs-act="print"]').click();
+  await expect(page.locator('[data-prjs-modal]')).toBeVisible();
 
   const preview = await readPreview(page);
 
@@ -422,8 +422,8 @@ test('a host stylesheet that resets images cannot break the preview', async ({ p
 
   await openDraw(page);
   await dragBox(page, [180, 200], [780, 620]);
-  await page.locator('[data-pc-act="print"]').click();
-  await expect(page.locator('[data-pc-modal]')).toBeVisible();
+  await page.locator('[data-prjs-act="print"]').click();
+  await expect(page.locator('[data-prjs-modal]')).toBeVisible();
 
   const preview = await readPreview(page);
   expect(preview.natural).toEqual([600, 420]);
@@ -431,10 +431,10 @@ test('a host stylesheet that resets images cannot break the preview', async ({ p
   expect(preview.colours).toBeGreaterThan(5);
 
   // the form controls the host tried to hide are still operable
-  const modal = page.locator('[data-pc-modal]');
-  await modal.locator('#pc-f-title').fill('Survived');
-  await expect(modal.locator('#pc-f-title')).toHaveValue('Survived');
-  await expect(modal.locator('[data-pc-action="print"]')).toBeEnabled();
+  const modal = page.locator('[data-prjs-modal]');
+  await modal.locator('#prjs-f-title').fill('Survived');
+  await expect(modal.locator('#prjs-f-title')).toHaveValue('Survived');
+  await expect(modal.locator('[data-prjs-action="print"]')).toBeEnabled();
 });
 
 test('a selection with nothing in it says so instead of printing blank', async ({ page }) => {
@@ -448,13 +448,13 @@ test('a selection with nothing in it says so instead of printing blank', async (
 
   await openDraw(page);
   await dragBox(page, [200, 120], [700, 480]);
-  await page.locator('[data-pc-act="print"]').click();
-  await expect(page.locator('[data-pc-modal]')).toBeVisible();
+  await page.locator('[data-prjs-act="print"]').click();
+  await expect(page.locator('[data-prjs-modal]')).toBeVisible();
 
   const preview = await readPreview(page);
   expect(preview.colours, 'nothing but background').toBe(1);
   expect(preview.notice, 'and the dialog says so').toBe(true);
 
   // the way out is offered rather than the job silently producing a blank page
-  await expect(page.locator('[data-pc-action="back"]')).toBeVisible();
+  await expect(page.locator('[data-prjs-action="back"]')).toBeVisible();
 });

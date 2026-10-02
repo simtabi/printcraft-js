@@ -72,13 +72,7 @@ export {
   assemblePrintDocument
 } from './pipeline/document';
 
-export {
-  mountIframe,
-  mountWindow,
-  mountOverlay,
-  waitForAssets,
-  waitForDialogClose
-} from './pipeline/mounts';
+export { mountIframe, mountWindow, waitForAssets, waitForDialogClose } from './pipeline/mounts';
 
 export { resolveSheet, toPx, DEFAULT_SHEET } from './production/sheets';
 export type { SheetSize } from './production/sheets';

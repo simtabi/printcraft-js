@@ -56,18 +56,25 @@ result.values; // { title, paper, margin, numbers, template }
 
 ### Fields
 
-`text` · `textarea` · `select` · `radio` · `checkbox` · `number` · `color` · `length`
+`text` · `textarea` · `select` · `radio` · `checkbox` · `number` · `range` · `color` · `length`
 
-| Key           | What it does                                                      |
-| ------------- | ----------------------------------------------------------------- |
-| `value`       | The initial value                                                 |
-| `hint`        | A line under the control                                          |
-| `placeholder` | —                                                                 |
-| `required`    | Blocks a `validates: true` action                                 |
-| `when`        | `(values) => boolean`; hides the field until it is true           |
-| `validate`    | `(value, values) => string \| null`; the string becomes the error |
-| `rows`        | `textarea` only                                                   |
-| `choices`     | `select` and `radio`                                              |
+`color` is [Coloris](https://github.com/melloware/coloris) with an opacity channel, a row of
+one-click swatches, and validation on anything typed. `range` carries a live readout and a
+`unit`. Both are fields like any other, so they get the label, hint and error slot.
+
+| Key                | What it does                                                      |
+| ------------------ | ----------------------------------------------------------------- |
+| `value`            | The initial value                                                 |
+| `hint`             | A line under the control                                          |
+| `placeholder`      | —                                                                 |
+| `required`         | Blocks a `validates: true` action                                 |
+| `when`             | `(values) => boolean`; hides the field until it is true           |
+| `validate`         | `(value, values) => string \| null`; the string becomes the error |
+| `rows`             | `textarea` only                                                   |
+| `choices`          | `select` and `radio`                                              |
+| `min` `max` `step` | `number` and `range`                                              |
+| `unit`             | `range` only; printed after the readout                           |
+| `swatches`         | `color` only; the one-click row under the field                   |
 
 `length` validates a css length, so `18mm`, `0.5in` and `24px` pass and `quite a lot` does not. The error belongs to the field that has it, not to whichever is first.
 
@@ -140,11 +147,22 @@ Printcraft.ui.toast({
 });
 ```
 
-Tones: `default`, `primary`, `danger`, `warn`, `success`, `info`, plus `ghost` and `quiet`, which are shapes rather than colours.
+Tones are daisyUI's eight — `primary`, `secondary`, `accent`, `neutral`, `info`, `success`,
+`warning`, `error` — plus `default`, and `ghost` and `quiet`, which are shapes rather than
+colours. `danger` and `warn` still work; they are what `error` and `warning` used to be
+called.
 
 ## Tooltips and popovers
 
-See [the interaction layer](interaction-ui.md#tooltips-and-popovers). Both use the platform's `popover` attribute and CSS anchor positioning where they exist.
+See [the interaction layer](interaction-ui.md#tooltips-and-popovers). Both use the platform's
+`popover` attribute and CSS anchor positioning where they exist, and both carry a triangle
+caret pointing at their anchor.
+
+The caret's direction is read back from the rendered geometry rather than taken from the
+`side` that was asked for. With CSS anchor positioning the browser applies
+`position-try-fallbacks` itself, so a popover asked for `top` may well be drawn below and
+nothing announces it; comparing the two rectangles after paint is the only way to know. The
+resolved side lands on `data-side`, and the caret is placed from that.
 
 ## The command palette
 
@@ -168,21 +186,82 @@ Printcraft.ui.openPalette({
 
 Matching is by subsequence, so `ati` finds "Archive this invoice", and the characters that matched are marked.
 
+## The anatomy
+
+Component parts follow daisyUI's naming, so anyone who knows that system knows this one:
+
+```
+prjs-modal ▸ prjs-modal-box
+   ├ prjs-modal-head      icon · title · description · ✕
+   ├ prjs-modal-body      only rendered when there is something to put in it
+   └ prjs-modal-action    buttons, primary last
+```
+
+`prjs-card` → `prjs-card-body` / `prjs-card-actions`, `prjs-btn` with `data-tone` and
+`data-size`, `prjs-menu` + `prjs-menu-title`, plus `prjs-badge`, `prjs-input`, `prjs-kbd`
+and `prjs-caret`.
+
+Tokens follow daisyUI's too: `--prjs-color-primary`, `--prjs-color-base-100`,
+`--prjs-color-*-content`, `--prjs-radius-selector/field/box`, `--prjs-size-selector/field`,
+`--prjs-border`, `--prjs-depth`, `--prjs-noise`. Setting one moves everything drawn in it.
+
+**It is daisyUI, not an impression of it.** `tools/vendor-daisyui.mjs` takes daisyUI's own
+component stylesheets, unwraps the `@layer` blocks Tailwind needs and we do not, and renames
+every class to carry the `prjs-` prefix. `.btn` becomes `.prjs-btn`, `.modal-box` becomes
+`.prjs-modal-box`. The result is bundled, so a `.prjs-btn` is a daisyUI button — every size,
+every tone, the outline and ghost variants, the focus ring — rather than four hundred lines
+of ours pretending to be one.
+
+Thirteen components are taken: `button`, `input`, `select`, `textarea`, `range`, `checkbox`,
+`radio`, `fieldset`, `label`, `modal`, `card`, `badge`, `kbd`. A component only earns its
+bytes when our anatomy is its anatomy. daisyUI's menu is `ul.menu > li > a` and ours is
+buttons in a div, because a row carries an icon, a hint, a key cap and a submenu arrow and an
+`<a>` is the wrong element for all four; its tooltip is a `::before` driven by `data-tip` and
+ours is a real node in the top layer with a caret. Shipping either would be kilobytes of
+rules matching nothing.
+
+**Prefixing is not optional.** daisyUI's class names are global. A library that injected
+`.btn` and `.modal` into a host document would restyle that host's own buttons and collide
+outright with a host already running daisyUI at another version. There is a test asserting
+that every class in the injected sheet carries the prefix.
+
+The variables daisyUI reads — `--color-base-100`, `--size-field`, `--border`, `--depth` — are
+declared on `.prjs` rather than `:root`. Custom properties inherit downward only, so they
+reach every rule inside our surfaces and nothing outside them: a host's own `--color-primary`
+is neither read nor overwritten.
+
+```bash
+npm run vendor:daisyui -- --floor   # regenerate after raising the daisyui floor
+npm run vendor:audit                # tokens in step, and both vendored sheets current
+```
+
+The generated `src/ui/kit/daisyui-css.ts` is committed, and the build bundles it as it
+stands rather than regenerating it. daisyUI is a ranged devDependency and the repository
+keeps no lock file, so regenerating on every build shipped whichever patch was newest that
+day. CI checks the committed sheet against the lowest version the range admits; changing it
+means raising that floor in `package.json` and regenerating, in a reviewed commit.
+
+A modal with no body renders no body element. It used to render an empty band between the
+title and the buttons.
+
+Every dismissible surface carries exactly one close affordance in its header: an icon-only
+`×` with `data-prjs-modal-close`. The footer keeps the semantic action.
+
 ## Building your own
 
 ```js
 import { h, root, iconNode, button } from '@simtabi/printcraft/ui';
 
-const panel = root(document, 'div', { class: 'pc-k pc-k-panel', attrs: { 'data-size': 'md' } });
+const panel = root(document, 'div', { class: 'prjs prjs-modal-box', attrs: { 'data-size': 'md' } });
 panel.appendChild(
   h(document, 'div', {
-    class: 'pc-k-head',
-    children: [h(document, 'h2', { class: 'pc-k-title', text: 'My panel' })]
+    class: 'prjs-modal-head',
+    children: [h(document, 'h2', { class: 'prjs-title', text: 'My panel' })]
   })
 );
 ```
 
-`root` adds the `pc-k` class the stylesheet hangs off and injects the sheet if it is not there; `h` is the same without it, for children. Every node carries `data-pc-ui`, which is what lets a clip job strip the interface out of its own screenshot.
+`root` adds the `prjs` class the stylesheet hangs off and injects the sheet if it is not there; `h` is the same without it, for children. Every node carries `data-prjs-ui`, which is what lets a clip job strip the interface out of its own screenshot.
 
 ## Accessibility
 
@@ -192,7 +271,7 @@ Every surface traps focus while open, restores it on close, handles Escape, sets
 
 ## Theming
 
-See [the interaction layer](interaction-ui.md#theming). Everything is a CSS custom property under `.pc-k`.
+See [the interaction layer](interaction-ui.md#theming). Everything is a CSS custom property under `.prjs`.
 
 ## See also
 

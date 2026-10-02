@@ -38,7 +38,7 @@ Check it before committing paper:
 
 ```js
 const ctl = await Printcraft.inspect({ target: '#poster', printerMarks: true });
-// four .pc-mark elements, one per corner
+// four .prjs-mark elements, one per corner
 ctl.close();
 ```
 

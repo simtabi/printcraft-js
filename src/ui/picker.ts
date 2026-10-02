@@ -3,7 +3,7 @@
 
 import { NS } from '../support';
 import { openToolbar, type ToolbarHandle } from './kit';
-import { defaultEnv, el, Z, type UiDeps } from './shared';
+import { defaultEnv, el, viaProof, Z, type UiDeps } from './shared';
 import type { Env, InspectController, JobRecord, PrintcraftOptions } from '../types';
 
 export interface PickResult {
@@ -74,7 +74,7 @@ export function pickSections(
 
     function pickable(t: Element | null): Element | null {
       if (!t || typeof t.closest !== 'function') return null;
-      if (t.closest('[data-pc-ui]')) return null;
+      if (t.closest('[data-prjs-ui]')) return null;
       if (t === doc.body || t === doc.documentElement) return null;
       return t;
     }
@@ -129,7 +129,7 @@ export function pickSections(
       const els = selected.slice();
       teardown();
       if (action === 'print' && els.length) {
-        resolve(deps.print({ ...opts, target: els }, scope));
+        resolve(deps.print(viaProof({ ...opts, target: els }), scope));
       } else if (action === 'redact' && els.length) {
         els.forEach((t) => t.setAttribute('data-' + NS + '-redact', ''));
         deps.emit('ui:redact', { elements: els, redacted: true });

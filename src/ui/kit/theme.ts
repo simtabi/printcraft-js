@@ -15,6 +15,7 @@
 // has never heard of a build step, and a library that only looks right inside
 // somebody else's framework is not a library.
 
+import { DAISYUI_CSS } from './daisyui-css';
 import { NS } from '../../support';
 
 /** A semantic tone: what it sits on, what it draws in, and what it is edged with. */
@@ -60,37 +61,68 @@ function fade(color: string): string {
   return 'rgba(' + ((n >> 16) & 255) + ',' + ((n >> 8) & 255) + ',' + (n & 255) + ',.10)';
 }
 
+/** The eight semantic colours, in daisyUI's order. */
+export const TONES = [
+  'primary',
+  'secondary',
+  'accent',
+  'neutral',
+  'info',
+  'success',
+  'warning',
+  'error'
+] as const;
+
+export type ToneKey = (typeof TONES)[number];
+
+/** What the old two-tone names mean now. */
+const TONE_ALIASES = { danger: 'error', warn: 'warning' } as const;
+
 export interface Theme {
-  /* neutrals */
-  ink: string;
+  /* the base ramp. daisyUI's names: 100 is the page, 200 and 300 step away from
+     it, and `baseContent` is what you write on all three. */
+  base100: string;
+  base200: string;
+  base300: string;
+  baseContent: string;
+
+  /* two steps of quieter text, and a rule lighter than base300. daisyUI derives
+     these with color-mix; we name them, because a menu hint and a separator are
+     used often enough to be worth a token each. */
   inkSoft: string;
   inkFaint: string;
-  paper: string;
-  paperDim: string;
-  paperRaised: string;
-  rule: string;
   ruleSoft: string;
 
-  /* semantic tones. a bare colour string is enough; see ToneInput. */
+  /* the eight semantic tones. a bare colour string is enough; see ToneInput. */
   primary: ToneInput;
-  danger: ToneInput;
-  warn: ToneInput;
-  success: ToneInput;
+  secondary: ToneInput;
+  accent: ToneInput;
+  neutral: ToneInput;
   info: ToneInput;
+  success: ToneInput;
+  warning: ToneInput;
+  error: ToneInput;
 
-  /** @deprecated an alias for `primary` */
-  accent?: string;
-  /** @deprecated an alias for `primary.fg` */
-  accentInk?: string;
-  /** @deprecated an alias for `danger.fg` */
-  dangerInk?: string;
+  /** an alias for `error`, which is what this was called before */
+  danger?: ToneInput;
+  /** an alias for `warning` */
+  warn?: ToneInput;
 
-  /* shape */
-  radius: string;
-  radiusSm: string;
-  radiusLg: string;
-  /** the step every gap and pad is a multiple of */
-  unit: string;
+  /* shape. daisyUI's three radii: selectors are badges, checkboxes and chips;
+     fields are buttons and inputs; boxes are cards, modals and menus. */
+  radiusSelector: string;
+  radiusField: string;
+  radiusBox: string;
+  /** the step every gap and pad is a multiple of. daisyUI's `--size-field`. */
+  sizeField: string;
+  /** the same step for badges, checkboxes and chips. daisyUI's `--size-selector`. */
+  sizeSelector: string;
+  /** border width, so a flat theme can set it to 0 */
+  borderWidth: string;
+  /** 1 gives buttons and inputs a raised edge, 0 keeps them flat */
+  depth: 0 | 1;
+  /** 1 lays a faint grain over solid surfaces, 0 leaves them plain */
+  noise: 0 | 1;
 
   /* type */
   font: string;
@@ -103,7 +135,15 @@ export interface Theme {
   ring: string;
   ringOffset: string;
 
-  /** the base layer everything the kit draws sits on */
+  /**
+   * The base layer everything the kit draws sits on.
+   *
+   * Offsets go up to +70, and `z-index` is a 32-bit signed integer: anything
+   * over 2147483647 is clamped to it. The default used to be 2147483600, which
+   * left 47 of headroom — so the toolbar, the modal scrim, the menu and the
+   * toasts all clamped to the same number and their order quietly became the
+   * order they happened to be appended in. Leave room for the whole stack.
+   */
   z: number;
 
   /**
@@ -113,26 +153,38 @@ export interface Theme {
   colorScheme?: 'auto' | 'light' | 'dark';
 }
 
+/** A solid tone: white text on the colour, and the colour at a tenth for hovers. */
+function solid(bg: string, fg = '#ffffff'): Tone {
+  return { bg, fg, border: bg, soft: fade(bg) };
+}
+
 export const DEFAULT_THEME: Theme = {
-  ink: '#17181b',
+  base100: '#ffffff',
+  base200: '#f5f5f3',
+  base300: '#d8d8d3',
+  baseContent: '#17181b',
+
   inkSoft: '#55575e',
-  inkFaint: '#8a8c93',
-  paper: '#ffffff',
-  paperDim: '#f5f5f3',
-  paperRaised: '#ffffff',
-  rule: '#d8d8d3',
+  inkFaint: '#6b6d74',
   ruleSoft: '#ececea',
 
-  primary: { bg: '#0f766e', fg: '#ffffff', border: '#0f766e', soft: 'rgba(15,118,110,.10)' },
-  danger: { bg: '#b91c1c', fg: '#ffffff', border: '#b91c1c', soft: 'rgba(185,28,28,.10)' },
-  warn: { bg: '#b45309', fg: '#ffffff', border: '#b45309', soft: 'rgba(180,83,9,.10)' },
-  success: { bg: '#15803d', fg: '#ffffff', border: '#15803d', soft: 'rgba(21,128,61,.10)' },
-  info: { bg: '#1d4ed8', fg: '#ffffff', border: '#1d4ed8', soft: 'rgba(29,78,216,.10)' },
+  primary: solid('#0f766e'),
+  secondary: solid('#4338ca'),
+  accent: solid('#a21caf'),
+  neutral: solid('#2a2e37'),
+  info: solid('#1d4ed8'),
+  success: solid('#15803d'),
+  warning: solid('#b45309'),
+  error: solid('#b91c1c'),
 
-  radius: '8px',
-  radiusSm: '5px',
-  radiusLg: '12px',
-  unit: '4px',
+  radiusSelector: '5px',
+  radiusField: '8px',
+  radiusBox: '12px',
+  sizeField: '4px',
+  sizeSelector: '4px',
+  borderWidth: '1px',
+  depth: 0,
+  noise: 0,
 
   font: '13px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif',
   fontMono: '12px/1.45 ui-monospace, Consolas, Menlo, monospace',
@@ -142,70 +194,73 @@ export const DEFAULT_THEME: Theme = {
   ring: '2px',
   ringOffset: '2px',
 
-  z: 2147483600,
+  z: 2147483000,
   colorScheme: 'auto'
 };
 
-/** The dark palette. Only the neutrals move; the tones stay recognisable. */
-const DARK = {
-  ink: '#f2f2f0',
-  inkSoft: '#a8aab2',
-  inkFaint: '#74767e',
-  paper: '#1c1d21',
-  paperDim: '#252629',
-  paperRaised: '#2a2b30',
-  rule: '#3a3b41',
-  ruleSoft: '#2e2f34',
-  primary: '#2dd4bf',
-  primaryFg: '#08322e',
-  danger: '#f87171',
-  dangerFg: '#3d0a0a',
-  warn: '#fbbf24',
-  warnFg: '#3a2606',
-  success: '#4ade80',
-  successFg: '#062b14',
-  info: '#93b4fd',
-  infoFg: '#0b1f4d'
+/**
+ * The dark palette.
+ *
+ * Only the base ramp and the tone lightness move. A tone stays the same hue, so
+ * a danger button is recognisably the same button in either scheme.
+ */
+const DARK: { base: Record<string, string>; tones: Record<ToneKey, [string, string]> } = {
+  base: {
+    base100: '#1c1d21',
+    base200: '#252629',
+    base300: '#3a3b41',
+    baseContent: '#f2f2f0',
+    inkSoft: '#a8aab2',
+    inkFaint: '#909299',
+    ruleSoft: '#2e2f34'
+  },
+  tones: {
+    primary: ['#2dd4bf', '#08322e'],
+    secondary: ['#a5b4fc', '#1e1b4b'],
+    accent: ['#f0abfc', '#4a044e'],
+    neutral: ['#9ca3af', '#111318'],
+    info: ['#93b4fd', '#0b1f4d'],
+    success: ['#4ade80', '#062b14'],
+    warning: ['#fbbf24', '#3a2606'],
+    error: ['#f87171', '#3d0a0a']
+  }
 };
 
 /**
- * One tone, with the deprecated flat keys folded in.
+ * One tone, resolved.
  *
- * `accent` predates the tone objects and still works: a host that set it gets
- * the primary tone it asked for rather than silently losing the setting.
+ * `danger` and `warn` are what `error` and `warning` used to be called, so a
+ * host that set either still gets the colour it asked for.
  */
-function resolveTone(t: Theme, name: 'primary' | 'danger' | 'warn' | 'success' | 'info'): Tone {
+function resolveTone(t: Theme, name: ToneKey): Tone {
   const base = toTone(DEFAULT_THEME[name], DEFAULT_THEME[name] as Tone);
   let tone = toTone(t[name], base);
 
-  if (name === 'primary' && (t.accent || t.accentInk)) {
-    tone = toTone(
-      { ...(t.accent ? { bg: t.accent } : {}), ...(t.accentInk ? { fg: t.accentInk } : {}) },
-      tone
-    );
+  for (const [alias, target] of Object.entries(TONE_ALIASES)) {
+    if (target === name && t[alias as 'danger' | 'warn']) {
+      tone = toTone(t[alias as 'danger' | 'warn'], tone);
+    }
   }
-  if (name === 'danger' && t.dangerInk) tone = { ...tone, fg: t.dangerInk };
   return tone;
 }
 
 let current: Theme = { ...DEFAULT_THEME };
 
-const STYLE_ID = 'pc-kit-style';
+const STYLE_ID = 'prjs-kit-style';
 
 /**
  * Merges overrides into the live theme and repaints any open surfaces.
  *
- * Setting a tone clears the deprecated flat alias for it. Without that, an
- * `accent` set once could never be undone: the merge would keep it, and it wins
- * over `primary`, so `set(defaults)` would appear to do nothing.
+ * Setting a tone clears the older alias for it. Without that, a `danger` set
+ * once could never be undone: the merge would keep it, and it wins over `error`,
+ * so `set(defaults)` would appear to do nothing.
  */
 export function setTheme(patch: Partial<Theme>, doc?: Document): Theme {
   const next: Theme = { ...current, ...patch };
-  if (patch.primary !== undefined && patch.accent === undefined) {
-    delete next.accent;
-    delete next.accentInk;
+  for (const [alias, target] of Object.entries(TONE_ALIASES)) {
+    const key = alias as 'danger' | 'warn';
+    if (patch[target] !== undefined && patch[key] === undefined) delete next[key];
   }
-  if (patch.danger !== undefined && patch.dangerInk === undefined) delete next.dangerInk;
   current = next;
 
   const target = doc || (typeof document === 'undefined' ? null : document);
@@ -231,19 +286,52 @@ export function getTheme(): Theme {
   return current;
 }
 
-/** Every tone, resolved and emitted as css custom properties. */
+/** The same eight tones under daisyUI's own variable names, for its css. */
+function daisyToneVars(): string {
+  return TONES.map(
+    (name) =>
+      '  --color-' +
+      name +
+      ': var(--prjs-color-' +
+      name +
+      ');\n  --color-' +
+      name +
+      '-content: var(--prjs-color-' +
+      name +
+      '-content);'
+  ).join('\n');
+}
+
+/**
+ * Every tone, emitted twice.
+ *
+ * `--prjs-color-primary` and `--prjs-color-primary-content` are daisyUI's names
+ * and are the ones to set. The four short names beside them are what this
+ * stylesheet actually reads, and they point at the daisyUI pair, so setting the
+ * daisyUI variable alone moves everything drawn in that tone.
+ */
 function toneVars(t: Theme): string {
-  return (['primary', 'danger', 'warn', 'success', 'info'] as const)
-    .map((name) => {
-      const tone = resolveTone(t, name);
-      return (
-        `  --pc-${name}: ${tone.bg};\n` +
-        `  --pc-${name}-fg: ${tone.fg};\n` +
-        `  --pc-${name}-border: ${tone.border};\n` +
-        `  --pc-${name}-soft: ${tone.soft};`
-      );
-    })
-    .join('\n');
+  const lines: string[] = [];
+
+  for (const name of TONES) {
+    const tone = resolveTone(t, name);
+    lines.push(
+      `  --prjs-color-${name}: ${tone.bg};`,
+      `  --prjs-color-${name}-content: ${tone.fg};`,
+      `  --prjs-${name}: var(--prjs-color-${name});`,
+      `  --prjs-${name}-fg: var(--prjs-color-${name}-content);`,
+      `  --prjs-${name}-border: ${tone.border};`,
+      `  --prjs-${name}-soft: ${tone.soft};`
+    );
+  }
+
+  // the names these two carried before daisyUI's took over
+  for (const [alias, target] of Object.entries(TONE_ALIASES)) {
+    for (const part of ['', '-fg', '-border', '-soft']) {
+      lines.push(`  --prjs-${alias}${part}: var(--prjs-${target}${part});`);
+    }
+  }
+  return lines.join('\n');
 }
 
 /**
@@ -258,15 +346,76 @@ export function ensureStyles(doc: Document): void {
   const t = current;
   const style = doc.createElement('style');
   style.id = STYLE_ID;
-  style.setAttribute('data-pc-ui', '');
-  style.textContent = sheet(t).trim();
+  style.setAttribute('data-prjs-ui', '');
+  style.textContent = sheet(t, doc).trim();
   (doc.head || doc.documentElement).appendChild(style);
 }
 
-function sheet(t: Theme): string {
+/**
+ * Whether this document's css engine can take the vendored stylesheet.
+ *
+ * jsdom cannot. daisyUI's select positions its chevron with
+ * `background-position: calc(100% - 20px) calc(1px + 50%)`, and jsdom throws
+ * resolving a calc that mixes a percentage with a length — not when the rule is
+ * inserted, but later, inside the first `getComputedStyle` call that touches it,
+ * which makes it look like a failure in whatever happened to ask.
+ *
+ * The declaration is correct css and browsers handle it, so the sheet is not
+ * changed to suit an incomplete engine. It is simply not given to one. Anything
+ * asserting on how these components *look* belongs in the browser suite, where
+ * they are; what runs under jsdom is structure, and structure needs no
+ * stylesheet.
+ */
+const vendorOk = new WeakMap<Document, boolean>();
+
+function canParseVendorCss(doc: Document): boolean {
+  const cached = vendorOk.get(doc);
+  if (cached !== undefined) return cached;
+
+  // the declaration has to be reached through a *rule*, not an inline style:
+  // jsdom accepts it inline and only throws when resolving it for a rule, which
+  // is why a cheaper probe passed and the sheet still brought the tests down
+  let ok = false;
+  const win = doc.defaultView;
+  const style = doc.createElement('style');
+  const probe = doc.createElement('div');
+
+  try {
+    if (win?.getComputedStyle) {
+      style.textContent =
+        '.prjs-vendor-probe{background-position:calc(100% - 20px) calc(1px + 50%)}';
+      (doc.head || doc.documentElement).appendChild(style);
+      probe.className = 'prjs-vendor-probe';
+      (doc.body || doc.documentElement).appendChild(probe);
+      // the throw happens in here
+      ok = typeof win.getComputedStyle(probe).backgroundPosition === 'string';
+    }
+  } catch {
+    ok = false;
+  } finally {
+    style.remove();
+    probe.remove();
+  }
+
+  vendorOk.set(doc, ok);
+  return ok;
+}
+
+/**
+ * The whole stylesheet, in the order it cascades.
+ *
+ * Tokens first, then the reset, then **daisyUI's own component css** — every
+ * class renamed to carry our prefix by `tools/vendor-daisyui.mjs` — and then our
+ * own rules on top. That order is the point: daisyUI draws the buttons, inputs,
+ * selects, ranges, checkboxes, modals, cards, badges, menus, alerts, tooltips
+ * and toasts, and what follows is only the handful of things it has no component
+ * for. A `.prjs-btn` is a daisyUI button now, not an imitation of one.
+ */
+function sheet(t: Theme, doc?: Document): string {
   return `
 ${tokens(t)}
 ${reset()}
+${doc && !canParseVendorCss(doc) ? '' : DAISYUI_CSS}
 ${surfaces(t)}
 ${buttons()}
 ${menus(t)}
@@ -282,34 +431,68 @@ ${chrome(t)}
 function tokens(t: Theme): string {
   const dark = t.colorScheme === 'light' ? '' : darkBlock(t);
   return `
-.pc-k {
-  --pc-ink: ${t.ink};
-  --pc-ink-soft: ${t.inkSoft};
-  --pc-ink-faint: ${t.inkFaint};
-  --pc-paper: ${t.paper};
-  --pc-paper-dim: ${t.paperDim};
-  --pc-paper-raised: ${t.paperRaised};
-  --pc-rule: ${t.rule};
-  --pc-rule-soft: ${t.ruleSoft};
-${toneVars(t)}
-  --pc-radius: ${t.radius};
-  --pc-radius-sm: ${t.radiusSm};
-  --pc-radius-lg: ${t.radiusLg};
-  --pc-unit: ${t.unit};
-  --pc-mono: ${t.fontMono};
-  --pc-shadow: ${t.shadow};
-  --pc-shadow-sm: ${t.shadowSm};
-  --pc-ring: ${t.ring};
-  --pc-ring-offset: ${t.ringOffset};
+.prjs {
+  /* the base ramp, under daisyUI's names */
+  --prjs-color-base-100: ${t.base100};
+  --prjs-color-base-200: ${t.base200};
+  --prjs-color-base-300: ${t.base300};
+  --prjs-color-base-content: ${t.baseContent};
 
-  /* the flat names the theme used to expose. resolved rather than aliased with
-     var(), so a stylesheet that reads them gets a colour and not an indirection */
-  --pc-accent: ${resolveTone(t, 'primary').bg};
-  --pc-accent-ink: ${resolveTone(t, 'primary').fg};
-  --pc-danger-ink: ${resolveTone(t, 'danger').fg};
+  /* what this stylesheet reads. all of it points at the ramp above, so a host
+     that sets only the daisyUI variables moves every surface we draw. */
+  --prjs-paper: var(--prjs-color-base-100);
+  --prjs-paper-raised: var(--prjs-color-base-100);
+  --prjs-paper-dim: var(--prjs-color-base-200);
+  --prjs-rule: var(--prjs-color-base-300);
+  --prjs-ink: var(--prjs-color-base-content);
+  --prjs-ink-soft: ${t.inkSoft};
+  --prjs-ink-faint: ${t.inkFaint};
+  --prjs-rule-soft: ${t.ruleSoft};
+${toneVars(t)}
+
+  /* daisyUI's three radii: selectors are badges and checkboxes, fields are
+     buttons and inputs, boxes are cards, modals and menus */
+  --prjs-radius-selector: ${t.radiusSelector};
+  --prjs-radius-field: ${t.radiusField};
+  --prjs-radius-box: ${t.radiusBox};
+  --prjs-size-field: ${t.sizeField};
+  --prjs-size-selector: ${t.sizeSelector};
+  --prjs-border: ${t.borderWidth};
+  --prjs-depth: ${t.depth};
+  --prjs-noise: ${t.noise};
+
+  --prjs-radius-sm: var(--prjs-radius-selector);
+  --prjs-radius: var(--prjs-radius-field);
+  --prjs-radius-lg: var(--prjs-radius-box);
+  --prjs-unit: var(--prjs-size-field);
+
+  /* daisyUI's component css reads these names. Declared here rather than on
+     :root so they reach every rule inside our surfaces and nothing outside
+     them — custom properties inherit downward only, so a host page's own
+     --color-primary is neither read nor overwritten. */
+  --color-base-100: var(--prjs-color-base-100);
+  --color-base-200: var(--prjs-color-base-200);
+  --color-base-300: var(--prjs-color-base-300);
+  --color-base-content: var(--prjs-color-base-content);
+${daisyToneVars()}
+  --radius-selector: var(--prjs-radius-selector);
+  --radius-field: var(--prjs-radius-field);
+  --radius-box: var(--prjs-radius-box);
+  --size-selector: var(--prjs-size-selector);
+  --size-field: var(--prjs-size-field);
+  --border: var(--prjs-border);
+  --depth: var(--prjs-depth);
+  --noise: var(--prjs-noise);
+  --fx-noise: none;
+
+  --prjs-mono: ${t.fontMono};
+  --prjs-shadow: ${t.shadow};
+  --prjs-shadow-sm: ${t.shadowSm};
+  --prjs-ring: ${t.ring};
+  --prjs-ring-offset: ${t.ringOffset};
 
   font: ${t.font};
-  color: var(--pc-ink);
+  color: var(--prjs-ink);
   box-sizing: border-box;
   color-scheme: ${t.colorScheme === 'dark' ? 'dark' : t.colorScheme === 'light' ? 'light' : 'light dark'};
   -webkit-font-smoothing: antialiased;
@@ -317,41 +500,37 @@ ${toneVars(t)}
 ${dark}`;
 }
 
-/** A print tool sitting on a dark app should not be the one white rectangle. */
+/**
+ * A print tool sitting on a dark app should not be the one white rectangle.
+ *
+ * Only the daisyUI variables are restated. Everything else in the sheet reads
+ * through them, so the whole kit follows from these lines alone.
+ */
 function darkBlock(t: Theme): string {
-  const body = `
-  --pc-ink: ${DARK.ink};
-  --pc-ink-soft: ${DARK.inkSoft};
-  --pc-ink-faint: ${DARK.inkFaint};
-  --pc-paper: ${DARK.paper};
-  --pc-paper-dim: ${DARK.paperDim};
-  --pc-paper-raised: ${DARK.paperRaised};
-  --pc-rule: ${DARK.rule};
-  --pc-rule-soft: ${DARK.ruleSoft};
-  --pc-primary: ${DARK.primary};
-  --pc-primary-fg: ${DARK.primaryFg};
-  --pc-primary-border: ${DARK.primary};
-  --pc-primary-soft: rgba(45,212,191,.14);
-  --pc-danger: ${DARK.danger};
-  --pc-danger-fg: ${DARK.dangerFg};
-  --pc-danger-border: ${DARK.danger};
-  --pc-danger-soft: rgba(248,113,113,.14);
-  --pc-warn: ${DARK.warn};
-  --pc-warn-fg: ${DARK.warnFg};
-  --pc-warn-border: ${DARK.warn};
-  --pc-warn-soft: rgba(251,191,36,.14);
-  --pc-success: ${DARK.success};
-  --pc-success-fg: ${DARK.successFg};
-  --pc-success-border: ${DARK.success};
-  --pc-success-soft: rgba(74,222,128,.14);
-  --pc-info: ${DARK.info};
-  --pc-info-fg: ${DARK.infoFg};
-  --pc-info-border: ${DARK.info};
-  --pc-info-soft: rgba(147,180,253,.14);
-  --pc-shadow: 0 12px 40px -8px rgba(0,0,0,.6), 0 2px 8px -2px rgba(0,0,0,.4);`;
+  const lines = [
+    `  --prjs-color-base-100: ${DARK.base['base100']};`,
+    `  --prjs-color-base-200: ${DARK.base['base200']};`,
+    `  --prjs-color-base-300: ${DARK.base['base300']};`,
+    `  --prjs-color-base-content: ${DARK.base['baseContent']};`,
+    `  --prjs-ink-soft: ${DARK.base['inkSoft']};`,
+    `  --prjs-ink-faint: ${DARK.base['inkFaint']};`,
+    `  --prjs-rule-soft: ${DARK.base['ruleSoft']};`
+  ];
 
-  if (t.colorScheme === 'dark') return `.pc-k {${body}\n}`;
-  return `@media (prefers-color-scheme: dark) {\n  .pc-k {${body}\n  }\n}`;
+  for (const name of TONES) {
+    const [bg, fg] = DARK.tones[name];
+    lines.push(
+      `  --prjs-color-${name}: ${bg};`,
+      `  --prjs-color-${name}-content: ${fg};`,
+      `  --prjs-${name}-border: ${bg};`,
+      `  --prjs-${name}-soft: ${fade(bg).replace('.10)', '.14)')};`
+    );
+  }
+  lines.push('  --prjs-shadow: 0 12px 40px -8px rgba(0,0,0,.6), 0 2px 8px -2px rgba(0,0,0,.4);');
+
+  const body = '\n' + lines.join('\n');
+  if (t.colorScheme === 'dark') return `.prjs {${body}\n}`;
+  return `@media (prefers-color-scheme: dark) {\n  .prjs {${body}\n  }\n}`;
 }
 
 /**
@@ -365,24 +544,32 @@ function darkBlock(t: Theme): string {
  */
 function reset(): string {
   return `
-.pc-k *, .pc-k *::before, .pc-k *::after { box-sizing: inherit; }
-.pc-k img, .pc-k canvas { max-width: none; max-height: none; }
-.pc-k svg { max-width: none; max-height: none; display: inline-block; vertical-align: middle; }
-.pc-k button, .pc-k input, .pc-k select, .pc-k textarea {
+.prjs *, .prjs *::before, .prjs *::after { box-sizing: inherit; }
+.prjs img, .prjs canvas { max-width: none; max-height: none; }
+.prjs svg { max-width: none; max-height: none; display: inline-block; vertical-align: middle; }
+.prjs button, .prjs input, .prjs select, .prjs textarea {
   font: inherit; color: inherit; letter-spacing: inherit; text-transform: none; margin: 0;
 }
-.pc-k input[type="checkbox"], .pc-k input[type="radio"] {
+/* Tailwind preflight and Bootstrap both hide the native box and draw their own,
+   which leaves ours invisible on their pages. This puts it back — but only for a
+   control daisyUI is not already drawing, since its checkbox and radio need
+   appearance:none and this rule outranks them on specificity. */
+.prjs input[type="checkbox"]:not(.prjs-checkbox),
+.prjs input[type="radio"]:not(.prjs-radio) {
   appearance: auto; -webkit-appearance: auto; position: static;
   width: auto; height: auto; opacity: 1; clip: auto;
 }
-.pc-k p, .pc-k h1, .pc-k h2, .pc-k h3, .pc-k ul, .pc-k ol, .pc-k figure { margin: 0; }
-.pc-k ul, .pc-k ol { padding: 0; list-style: none; }
+.prjs input.prjs-checkbox, .prjs input.prjs-radio {
+  position: static; opacity: 1; clip: auto;
+}
+.prjs p, .prjs h1, .prjs h2, .prjs h3, .prjs ul, .prjs ol, .prjs figure { margin: 0; }
+.prjs ul, .prjs ol { padding: 0; list-style: none; }
 
 /* anything the kit shows as a picture: fits its box, keeps its aspect.
    two classes deep so it outranks the reset above. */
-.pc-k .pc-k-media { display: block; max-width: 100%; height: auto; }
+.prjs .prjs-media { display: block; max-width: 100%; height: auto; }
 
-.pc-k-sr {
+.prjs-sr {
   position: absolute; width: 1px; height: 1px; overflow: hidden;
   clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap;
 }`;
@@ -390,175 +577,165 @@ function reset(): string {
 
 function surfaces(t: Theme): string {
   return `
-.pc-k-scrim {
-  position: fixed; inset: 0; z-index: ${t.z + 40};
+.prjs-scrim {
+  position: fixed; inset: 0; z-index: ${t.z + 55};
   background: rgba(16, 18, 24, .5);
   backdrop-filter: blur(2px);
   display: flex; align-items: center; justify-content: center;
   padding: 5vh 4vw;
 }
 @media (prefers-reduced-motion: no-preference) {
-  .pc-k-scrim { animation: pc-k-fade 140ms ease-out; }
-  .pc-k-panel { animation: pc-k-rise 160ms cubic-bezier(.16,1,.3,1); }
-  .pc-k-menu, .pc-k-pop { animation: pc-k-pop 110ms cubic-bezier(.16,1,.3,1); }
+  .prjs-scrim { animation: prjs-fade 140ms ease-out; }
+  .prjs-modal-box { animation: prjs-rise 160ms cubic-bezier(.16,1,.3,1); }
+  .prjs-menu, .prjs-pop { animation: prjs-pop 110ms cubic-bezier(.16,1,.3,1); }
 }
-@keyframes pc-k-fade { from { opacity: 0 } }
-@keyframes pc-k-rise { from { opacity: 0; transform: translateY(8px) scale(.98) } }
-@keyframes pc-k-pop { from { opacity: 0; transform: scale(.97) } }
+@keyframes prjs-fade { from { opacity: 0 } }
+@keyframes prjs-rise { from { opacity: 0; transform: translateY(8px) scale(.98) } }
+@keyframes prjs-pop { from { opacity: 0; transform: scale(.97) } }
 
-.pc-k-panel {
-  background: var(--pc-paper);
-  border: 1px solid var(--pc-rule-soft);
-  border-radius: var(--pc-radius-lg);
-  box-shadow: var(--pc-shadow);
+.prjs-modal-box {
+  background: var(--prjs-paper);
+  border: 1px solid var(--prjs-rule-soft);
+  border-radius: var(--prjs-radius-lg);
+  box-shadow: var(--prjs-shadow);
   max-height: 100%;
   display: flex; flex-direction: column; overflow: hidden;
 }
-.pc-k-panel[data-size="sm"] { width: 380px }
-.pc-k-panel[data-size="md"] { width: 540px }
-.pc-k-panel[data-size="lg"] { width: 780px }
-.pc-k-panel[data-size="full"] { width: 100%; height: 100% }
+.prjs-modal-box[data-size="sm"] { width: 380px }
+.prjs-modal-box[data-size="md"] { width: 540px }
+.prjs-modal-box[data-size="lg"] { width: 780px }
+.prjs-modal-box[data-size="full"] { width: 100%; height: 100% }
 
-.pc-k-head {
+.prjs-modal-head {
   display: flex; align-items: flex-start; gap: 12px;
   padding: 16px 18px 14px;
-  border-bottom: 1px solid var(--pc-rule-soft);
+  border-bottom: 1px solid var(--prjs-rule-soft);
 }
-.pc-k-head-text { flex: 1; min-width: 0 }
-.pc-k-title { font-weight: 600; font-size: 15px; margin: 0; letter-spacing: -.01em }
-.pc-k-sub { color: var(--pc-ink-soft); font-size: 12.5px; margin: 3px 0 0 }
-.pc-k-head-icon {
+.prjs-modal-head-text { flex: 1; min-width: 0 }
+.prjs-title { font-weight: 600; font-size: 15px; margin: 0; letter-spacing: -.01em }
+.prjs-sub { color: var(--prjs-ink-soft); font-size: 12.5px; margin: 3px 0 0 }
+.prjs-modal-head-icon {
   flex: none; display: grid; place-items: center;
-  width: 32px; height: 32px; border-radius: var(--pc-radius-sm);
-  background: var(--pc-primary-soft); color: var(--pc-primary);
+  width: 32px; height: 32px; border-radius: var(--prjs-radius-sm);
+  background: var(--prjs-primary-soft); color: var(--prjs-primary);
 }
-.pc-k-body { padding: 18px; overflow: auto; flex: 1 }
-.pc-k-body > :first-child { margin-top: 0 }
-.pc-k-body > :last-child { margin-bottom: 0 }
-.pc-k-foot {
+/* the corner dismiss: a circle, so it never reads as one of the footer buttons */
+.prjs-btn[data-prjs-modal-close] {
+  flex: none; border-radius: 999px; margin: -2px -4px 0 0;
+  border-color: transparent; background: transparent;
+}
+.prjs-btn[data-prjs-modal-close]:hover { background: var(--prjs-paper-dim); border-color: var(--prjs-rule-soft) }
+.prjs-modal-body { padding: 18px; overflow: auto; flex: 1 }
+.prjs-modal-body > :first-child { margin-top: 0 }
+.prjs-modal-body > :last-child { margin-bottom: 0 }
+.prjs-modal-action {
   display: flex; gap: 8px; justify-content: flex-end; align-items: center;
   padding: 13px 18px;
-  border-top: 1px solid var(--pc-rule-soft);
-  background: var(--pc-paper-dim);
+  border-top: 1px solid var(--prjs-rule-soft);
+  background: var(--prjs-paper-dim);
 }
-.pc-k-foot-note { margin-right: auto; color: var(--pc-ink-soft); font-size: 12px }`;
+.prjs-modal-action-note { margin-right: auto; color: var(--prjs-ink-soft); font-size: 12px }`;
 }
 
+/**
+ * What is left of the button rules.
+ *
+ * daisyUI's button component draws the rest — every size, every tone, the
+ * outline and ghost variants, the disabled state, the focus ring. This is only
+ * the two things it has no opinion about: an icon-only button, which needs to be
+ * square, and the `data-tone` attribute the kit's specs use instead of a class.
+ *
+ * The tone mapping is what makes `{ tone: 'primary' }` reach `.btn-primary`'s
+ * rules without every caller writing class names.
+ */
 function buttons(): string {
+  const tones = [...TONES, ...Object.keys(TONE_ALIASES)]
+    .map(
+      (name) =>
+        `.prjs-btn[data-tone="${name}"] { --btn-color: var(--prjs-${name}); color: var(--prjs-${name}-fg) }`
+    )
+    .join('\n');
+
   return `
-.pc-k-btn {
-  font: inherit; font-weight: 500;
-  border: 1px solid var(--pc-rule);
-  background: var(--pc-paper);
-  color: var(--pc-ink);
-  border-radius: var(--pc-radius-sm);
-  padding: 7px 12px;
-  cursor: pointer;
-  display: inline-flex; align-items: center; justify-content: center; gap: 7px;
-  white-space: nowrap;
-  transition: background-color .12s, border-color .12s, color .12s;
-}
-.pc-k-btn:hover:not([disabled]) { background: var(--pc-paper-dim) }
-.pc-k-btn:active:not([disabled]) { transform: translateY(.5px) }
-.pc-k-btn:focus-visible {
-  outline: var(--pc-ring) solid var(--pc-primary);
-  outline-offset: var(--pc-ring-offset);
-}
-.pc-k-btn[disabled] { opacity: .45; cursor: not-allowed }
-.pc-k-btn[data-size="sm"] { padding: 4px 9px; font-size: 12px }
-.pc-k-btn[data-size="lg"] { padding: 10px 18px; font-size: 14px }
+${tones}
+.prjs-btn[data-tone="ghost"] { --btn-bg: transparent; --btn-border: transparent; --btn-shadow: none }
+.prjs-btn[data-tone="ghost"]:hover:not([disabled]) { --btn-bg: var(--prjs-paper-dim) }
+.prjs-btn[data-tone="quiet"] { --btn-bg: transparent; color: var(--prjs-ink-soft) }
+.prjs-btn[data-tone="quiet"]:hover:not([disabled]) { color: var(--prjs-ink); --btn-bg: var(--prjs-paper-dim) }
 
-.pc-k-btn[data-tone="primary"],
-.pc-k-btn[data-tone="danger"],
-.pc-k-btn[data-tone="warn"],
-.pc-k-btn[data-tone="success"],
-.pc-k-btn[data-tone="info"] { color: var(--pc-t-fg); background: var(--pc-t); border-color: var(--pc-t-border) }
-.pc-k-btn[data-tone="primary"] { --pc-t: var(--pc-primary); --pc-t-fg: var(--pc-primary-fg); --pc-t-border: var(--pc-primary-border) }
-.pc-k-btn[data-tone="danger"]  { --pc-t: var(--pc-danger);  --pc-t-fg: var(--pc-danger-fg);  --pc-t-border: var(--pc-danger-border) }
-.pc-k-btn[data-tone="warn"]    { --pc-t: var(--pc-warn);    --pc-t-fg: var(--pc-warn-fg);    --pc-t-border: var(--pc-warn-border) }
-.pc-k-btn[data-tone="success"] { --pc-t: var(--pc-success); --pc-t-fg: var(--pc-success-fg); --pc-t-border: var(--pc-success-border) }
-.pc-k-btn[data-tone="info"]    { --pc-t: var(--pc-info);    --pc-t-fg: var(--pc-info-fg);    --pc-t-border: var(--pc-info-border) }
-.pc-k-btn[data-tone="primary"]:hover:not([disabled]),
-.pc-k-btn[data-tone="danger"]:hover:not([disabled]),
-.pc-k-btn[data-tone="warn"]:hover:not([disabled]),
-.pc-k-btn[data-tone="success"]:hover:not([disabled]),
-.pc-k-btn[data-tone="info"]:hover:not([disabled]) { filter: brightness(1.08) }
+.prjs-btn[data-size="sm"] { --size: calc(var(--size-field, .25rem) * 8); font-size: .8125rem }
+.prjs-btn[data-size="lg"] { --size: calc(var(--size-field, .25rem) * 12); font-size: 1.0625rem }
 
-.pc-k-btn[data-tone="ghost"] { background: none; border-color: transparent }
-.pc-k-btn[data-tone="ghost"]:hover:not([disabled]) { background: var(--pc-paper-dim) }
-.pc-k-btn[data-tone="quiet"] { background: none; border-color: var(--pc-rule); color: var(--pc-ink-soft) }
-.pc-k-btn[data-tone="quiet"]:hover:not([disabled]) { color: var(--pc-ink); background: var(--pc-paper-dim) }
-
-/* an icon-only button still needs a name, which the tooltip and aria-label give */
-.pc-k-btn[data-icon-only] { padding: 7px; width: 32px; height: 32px }
-.pc-k-btn[data-icon-only][data-size="sm"] { padding: 4px; width: 26px; height: 26px }`;
+/* daisyUI has no icon-only variant that keeps the label for a screen reader */
+.prjs-btn[data-icon-only] { padding-inline: 0; width: var(--size); aspect-ratio: 1 }
+`;
 }
 
 function menus(t: Theme): string {
   return `
-.pc-k-menu {
+.prjs-menu {
   position: fixed; z-index: ${t.z + 60};
   min-width: 236px; max-width: 340px; max-height: 80vh; overflow: auto;
-  background: var(--pc-paper-raised);
-  border: 1px solid var(--pc-rule-soft);
-  border-radius: var(--pc-radius);
-  box-shadow: var(--pc-shadow);
+  background: var(--prjs-paper-raised);
+  border: 1px solid var(--prjs-rule-soft);
+  border-radius: var(--prjs-radius);
+  box-shadow: var(--prjs-shadow);
   padding: 5px;
 }
-.pc-k-menu-head {
+.prjs-menu-head {
   padding: 9px 10px 8px;
-  border-bottom: 1px solid var(--pc-rule-soft);
+  border-bottom: 1px solid var(--prjs-rule-soft);
   margin: -5px -5px 5px;
-  background: var(--pc-paper-dim);
-  border-radius: var(--pc-radius) var(--pc-radius) 0 0;
+  background: var(--prjs-paper-dim);
+  border-radius: var(--prjs-radius) var(--prjs-radius) 0 0;
 }
-.pc-k-menu-title { font-weight: 600; font-size: 12.5px; display: flex; align-items: center; gap: 7px }
-.pc-k-menu-desc { color: var(--pc-ink-soft); font-size: 11.5px; margin-top: 2px }
+.prjs-menu-title { font-weight: 600; font-size: 12.5px; display: flex; align-items: center; gap: 7px }
+.prjs-menu-desc { color: var(--prjs-ink-soft); font-size: 11.5px; margin-top: 2px }
 
-.pc-k-item {
+.prjs-item {
   display: flex; align-items: center; gap: 10px;
   width: 100%; text-align: left;
   background: none; border: 0;
-  border-radius: var(--pc-radius-sm);
+  border-radius: var(--prjs-radius-sm);
   padding: 7px 9px;
   cursor: pointer; color: inherit; font: inherit;
 }
-.pc-k-item:hover:not([disabled]), .pc-k-item[data-active="true"] {
-  background: var(--pc-paper-dim);
+.prjs-item:hover:not([disabled]), .prjs-item[data-active="true"] {
+  background: var(--prjs-paper-dim);
 }
-.pc-k-item[data-tone="danger"] { color: var(--pc-danger) }
-.pc-k-item[data-tone="danger"]:hover:not([disabled]),
-.pc-k-item[data-tone="danger"][data-active="true"] { background: var(--pc-danger-soft) }
-.pc-k-item[data-tone="danger"] .pc-k-item-icon { color: var(--pc-danger) }
-.pc-k-item[data-tone="primary"] .pc-k-item-icon { color: var(--pc-primary) }
-.pc-k-item[disabled] { opacity: .4; cursor: default }
-.pc-k-item:focus-visible { outline: var(--pc-ring) solid var(--pc-primary); outline-offset: -2px }
-.pc-k-item[aria-checked="true"] .pc-k-item-icon { color: var(--pc-primary) }
+.prjs-item[data-tone="danger"] { color: var(--prjs-danger) }
+.prjs-item[data-tone="danger"]:hover:not([disabled]),
+.prjs-item[data-tone="danger"][data-active="true"] { background: var(--prjs-danger-soft) }
+.prjs-item[data-tone="danger"] .prjs-item-icon { color: var(--prjs-danger) }
+.prjs-item[data-tone="primary"] .prjs-item-icon { color: var(--prjs-primary) }
+.prjs-item[disabled] { opacity: .4; cursor: default }
+.prjs-item:focus-visible { outline: var(--prjs-ring) solid var(--prjs-primary); outline-offset: -2px }
+.prjs-item[aria-checked="true"] .prjs-item-icon { color: var(--prjs-primary) }
 
-.pc-k-item-icon { display: inline-flex; color: var(--pc-ink-faint); flex: none }
-.pc-k-item-text { flex: 1; min-width: 0 }
-.pc-k-item-label { display: block }
-.pc-k-item-hint {
-  display: block; color: var(--pc-ink-soft); font-size: 11.5px; margin-top: 1px;
+.prjs-item-icon { display: inline-flex; color: var(--prjs-ink-faint); flex: none }
+.prjs-item-text { flex: 1; min-width: 0 }
+.prjs-item-label { display: block }
+.prjs-item-hint {
+  display: block; color: var(--prjs-ink-soft); font-size: 11.5px; margin-top: 1px;
   overflow: hidden; text-overflow: ellipsis;
 }
-.pc-k-item-kbd { display: inline-flex; gap: 3px; flex: none }
-.pc-k-kbd {
-  font: var(--pc-mono); font-size: 10.5px; line-height: 1;
-  color: var(--pc-ink-soft);
-  background: var(--pc-paper-dim);
-  border: 1px solid var(--pc-rule);
+.prjs-item-kbd { display: inline-flex; gap: 3px; flex: none }
+.prjs-kbd {
+  font: var(--prjs-mono); font-size: 10.5px; line-height: 1;
+  color: var(--prjs-ink-soft);
+  background: var(--prjs-paper-dim);
+  border: 1px solid var(--prjs-rule);
   border-bottom-width: 2px;
   border-radius: 4px;
   padding: 3px 5px;
   min-width: 18px; text-align: center;
 }
-.pc-k-item-more { color: var(--pc-ink-faint); flex: none }
-.pc-k-sep { height: 1px; background: var(--pc-rule-soft); margin: 5px 2px }
-.pc-k-group {
-  font: var(--pc-mono); font-size: 10.5px;
+.prjs-item-more { color: var(--prjs-ink-faint); flex: none }
+.prjs-sep { height: 1px; background: var(--prjs-rule-soft); margin: 5px 2px }
+.prjs-group {
+  font: var(--prjs-mono); font-size: 10.5px;
   text-transform: uppercase; letter-spacing: .08em;
-  color: var(--pc-ink-faint);
+  color: var(--prjs-ink-faint);
   padding: 9px 9px 4px;
 }`;
 }
@@ -577,216 +754,383 @@ function menus(t: Theme): string {
  */
 function floating(): string {
   return `
-.pc-k-pop {
+.prjs-pop {
   position: fixed;
   margin: 0; padding: 0; border: 0;
-  background: var(--pc-paper-raised);
-  color: var(--pc-ink);
-  border: 1px solid var(--pc-rule-soft);
-  border-radius: var(--pc-radius);
-  box-shadow: var(--pc-shadow);
+  background: var(--prjs-paper-raised);
+  color: var(--prjs-ink);
+  border: 1px solid var(--prjs-rule-soft);
+  border-radius: var(--prjs-radius);
+  box-shadow: var(--prjs-shadow);
   max-width: 320px;
   overflow: visible;
 }
-.pc-k-pop::backdrop { background: transparent }
-.pc-k-pop-body { padding: 12px 14px }
-.pc-k-pop-title { font-weight: 600; margin-bottom: 4px }
-.pc-k-pop-text { color: var(--pc-ink-soft); font-size: 12.5px }
-.pc-k-pop-foot {
+.prjs-pop::backdrop { background: transparent }
+.prjs-pop-body { padding: 12px 14px }
+.prjs-pop-title { font-weight: 600; margin-bottom: 4px }
+.prjs-pop-text { color: var(--prjs-ink-soft); font-size: 12.5px }
+.prjs-pop-foot {
   display: flex; gap: 6px; justify-content: flex-end;
-  padding: 9px 12px; border-top: 1px solid var(--pc-rule-soft);
-  background: var(--pc-paper-dim);
-  border-radius: 0 0 var(--pc-radius) var(--pc-radius);
+  padding: 9px 12px; border-top: 1px solid var(--prjs-rule-soft);
+  background: var(--prjs-paper-dim);
+  border-radius: 0 0 var(--prjs-radius) var(--prjs-radius);
 }
 
-.pc-k-tip {
+.prjs-tip {
   position: fixed;
   margin: 0; padding: 5px 9px; border: 0;
-  background: var(--pc-ink);
-  color: var(--pc-paper);
-  border-radius: var(--pc-radius-sm);
+  background: var(--prjs-ink);
+  color: var(--prjs-paper);
+  border-radius: var(--prjs-radius-sm);
   font-size: 12px; line-height: 1.35;
   max-width: 260px;
-  box-shadow: var(--pc-shadow-sm);
+  box-shadow: var(--prjs-shadow-sm);
   pointer-events: none;
 }
-.pc-k-tip::backdrop { background: transparent }
-.pc-k-tip .pc-k-kbd {
+.prjs-tip::backdrop { background: transparent }
+.prjs-tip .prjs-kbd {
   background: rgba(255,255,255,.14); border-color: rgba(255,255,255,.22);
   color: inherit; margin-left: 5px;
 }
 @media (prefers-reduced-motion: no-preference) {
-  .pc-k-tip { animation: pc-k-pop 90ms ease-out }
+  .prjs-tip { animation: prjs-pop 90ms ease-out }
 }
 
 @supports (anchor-name: --pc) {
-  .pc-k-pop[data-anchored], .pc-k-tip[data-anchored] {
+  .prjs-pop[data-anchored], .prjs-tip[data-anchored] {
     position: absolute;
-    position-anchor: var(--pc-anchor);
-    position-area: var(--pc-area, block-start);
+    position-anchor: var(--prjs-anchor);
+    position-area: var(--prjs-area, block-start);
     margin: 6px;
     position-try-fallbacks: flip-block, flip-inline, flip-block flip-inline;
     position-visibility: anchors-visible;
   }
-}`;
 }
 
+/* the caret -------------------------------------------------------------
+   a square turned 45°, showing the two edges that meet at the pointing corner.
+   \`background: inherit\` takes the surface's own colour, so one rule serves the
+   dark tooltip and the light popover without either naming the other. */
+.prjs-caret {
+  position: absolute;
+  width: 9px; height: 9px;
+  background: inherit;
+  border: 0 solid var(--prjs-rule-soft);
+  transform: rotate(45deg);
+  pointer-events: none;
+}
+/* until the geometry has been read back, there is no side to point at */
+.prjs-pop:not([data-side]) > .prjs-caret,
+.prjs-tip:not([data-side]) > .prjs-caret { display: none }
+
+[data-side="top"] > .prjs-caret {
+  bottom: -5px; left: var(--prjs-caret-at, 50%); margin-left: -4.5px;
+  border-right-width: 1px; border-bottom-width: 1px;
+}
+[data-side="bottom"] > .prjs-caret {
+  top: -5px; left: var(--prjs-caret-at, 50%); margin-left: -4.5px;
+  border-top-width: 1px; border-left-width: 1px;
+}
+[data-side="left"] > .prjs-caret {
+  right: -5px; top: var(--prjs-caret-at, 50%); margin-top: -4.5px;
+  border-top-width: 1px; border-right-width: 1px;
+}
+[data-side="right"] > .prjs-caret {
+  left: -5px; top: var(--prjs-caret-at, 50%); margin-top: -4.5px;
+  border-bottom-width: 1px; border-left-width: 1px;
+}
+/* a shadow under the caret would draw a line across the surface it points from */
+.prjs-tip .prjs-caret { box-shadow: none }`;
+}
+
+/**
+ * What daisyUI's form components do not cover.
+ *
+ * `input`, `select`, `textarea`, `range`, `checkbox`, `radio`, `fieldset` and
+ * `label` are all daisyUI's now, so the controls themselves are gone from here.
+ * What is left is the layout between them — the vertical rhythm a field sits in,
+ * the hint under it, the error slot — and the colour control, which daisyUI has
+ * no component for.
+ */
 function forms(): string {
   return `
-.pc-k-field { display: block; margin-bottom: 14px }
-.pc-k-field:last-child { margin-bottom: 0 }
-.pc-k-label { display: flex; align-items: center; gap: 6px; font-weight: 500; margin-bottom: 5px }
-.pc-k-req { color: var(--pc-danger); font-size: 11px }
-.pc-k-hint { display: block; color: var(--pc-ink-soft); font-size: 12px; margin-top: 5px }
-.pc-k-input, .pc-k-select, .pc-k-textarea {
-  font: inherit; width: 100%;
-  border: 1px solid var(--pc-rule);
-  border-radius: var(--pc-radius-sm);
-  padding: 7px 10px;
-  background: var(--pc-paper);
-  color: var(--pc-ink);
-  transition: border-color .12s, box-shadow .12s;
+/* one vertical rhythm for every field, rather than each control choosing its own
+   margins: label 6px control 6px hint, 18px between fields. */
+.prjs-field { display: block; margin-bottom: 18px }
+.prjs-field:last-child { margin-bottom: 0 }
+.prjs-field > .prjs-label { display: flex; align-items: center; gap: 6px; margin-bottom: 6px }
+.prjs-req { color: var(--prjs-error); font-size: 11px }
+.prjs-hint { display: block; color: var(--prjs-ink-soft); font-size: 12px; margin-top: 6px; line-height: 1.4 }
+.prjs-error { display: block; color: var(--prjs-error); font-size: 12px; margin-top: 6px }
+.prjs-error[hidden] { display: none }
+
+/* a checkbox or radio and its words on one line */
+.prjs-check {
+  display: flex; align-items: center; gap: 9px;
+  font-weight: 400; cursor: pointer; margin-bottom: 8px;
 }
-.pc-k-input::placeholder, .pc-k-textarea::placeholder { color: var(--pc-ink-faint) }
-.pc-k-textarea { min-height: 88px; resize: vertical }
-.pc-k-input:focus-visible, .pc-k-select:focus-visible, .pc-k-textarea:focus-visible {
-  outline: none;
-  border-color: var(--pc-primary);
-  box-shadow: 0 0 0 var(--pc-ring) var(--pc-primary-soft);
-}
-.pc-k-input[aria-invalid="true"], .pc-k-textarea[aria-invalid="true"] {
-  border-color: var(--pc-danger);
-}
-.pc-k-input[aria-invalid="true"]:focus-visible { box-shadow: 0 0 0 var(--pc-ring) var(--pc-danger-soft) }
-.pc-k-error {
-  color: var(--pc-danger); font-size: 12px; margin-top: 5px;
-  display: flex; align-items: center; gap: 5px;
-}
-.pc-k-check { display: flex; align-items: flex-start; gap: 9px; font-weight: 400; cursor: pointer }
-.pc-k-check:hover { color: var(--pc-ink) }
-.pc-k-check input { margin-top: 2px; accent-color: var(--pc-primary) }
-.pc-k-color { padding: 3px; height: 34px; cursor: pointer }
-.pc-k-row { display: flex; gap: 10px }
-.pc-k-row > * { flex: 1 }`;
+.prjs-check:last-child { margin-bottom: 0 }
+
+/* daisyUI's fieldset is a box; this is the grid inside it */
+.prjs-fieldset { margin: 0 0 18px }
+.prjs-fieldset:last-child { margin-bottom: 0 }
+.prjs-fieldset-body { display: grid; gap: 14px }
+.prjs-fieldset-body .prjs-field { margin-bottom: 0 }
+@media (min-width: 520px) {
+  .prjs-fieldset-body[data-columns="2"] { grid-template-columns: 1fr 1fr }
 }
 
-/** The command palette: a combobox over a grouped listbox, in a dialog. */
+/* colour — daisyUI has no component for one ---------------------------------- */
+.prjs-color-field { display: block }
+.prjs-color-row { display: flex; gap: 8px; align-items: center }
+.prjs-color-input { font: var(--prjs-mono); letter-spacing: .01em }
+.prjs-swatches { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap }
+.prjs-swatch {
+  width: 26px; height: 26px; flex: none; cursor: pointer; padding: 0;
+  border: 1px solid var(--prjs-rule); border-radius: var(--prjs-radius-selector);
+  /* a chequerboard behind it, so a translucent swatch reads as translucent */
+  background-image:
+    linear-gradient(var(--prjs-swatch), var(--prjs-swatch)),
+    conic-gradient(#d4d4d4 0 25%, #fff 0 50%, #d4d4d4 0 75%, #fff 0);
+  background-size: 100% 100%, 10px 10px;
+}
+.prjs-swatch:hover { transform: scale(1.08) }
+.prjs-swatch:focus-visible { outline: var(--prjs-ring) solid var(--prjs-primary); outline-offset: 2px }
+
+.prjs-range-row { display: flex; gap: 12px; align-items: center }
+.prjs-range { flex: 1; min-width: 0 }
+.prjs-range-value {
+  font: var(--prjs-mono); min-width: 4.5em; text-align: right;
+  color: var(--prjs-ink-soft); flex: none;
+}
+`;
+}
+
 function palette(): string {
   return `
-.pc-k-palette {
+.prjs-palette {
   width: 620px; max-width: 100%;
   align-self: flex-start; margin-top: 8vh;
-  background: var(--pc-paper-raised);
-  border: 1px solid var(--pc-rule-soft);
-  border-radius: var(--pc-radius-lg);
-  box-shadow: var(--pc-shadow);
+  background: var(--prjs-paper-raised);
+  border: 1px solid var(--prjs-rule-soft);
+  border-radius: var(--prjs-radius-lg);
+  box-shadow: var(--prjs-shadow);
   display: flex; flex-direction: column; overflow: hidden;
   max-height: 68vh;
 }
-.pc-k-palette-search {
+.prjs-palette-search {
   display: flex; align-items: center; gap: 10px;
   padding: 13px 16px;
-  border-bottom: 1px solid var(--pc-rule-soft);
+  border-bottom: 1px solid var(--prjs-rule-soft);
 }
-.pc-k-palette-search svg { color: var(--pc-ink-faint); flex: none }
-.pc-k-palette-input {
+.prjs-palette-search svg { color: var(--prjs-ink-faint); flex: none }
+.prjs-palette-input {
   font: inherit; font-size: 15px;
-  flex: 1; border: 0; background: none; color: var(--pc-ink); outline: none; padding: 0;
+  flex: 1; border: 0; background: none; color: var(--prjs-ink); outline: none; padding: 0;
 }
-.pc-k-palette-input::placeholder { color: var(--pc-ink-faint) }
-.pc-k-palette-list { overflow: auto; padding: 6px; flex: 1 }
-.pc-k-palette-empty {
-  padding: 32px 16px; text-align: center; color: var(--pc-ink-soft);
+.prjs-palette-input::placeholder { color: var(--prjs-ink-faint) }
+.prjs-palette-list { overflow: auto; padding: 6px; flex: 1 }
+.prjs-palette-empty {
+  padding: 32px 16px; text-align: center; color: var(--prjs-ink-soft);
 }
-.pc-k-palette-foot {
+.prjs-palette-foot {
   display: flex; align-items: center; gap: 14px;
   padding: 9px 14px;
-  border-top: 1px solid var(--pc-rule-soft);
-  background: var(--pc-paper-dim);
-  font-size: 11.5px; color: var(--pc-ink-soft);
+  border-top: 1px solid var(--prjs-rule-soft);
+  background: var(--prjs-paper-dim);
+  font-size: 11.5px; color: var(--prjs-ink-soft);
 }
-.pc-k-palette-foot span { display: inline-flex; align-items: center; gap: 5px }
-.pc-k-match { color: var(--pc-primary); font-weight: 600 }
-.pc-k-palette .pc-k-item { padding: 9px 10px }
-.pc-k-palette .pc-k-item[data-active="true"] { background: var(--pc-primary-soft) }
-.pc-k-palette .pc-k-item[data-active="true"] .pc-k-item-icon { color: var(--pc-primary) }`;
+.prjs-palette-foot span { display: inline-flex; align-items: center; gap: 5px }
+.prjs-match { color: var(--prjs-primary); font-weight: 600 }
+.prjs-palette .prjs-item { padding: 9px 10px }
+.prjs-palette .prjs-item[data-active="true"] { background: var(--prjs-primary-soft) }
+.prjs-palette .prjs-item[data-active="true"] .prjs-item-icon { color: var(--prjs-primary) }`;
 }
 
 function chrome(t: Theme): string {
   return `
-.pc-k-toolbar {
-  position: fixed; left: 50%; bottom: 22px; transform: translateX(-50%);
+/* the proof sheet --------------------------------------------------------- */
+/* The order these stack in is the order they open in.
+ *
+ *   proof    30   a full-screen panel other surfaces open over
+ *   toolbar  50   the annotation tools, over the proof
+ *   modal    55   over both — the proof's own settings dialog is one
+ *   menu     60   over a modal
+ *   toast    70   over everything
+ *
+ * The proof shipped at 60, above the modal scrim, so its Settings button opened
+ * a dialog behind the panel that opened it: visible, and impossible to click.
+ */
+.prjs-proof {
+  position: fixed; inset: 0; z-index: ${t.z + 30};
+  display: grid; grid-template-rows: auto 1fr auto;
+  background: var(--prjs-paper);
+  color: var(--prjs-ink);
+}
+.prjs-proof-bar {
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px 16px; border-bottom: 1px solid var(--prjs-rule-soft);
+  background: var(--prjs-paper);
+}
+.prjs-proof-icon {
+  flex: none; display: grid; place-items: center; width: 34px; height: 34px;
+  border-radius: var(--prjs-radius-field);
+  background: var(--prjs-primary-soft); color: var(--prjs-primary);
+}
+.prjs-proof-titles { flex: 1; min-width: 0 }
+.prjs-proof-title { margin: 0; font-size: 15px; font-weight: 600; letter-spacing: -.01em }
+.prjs-proof-meta { margin: 2px 0 0; font-size: 12px; color: var(--prjs-ink-soft) }
+.prjs-proof-zoom { display: flex; align-items: center; gap: 2px }
+.prjs-proof-zoom-value {
+  font: var(--prjs-mono); min-width: 3.6em; text-align: center; color: var(--prjs-ink-soft);
+}
+
+.prjs-proof-body { display: flex; min-height: 0; background: var(--prjs-paper-dim) }
+
+.prjs-proof-rail {
+  flex: none; width: 62px; overflow: auto;
+  display: flex; flex-direction: column; gap: 6px; align-items: center;
+  padding: 14px 0; border-right: 1px solid var(--prjs-rule-soft);
+  background: var(--prjs-paper);
+}
+.prjs-proof-rail[hidden] { display: none }
+.prjs-proof-page {
+  font: var(--prjs-mono); cursor: pointer; flex: none;
+  width: 36px; height: 46px;
+  border: 1px solid var(--prjs-rule); border-radius: var(--prjs-radius-selector);
+  background: var(--prjs-paper); color: var(--prjs-ink-soft);
+}
+.prjs-proof-page:hover { border-color: var(--prjs-primary); color: var(--prjs-ink) }
+.prjs-proof-page[data-active="true"] {
+  border-color: var(--prjs-primary); color: var(--prjs-primary-fg);
+  background: var(--prjs-primary);
+}
+
+.prjs-proof-stage {
+  flex: 1; min-width: 0; overflow: auto;
+  display: flex; justify-content: center; align-items: flex-start;
+  padding: 28px;
+}
+/* the sheet reads as paper, not as a panel that happens to contain html */
+.prjs-proof-paper {
+  flex: none; transform-origin: top center;
+  background: #fff; box-shadow: 0 8px 34px rgba(0,0,0,.22);
+}
+.prjs-proof-frame { width: 100%; height: 100%; border: 0; display: block; background: #fff }
+
+.prjs-proof-foot {
+  display: flex; align-items: center; gap: 10px;
+  padding: 12px 16px; border-top: 1px solid var(--prjs-rule-soft);
+  background: var(--prjs-paper);
+}
+.prjs-proof-foot-left { display: flex; gap: 8px; flex: 1 }
+.prjs-proof-foot-right { display: flex; gap: 8px }
+
+/* one lane per edge. bars are children, so two open at once sit above one
+   another instead of on top of one another. */
+.prjs-toolbar-stack {
+  position: fixed; left: 50%; transform: translateX(-50%);
   z-index: ${t.z + 50};
+  display: flex; flex-direction: column-reverse; gap: 10px;
+  align-items: center;
+  max-width: calc(100vw - 32px);
+  pointer-events: none;
+  transition: bottom .18s ease, top .18s ease;
+}
+.prjs-toolbar-stack > * { pointer-events: auto }
+.prjs-toolbar-stack[data-dock="bottom"] { bottom: 22px }
+.prjs-toolbar-stack[data-dock="top"] { top: 22px; flex-direction: column }
+/* the lane got in the way of what its bars are about, so it moved */
+.prjs-toolbar-stack[data-dock="bottom"][data-shifted="true"] { bottom: auto; top: 22px; flex-direction: column }
+.prjs-toolbar-stack:empty { display: none }
+@media (prefers-reduced-motion: reduce) {
+  .prjs-toolbar-stack { transition: none }
+}
+
+.prjs-toolbar {
   display: flex; gap: 8px; align-items: center;
-  background: var(--pc-ink);
-  color: var(--pc-paper);
+  background: var(--prjs-ink);
+  color: var(--prjs-paper);
   padding: 8px 10px;
-  border-radius: var(--pc-radius);
-  box-shadow: var(--pc-shadow);
+  border-radius: var(--prjs-radius);
+  box-shadow: var(--prjs-shadow);
   max-width: calc(100vw - 32px);
   flex-wrap: wrap;
 }
-.pc-k-toolbar .pc-k-btn { background: rgba(255,255,255,.10); border-color: transparent; color: var(--pc-paper) }
-.pc-k-toolbar .pc-k-btn:hover:not([disabled]) { background: rgba(255,255,255,.18) }
-.pc-k-toolbar .pc-k-btn[data-tone="primary"] { background: var(--pc-primary); color: var(--pc-primary-fg) }
-.pc-k-toolbar .pc-k-btn[data-tone="danger"] { background: var(--pc-danger); color: var(--pc-danger-fg) }
-.pc-k-toolbar .pc-k-btn[data-tone="ghost"] { background: none; color: var(--pc-paper); opacity: .8 }
-.pc-k-toolbar .pc-k-btn[data-tone="ghost"]:hover:not([disabled]) { opacity: 1; background: rgba(255,255,255,.12) }
-.pc-k-toolbar-status { font: var(--pc-mono); margin: 0 6px 0 4px; opacity: .9 }
+.prjs-toolbar .prjs-btn { background: rgba(255,255,255,.10); border-color: transparent; color: var(--prjs-paper) }
+.prjs-toolbar .prjs-btn:hover:not([disabled]) { background: rgba(255,255,255,.18) }
+.prjs-toolbar .prjs-btn[data-active="true"] { background: rgba(255,255,255,.24); box-shadow: inset 0 0 0 1px rgba(255,255,255,.4) }
+.prjs-toolbar .prjs-btn[data-tone="primary"] { background: var(--prjs-primary); color: var(--prjs-primary-fg) }
+.prjs-toolbar .prjs-btn[data-tone="danger"] { background: var(--prjs-danger); color: var(--prjs-danger-fg) }
+.prjs-toolbar .prjs-btn[data-tone="ghost"] { background: none; color: var(--prjs-paper); opacity: .8 }
+.prjs-toolbar .prjs-btn[data-tone="ghost"]:hover:not([disabled]) { opacity: 1; background: rgba(255,255,255,.12) }
 
-.pc-k-toasts {
+.prjs-toolbar-status { display: flex; gap: 6px; align-items: center; font: var(--prjs-mono); margin: 0 4px; opacity: .9 }
+/* several short chips read faster than one run-on string */
+.prjs-toolbar-chip {
+  display: inline-flex; align-items: center; gap: 5px;
+  background: rgba(255,255,255,.12); border-radius: var(--prjs-radius-selector);
+  padding: 3px 8px; white-space: nowrap;
+}
+.prjs-toolbar-chip[data-tone="primary"] { background: var(--prjs-primary); color: var(--prjs-primary-fg) }
+.prjs-toolbar-swatch {
+  width: 11px; height: 11px; flex: none; border-radius: 3px;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.45);
+}
+
+.prjs-toasts {
   position: fixed; right: 16px; bottom: 16px; z-index: ${t.z + 70};
   display: flex; flex-direction: column; gap: 8px; align-items: flex-end;
   pointer-events: none;
 }
-.pc-k-toast {
+.prjs-toast {
   pointer-events: auto;
-  background: var(--pc-ink); color: var(--pc-paper);
-  border-radius: var(--pc-radius);
-  box-shadow: var(--pc-shadow);
+  background: var(--prjs-ink); color: var(--prjs-paper);
+  border-radius: var(--prjs-radius);
+  box-shadow: var(--prjs-shadow);
   padding: 10px 13px;
   max-width: 380px;
   display: flex; align-items: flex-start; gap: 10px;
 }
-.pc-k-toast[data-tone="danger"] { background: var(--pc-danger); color: var(--pc-danger-fg) }
-.pc-k-toast[data-tone="success"] { background: var(--pc-success); color: var(--pc-success-fg) }
-.pc-k-toast[data-tone="warn"] { background: var(--pc-warn); color: var(--pc-warn-fg) }
-.pc-k-toast-close {
+.prjs-toast[data-tone="danger"] { background: var(--prjs-danger); color: var(--prjs-danger-fg) }
+.prjs-toast[data-tone="success"] { background: var(--prjs-success); color: var(--prjs-success-fg) }
+.prjs-toast[data-tone="warn"] { background: var(--prjs-warn); color: var(--prjs-warn-fg) }
+.prjs-toast-close {
   background: none; border: 0; color: inherit; cursor: pointer; font: inherit;
   opacity: .7; padding: 0; flex: none;
 }
-.pc-k-toast-close:hover { opacity: 1 }
+.prjs-toast-close:hover { opacity: 1 }
 
 /* the notes panel: every annotation on the page, in one list */
-.pc-k-list { display: grid; gap: 6px }
-.pc-k-card {
+.prjs-list { display: grid; gap: 6px }
+.prjs-card {
   display: flex; gap: 10px; align-items: flex-start;
   padding: 10px 12px;
-  border: 1px solid var(--pc-rule-soft);
-  border-radius: var(--pc-radius-sm);
-  background: var(--pc-paper-dim);
+  border: 1px solid var(--prjs-rule-soft);
+  border-radius: var(--prjs-radius-sm);
+  background: var(--prjs-paper-dim);
 }
-.pc-k-card-text { flex: 1; min-width: 0 }
-.pc-k-card-where {
-  font: var(--pc-mono); font-size: 11px; color: var(--pc-ink-faint);
+.prjs-card-text { flex: 1; min-width: 0 }
+.prjs-card-where {
+  font: var(--prjs-mono); font-size: 11px; color: var(--prjs-ink-faint);
   margin-top: 3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-.pc-k-card-actions { display: flex; gap: 4px; flex: none }
-.pc-k-empty {
-  padding: 28px 16px; text-align: center; color: var(--pc-ink-soft);
-  border: 1px dashed var(--pc-rule); border-radius: var(--pc-radius-sm);
+.prjs-card-actions { display: flex; gap: 4px; flex: none }
+.prjs-empty {
+  padding: 28px 16px; text-align: center; color: var(--prjs-ink-soft);
+  border: 1px dashed var(--prjs-rule); border-radius: var(--prjs-radius-sm);
 }
-.pc-k-badge {
+.prjs-badge {
   display: inline-flex; align-items: center; gap: 4px;
-  font: var(--pc-mono); font-size: 10.5px;
+  font: var(--prjs-mono); font-size: 10.5px;
   padding: 2px 6px; border-radius: 999px;
-  background: var(--pc-primary-soft); color: var(--pc-primary);
+  background: var(--prjs-primary-soft); color: var(--prjs-primary);
 }
-.pc-k-badge[data-tone="danger"] { background: var(--pc-danger-soft); color: var(--pc-danger) }
-.pc-k-badge[data-tone="warn"] { background: var(--pc-warn-soft); color: var(--pc-warn) }`;
+.prjs-badge[data-tone="danger"] { background: var(--prjs-danger-soft); color: var(--prjs-danger) }
+.prjs-badge[data-tone="warn"] { background: var(--prjs-warn-soft); color: var(--prjs-warn) }`;
 }
 
 /** the marker every kit node carries, so clip jobs can strip the interface out */
-export const UI_ATTR = 'data-pc-ui';
-export const KIT_CLASS = 'pc-k';
+export const UI_ATTR = 'data-prjs-ui';
+export const KIT_CLASS = 'prjs';
 export const KIT_NS = NS;

@@ -6,7 +6,7 @@
 // view reflects it.
 
 import { test, expect, vi } from 'vitest';
-import { Printcraft, dom, env, I } from './harness';
+import { Printcraft, dom, env, I, stubPrint } from './harness';
 
 const ui = Printcraft.ui;
 
@@ -248,7 +248,7 @@ test('a title and description are printed as a heading, not just used as a filen
     env(d)
   );
 
-  expect(printed).toContain('pc-heading');
+  expect(printed).toContain('prjs-heading');
   expect(printed).toContain('Quarterly report');
   expect(printed).toContain('Prepared for the board');
   expect(printed.indexOf('Quarterly report'), 'above the content').toBeLessThan(
@@ -273,7 +273,7 @@ test('no title and no description prints no heading at all', async () => {
     },
     env(d)
   );
-  expect(printed).not.toContain('pc-heading');
+  expect(printed).not.toContain('prjs-heading');
 });
 
 test('printHeading: false leaves the title for the filename alone', async () => {
@@ -298,7 +298,7 @@ test('printHeading: false leaves the title for the filename alone', async () => 
     env(d)
   );
 
-  expect(printed).not.toContain('pc-heading');
+  expect(printed).not.toContain('prjs-heading');
   expect(title, 'the browser still names the pdf after it').toBe('Invoice 4417');
 });
 
@@ -572,4 +572,420 @@ test('afterPaginate does not fire for a job that did not paginate', async () => 
     env(d)
   );
   expect(fired).toBe(false);
+});
+
+test('no two stock actions share an id', () => {
+  // `add()` replaces by id, which is what lets a host override an entry. It also
+  // means a duplicate inside our own catalogue silently deletes the first one:
+  // a second action registered as `draw` removed the region tool from the menu
+  // and from the palette, and nothing failed.
+  const ids = Printcraft.ui.buildActions().map((a: { id: string }) => a.id);
+  const seen = new Set<string>();
+  const doubled = ids.filter((id: string) => (seen.has(id) ? true : (seen.add(id), false)));
+
+  expect(doubled, 'these ids appear twice and the later one wins').toEqual([]);
+});
+
+test('no two stock actions claim the same keys', () => {
+  const bound = Printcraft.ui
+    .buildActions()
+    .filter((a: { keys?: string }) => a.keys)
+    .map((a: { keys: string }) => a.keys.toLowerCase());
+
+  const seen = new Set<string>();
+  const doubled = bound.filter((k: string) => (seen.has(k) ? true : (seen.add(k), false)));
+
+  expect(doubled, 'one binding, two actions: only one of them can ever run').toEqual([]);
+});
+
+/* remembering marks ------------------------------------------------------- */
+
+/** a store the test can read back, holding what a previous visit saved */
+function savedStore(
+  marks: unknown[]
+): { name: string; data: Map<string, unknown> } & Record<string, unknown> {
+  const data = new Map<string, unknown>([['page|marks', marks]]);
+  return {
+    name: 'test',
+    data,
+    get: async (k: string) => (data.has(k) ? data.get(k) : null),
+    set: async (k: string, v: unknown) => void data.set(k, v),
+    remove: async (k: string) => void data.delete(k),
+    keys: async () => [...data.keys()],
+    clear: async () => data.clear()
+  };
+}
+
+const anchorFor = (selector: string, text: string, tag = 'p') => ({
+  selector,
+  text,
+  tag,
+  index: 0
+});
+
+test('putting saved marks back is not an edit, so it never overwrites the lost ones', async () => {
+  // The observer that saves marks was installed before restoration finished,
+  // so the attributes restoration wrote were saved as fresh edits: 250ms after
+  // load the store held only the marks that resolved, and every mark reported
+  // lost was deleted for good.
+  const d = dom('<p id="here">Still here</p>');
+  const store = savedStore([
+    { kind: 'note', anchor: anchorFor('#here', 'Still here'), data: 'kept', at: 1 },
+    { kind: 'redaction', anchor: anchorFor('#gone', 'A paragraph from another build'), at: 1 }
+  ]);
+  const iface = ui.create(
+    { persist: store, scopeKey: 'page', contextMenu: false, keyboard: false },
+    env(d)
+  );
+
+  const report = await iface.restored();
+  expect(report.restored).toHaveLength(1);
+  expect(report.lost).toHaveLength(1);
+  await new Promise((r) => setTimeout(r, 350));
+  expect(store.data.get('page|marks'), 'the lost mark is still stored').toHaveLength(2);
+
+  // an edit after the restore is still saved
+  d.window.document.getElementById('here')!.setAttribute('data-printcraft-redact', '');
+  await new Promise((r) => setTimeout(r, 350));
+  const kinds = (store.data.get('page|marks') as Array<{ kind: string }>).map((m) => m.kind);
+  expect(kinds).toContain('redaction');
+  iface.destroy();
+});
+
+test('a restored drawing is painted on the page, not only stored on it', async () => {
+  // Restoring put the attribute back and nothing drew it: the drawing printed,
+  // but after a reload it was invisible on screen. `repaintAll` existed for this
+  // and had no caller.
+  const d = dom('<p id="total">Total 1,240</p>');
+  const drawing = JSON.stringify({
+    v: 1,
+    shapes: [
+      {
+        id: 's1',
+        kind: 'ellipse',
+        points: [
+          { x: 0.1, y: 0.1 },
+          { x: 0.9, y: 0.9 }
+        ],
+        color: '#dc2626',
+        width: 3,
+        opacity: 1
+      }
+    ]
+  });
+  const store = savedStore([
+    { kind: 'drawing', anchor: anchorFor('#total', 'Total 1,240'), data: drawing, at: 1 }
+  ]);
+  const iface = ui.create(
+    { persist: store, scopeKey: 'page', contextMenu: false, keyboard: false },
+    env(d)
+  );
+  await iface.restored();
+
+  const host = d.window.document.getElementById('total')!;
+  expect(host.getAttribute('data-printcraft-drawing')).toBe(drawing);
+  expect(host.querySelector(':scope > svg.prjs-drawing'), 'the overlay is on screen').toBeTruthy();
+  iface.destroy();
+});
+
+/* remembering the rest: options, activity, progress ----------------------- */
+
+const settle = (ms = 30): Promise<void> => new Promise((r) => setTimeout(r, ms));
+
+/** an interface over a test store, with no menu or keymap to get in the way */
+function remembering(
+  d: ReturnType<typeof dom>,
+  store: unknown,
+  extra: Record<string, unknown> = {}
+) {
+  return ui.create(
+    { persist: store, scopeKey: 'page', contextMenu: false, keyboard: false, ...extra },
+    env(d)
+  );
+}
+
+test("a printed job's paper and margins are remembered, under the host's own base", async () => {
+  const d = dom('<p id="t">x</p>');
+  const store = savedStore([]);
+  const restore = stubPrint(d);
+  const first = remembering(d, store, { base: { proof: false, assetTimeout: 50 } });
+  first.configure({ setPrintSize: 'A5', pageMargin: '12mm', target: '#t' });
+  const job = await first.run('print-page');
+  restore();
+  expect(job.status).toBe('done');
+  await settle();
+  // only what is worth carrying: the target and the timeout are about one job
+  expect(store.data.get('page|options')).toEqual({ setPrintSize: 'A5', pageMargin: '12mm' });
+  first.destroy();
+
+  // the next visit starts from it, and a choice the host makes in code wins
+  const next = remembering(d, store, { base: { pageMargin: '20mm' } });
+  await settle();
+  expect(next.context().base).toMatchObject({ setPrintSize: 'A5', pageMargin: '20mm' });
+  next.destroy();
+});
+
+test('actions that run are remembered, and the palette offers them first', async () => {
+  const d = dom('<p>x</p>');
+  const store = savedStore([]);
+  const ran: string[] = [];
+  const first = remembering(d, store, {
+    actions: [{ id: 'stamp', label: 'Stamp it', group: 'Mark up', run: () => ran.push('stamp') }]
+  });
+  first.run('stamp');
+  await settle();
+  expect(ran).toEqual(['stamp']);
+  expect(store.data.get('page|recent')).toEqual(['stamp']);
+  first.destroy();
+
+  const next = remembering(d, store, {
+    actions: [{ id: 'stamp', label: 'Stamp it', group: 'Mark up', run: () => {} }]
+  });
+  await settle();
+  // jsdom has no layout, so nothing to scroll
+  d.window.HTMLElement.prototype.scrollIntoView = () => {};
+  next.palette();
+  const rows = [...d.window.document.querySelectorAll('[data-prjs-palette] [data-prjs-item]')];
+  expect(rows[0]!.getAttribute('data-prjs-item'), 'the recent action leads').toBe('stamp');
+  expect(d.window.document.querySelector('[data-prjs-palette] .prjs-group')!.textContent).toBe(
+    'Recently used'
+  );
+  next.destroy();
+});
+
+/** drags a box on the region tool's overlay */
+function drag(d: ReturnType<typeof dom>, from: [number, number], to: [number, number]): void {
+  const layer = d.window.document.querySelector('[data-prjs-draw]')!;
+  const at = (type: string, [x, y]: [number, number]) =>
+    layer.dispatchEvent(
+      new d.window.MouseEvent(type, { bubbles: true, clientX: x, clientY: y }) as unknown as Event
+    );
+  at('pointerdown', from);
+  at('pointermove', to);
+  at('pointerup', to);
+}
+
+test('an unfinished region selection survives a reload, and cancelling forgets it', async () => {
+  const d = dom('<p>x</p>');
+  const doc = d.window.document;
+  const store = savedStore([]);
+  const first = remembering(d, store);
+  void first.run('draw');
+  drag(d, [40, 50], [240, 170]);
+  await settle();
+  expect(store.data.get('page|progress')).toMatchObject({
+    kind: 'region',
+    box: { x: 40, y: 50, w: 200, h: 120 }
+  });
+  first.destroy();
+  // the page went away with the tool still open
+  doc.querySelector('[data-prjs-draw]')!.remove();
+  for (const n of doc.querySelectorAll('[data-prjs-ui]')) n.remove();
+
+  const next = remembering(d, store);
+  const done = next.run('draw') as Promise<{ action: string }>;
+  await settle();
+  const region = doc.querySelector('[data-prjs-region]') as HTMLElement;
+  expect(region.style.display, 'the box is back').toBe('block');
+  expect([region.style.left, region.style.top, region.style.width]).toEqual([
+    '40px',
+    '50px',
+    '200px'
+  ]);
+
+  doc.dispatchEvent(new d.window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+  expect((await done).action).toBe('cancel');
+  await settle();
+  expect(store.data.has('page|progress'), 'cancelling forgets it').toBe(false);
+  next.destroy();
+});
+
+test('storage holding something else entirely degrades to remembering nothing', async () => {
+  // a different build's format, a hand-edited store, a truncated write: none of
+  // it may throw, and none of it may reach a job
+  const d = dom('<p id="here">Still here</p>');
+  const store = savedStore([]);
+  store.data.set('page|marks', 'not a list');
+  store.data.set('page|options', [1, 2, 3]);
+  store.data.set('page|recent', { not: 'a list' });
+  store.data.set('page|progress', { kind: 'region', box: 'nowhere' });
+  const iface = remembering(d, store);
+  expect(await iface.restored()).toEqual({ restored: [], lost: [] });
+  await settle();
+  expect(iface.context().base).toEqual({});
+  expect(iface.context().recent).toEqual([]);
+
+  const done = iface.run('draw') as Promise<{ action: string }>;
+  await settle();
+  expect((d.window.document.querySelector('[data-prjs-region]') as HTMLElement).style.display).toBe(
+    'none'
+  );
+  d.window.document.dispatchEvent(
+    new d.window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true })
+  );
+  await done;
+
+  // and a mark list with one bad entry keeps the good one
+  store.data.set('page|marks', [
+    { kind: 'note', anchor: anchorFor('#here', 'Still here'), data: 'kept', at: 1 },
+    { kind: 'note' },
+    null
+  ]);
+  const again = remembering(d, store);
+  expect((await again.restored()).restored).toHaveLength(1);
+  iface.destroy();
+  again.destroy();
+});
+
+test('a store that is full or unreachable is reported, and printing carries on', async () => {
+  const d = dom('<p id="t">x</p>');
+  const refused = () => Promise.reject(Object.assign(new Error('full'), { code: 'PC_STORE_FULL' }));
+  const store = {
+    name: 'broken',
+    get: refused,
+    set: refused,
+    remove: refused,
+    keys: refused,
+    clear: refused
+  };
+  const errors: string[] = [];
+  const onError = (p: { what: string }) => errors.push(p.what);
+  Printcraft.on('state:error', onError);
+  const restore = stubPrint(d);
+  try {
+    const iface = remembering(d, store, { base: { proof: false, assetTimeout: 50, target: '#t' } });
+    expect(await iface.restored(), 'a refused read is an empty restore').toEqual({
+      restored: [],
+      lost: []
+    });
+    const job = await iface.run('print-page');
+    expect(job.status).toBe('done');
+    d.window.document.getElementById('t')!.setAttribute('data-printcraft-note', 'n');
+    await settle(320);
+    // sorted in place: built on the line above
+    // oxlint-disable-next-line no-array-sort
+    expect([...new Set(errors)].sort()).toEqual(['marks', 'options', 'recent']);
+    iface.destroy();
+  } finally {
+    restore();
+    Printcraft.off('state:error', onError);
+  }
+});
+
+test('persist off writes nothing anywhere', async () => {
+  const d = dom('<p id="t">x</p>');
+  const storage = d.window.localStorage;
+  const restore = stubPrint(d);
+  const iface = ui.create(
+    { contextMenu: false, keyboard: false, base: { proof: false, assetTimeout: 50, target: '#t' } },
+    env(d)
+  );
+  await iface.run('print-page');
+  void iface.run('draw');
+  drag(d, [10, 10], [200, 120]);
+  d.window.document.getElementById('t')!.setAttribute('data-printcraft-redact', '');
+  await settle(320);
+  restore();
+  d.window.document.dispatchEvent(
+    new d.window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true })
+  );
+  expect(storage.length, 'nothing in localStorage').toBe(0);
+  expect(await iface.memory.export()).toEqual({
+    scope: expect.any(String),
+    marks: null,
+    options: null,
+    recent: null,
+    progress: null
+  });
+  iface.destroy();
+});
+
+test('configure() reaches the right-click menu, not only the palette and keys', async () => {
+  // The menu captured `base` when it was installed, and configure() replaces
+  // the object, so every job started from a right-click ignored it.
+  const d = dom('<p id="t">x</p>');
+  const doc = d.window.document;
+  let seen: Record<string, unknown> | null = null;
+  const iface = ui.create(
+    {
+      keyboard: false,
+      actions: [
+        {
+          id: 'peek',
+          label: 'Peek',
+          run: (c: { base: Record<string, unknown> }) => (seen = c.base)
+        }
+      ]
+    },
+    env(d)
+  );
+  iface.configure({ documentTitle: 'Configured later' });
+  doc.getElementById('t')!.dispatchEvent(
+    new d.window.MouseEvent('contextmenu', {
+      bubbles: true,
+      cancelable: true,
+      clientX: 5,
+      clientY: 5
+    })
+  );
+  (doc.querySelector('[data-prjs-menu] [data-prjs-item="peek"]') as HTMLElement).click();
+  await settle();
+  expect(seen).toMatchObject({ documentTitle: 'Configured later' });
+  iface.destroy();
+});
+
+test("the toolbar's Start over forgets a kept selection too", async () => {
+  const d = dom('<p>x</p>');
+  const doc = d.window.document;
+  const store = savedStore([]);
+  const iface = remembering(d, store);
+  const done = iface.run('draw') as Promise<{ action: string }>;
+  drag(d, [40, 50], [240, 170]);
+  await settle();
+  expect(store.data.has('page|progress')).toBe(true);
+  doc.querySelector<HTMLElement>('[data-prjs-toolbar] [data-prjs-act="reset"]')!.click();
+  await settle();
+  expect(store.data.has('page|progress'), 'the discarded box is not brought back').toBe(false);
+
+  // and a right-click on the box does not pick it up
+  const layer = doc.querySelector('[data-prjs-draw]')!;
+  drag(d, [40, 50], [240, 170]);
+  const region = doc.querySelector('[data-prjs-region]') as HTMLElement;
+  const left = region.style.left;
+  layer.dispatchEvent(
+    new d.window.MouseEvent('pointerdown', { bubbles: true, button: 2, clientX: 100, clientY: 100 })
+  );
+  layer.dispatchEvent(
+    new d.window.MouseEvent('pointermove', { bubbles: true, clientX: 300, clientY: 300 })
+  );
+  expect(region.style.left).toBe(left);
+
+  doc.dispatchEvent(new d.window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+  await done;
+  iface.destroy();
+});
+
+test('a mark made just before the interface goes away is still saved', async () => {
+  // destroy() cleared the 250ms debounce instead of running it, so a redaction
+  // followed by an unmount or a reload inside that window was never written
+  const d = dom('<p id="t">Secret</p>');
+  const store = savedStore([]);
+  const iface = remembering(d, store);
+  await iface.restored();
+  d.window.document.getElementById('t')!.setAttribute('data-printcraft-redact', '');
+  await settle(5);
+  iface.destroy();
+  await settle(5);
+  expect(store.data.get('page|marks'), 'written on the way out').toHaveLength(1);
+});
+
+test('Printcraft.ui.memory is the remembering interface, not a fresh one', async () => {
+  // it returned the shared interface's own session, which is never persisted,
+  // so export() read nothing a persisting interface had saved
+  const d = dom('<p>x</p>');
+  const store = savedStore([]);
+  const iface = remembering(d, store);
+  await iface.memory.used('stamp');
+  expect((await ui.memory.export()).recent).toEqual(['stamp']);
+  iface.destroy();
 });

@@ -15,8 +15,8 @@ Printcraft.job().clip({ x: 40, y: 100, width: 300, height: 200 }).print();
 
 The whole `<body>` is cloned, then:
 
-1. Scripts, `noscript`, and every element marked `data-pc-ui`, `data-pc-frame` or
-   `data-pc-inspector` are removed, so Printcraft's own interface never appears in
+1. Scripts, `noscript`, and every element marked `data-prjs-ui`, `data-prjs-frame` or
+   `data-prjs-inspector` are removed, so Printcraft's own interface never appears in
    its own screenshot
 2. Form state is baked into the clone as usual
 3. The clone is wrapped in a fixed-size `overflow: hidden` viewport

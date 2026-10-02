@@ -8,6 +8,7 @@
 // three surfaces possible at all: before, the only place "draw a print area"
 // existed was a closure in an array the menu owned.
 
+import { activeRegion, hasRegion } from './region';
 import { annotations, askForNote, toggleRedact } from './annotations';
 import { drawArea } from './draw';
 import { redactArea } from './redact';
@@ -16,7 +17,7 @@ import { pickSections } from './picker';
 import { printDialog } from './print-dialog';
 import { toast } from './kit';
 import type { Action, ActionContext } from './actions';
-import type { UiDeps } from './shared';
+import { viaProof, type UiDeps } from './shared';
 
 /**
  * Actions contributed by a layer that is not always loaded.
@@ -69,7 +70,7 @@ function stockActions(deps: UiDeps): Action[] {
       group: GROUPS.print,
       keywords: ['here', 'selection', 'this'],
       when: (ctx) => !!ctx.target,
-      run: (ctx) => deps.print({ ...ctx.base, target: ctx.target }, ctx.env)
+      run: (ctx) => deps.print({ ...viaProof(ctx.base), target: ctx.target }, ctx.env)
     },
     {
       id: 'print-page',
@@ -80,7 +81,7 @@ function stockActions(deps: UiDeps): Action[] {
       keys: 'mod+p',
       tone: 'primary',
       keywords: ['all', 'whole', 'document'],
-      run: (ctx) => deps.print({ ...ctx.base, target: 'body' }, ctx.env)
+      run: (ctx) => deps.print({ ...viaProof(ctx.base), target: 'body' }, ctx.env)
     },
     {
       id: 'settings',
@@ -111,7 +112,12 @@ function stockActions(deps: UiDeps): Action[] {
       group: GROUPS.choose,
       keys: 'mod+shift+d',
       keywords: ['region', 'crop', 'rectangle', 'area', 'capture'],
-      run: (ctx) => drawArea(deps, ctx.base, ctx.env)
+      run: (ctx) =>
+        drawArea(
+          deps,
+          { ...ctx.base, ...(ctx.registry ? { registry: ctx.registry } : {}) },
+          ctx.env
+        )
     },
 
     /* marking up ---------------------------------------------------------- */
@@ -174,6 +180,71 @@ function stockActions(deps: UiDeps): Action[] {
         });
       }
     },
+    {
+      // `annotate`, not `draw`: `draw` is the region tool, and registering a
+      // second action under that id silently replaced it — the registry keys by
+      // id and the later one wins. The name is also the honest one: this is not
+      // "draw", it is pen, highlighter, shapes and text.
+      id: 'annotate',
+      label: 'Annotate the page…',
+      description: 'Pen, highlighter, arrows, boxes and text, printed with it',
+      icon: 'draw',
+      group: GROUPS.mark,
+      keys: 'mod+shift+a',
+      keywords: ['draw', 'annotate', 'markup', 'pen', 'highlight', 'arrow', 'circle', 'sketch'],
+      run: (ctx) => {
+        // loaded on demand: the studio is the largest thing the ui layer can
+        // reach, and most pages never draw on anything
+        return import('../annotate').then(({ openStudio }) => {
+          const studio = openStudio(ctx.env, {
+            onChange: (element, drawing) =>
+              deps.emit('ui:draw', { element, shapes: drawing.shapes.length })
+          });
+          deps.emit('ui:draw', { opened: true });
+          return studio;
+        });
+      }
+    },
+    /* the drawn rectangle -------------------------------------------------
+     *
+     * Scoped to `region`, so they appear when a selection is right-clicked and
+     * nowhere else. They reach the live tool through `activeRegion()` rather
+     * than a closure, which is what lets them be registered actions at boot and
+     * still act on a selection made twenty minutes later.
+     */
+    {
+      id: 'region-print',
+      label: 'Print this area',
+      description: 'Go on to the title and the preview',
+      icon: 'printer',
+      group: GROUPS.print,
+      scope: ['region'],
+      tone: 'primary',
+      keywords: ['area', 'region', 'selection', 'continue'],
+      when: () => hasRegion() || 'Draw an area first',
+      run: () => activeRegion()?.confirm()
+    },
+    {
+      id: 'region-reset',
+      label: 'Start this area over',
+      description: 'Throw the rectangle away and draw again',
+      icon: 'crop',
+      group: GROUPS.choose,
+      scope: ['region'],
+      when: () => hasRegion() || 'Draw an area first',
+      run: () => activeRegion()?.reset()
+    },
+    {
+      id: 'region-cancel',
+      label: 'Cancel the selection',
+      description: 'Put the page back and print nothing',
+      icon: 'close',
+      group: GROUPS.choose,
+      scope: ['region'],
+      when: () => hasRegion() || 'Nothing is selected',
+      run: () => activeRegion()?.cancel()
+    },
+
     {
       id: 'notes',
       label: 'All notes and redactions…',

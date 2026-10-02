@@ -59,7 +59,7 @@ absolutely-positioned element per section, with
 
 ## Styling
 
-The watermark is a `.pc-watermark` element containing an `img` or `svg`. Both are
+The watermark is a `.prjs-watermark` element containing an `img` or `svg`. Both are
 capped at 70% of the page and take the configured opacity. Override with
 `injectCustomStyle`:
 
@@ -67,7 +67,7 @@ capped at 70% of the page and take the configured opacity. Override with
 Printcraft.print({
   target: '#invoice',
   watermarkText: 'VOID',
-  injectCustomStyle: '.pc-watermark svg { max-width: 95%; max-height: 95%; }'
+  injectCustomStyle: '.prjs-watermark svg { max-width: 95%; max-height: 95%; }'
 });
 ```
 

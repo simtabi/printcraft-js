@@ -22,7 +22,7 @@ test('render returns the transformed copy without mounting anything', () => {
 
   expect(element.textContent).toContain('Report');
   expect(title).toBe('Q3');
-  expect(d.window.document.querySelector('iframe[data-pc-frame]'), 'nothing mounted').toBe(null);
+  expect(d.window.document.querySelector('iframe[data-prjs-frame]'), 'nothing mounted').toBe(null);
 });
 
 test('render applies redaction, so anything built on it is redacted too', () => {
@@ -90,7 +90,9 @@ test('a refused write falls back rather than failing', async () => {
   const result = await Printcraft.share.copyText({ target: '#doc' }, env(d));
 
   expect(result.via).toBe('execCommand');
-  expect(d.window.document.querySelectorAll('textarea[data-pc-ui]'), 'cleaned up').toHaveLength(0);
+  expect(d.window.document.querySelectorAll('textarea[data-prjs-ui]'), 'cleaned up').toHaveLength(
+    0
+  );
 });
 
 test('when nothing works at all, it says what to do', async () => {

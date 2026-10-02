@@ -1,0 +1,35 @@
+{
+  "daisyui": {
+    "version": "5.7.4",
+    "tokens": [
+      "--border",
+      "--color-accent",
+      "--color-accent-content",
+      "--color-base-100",
+      "--color-base-200",
+      "--color-base-300",
+      "--color-base-content",
+      "--color-error",
+      "--color-error-content",
+      "--color-info",
+      "--color-info-content",
+      "--color-neutral",
+      "--color-neutral-content",
+      "--color-primary",
+      "--color-primary-content",
+      "--color-secondary",
+      "--color-secondary-content",
+      "--color-success",
+      "--color-success-content",
+      "--color-warning",
+      "--color-warning-content",
+      "--depth",
+      "--noise",
+      "--radius-box",
+      "--radius-field",
+      "--radius-selector",
+      "--size-field",
+      "--size-selector"
+    ]
+  }
+}

@@ -14,7 +14,7 @@ records a timing, so a job is observable from outside without instrumenting it.
 | measure   | The **live** tree is read: canvas pixels, laid-out image sizes, `currentSrc`, hidden elements, scrollable regions                                                         | `job:measure`                |
 | clone     | Targets are cloned with form state baked in; shadow roots optionally flattened                                                                                            | `job:clone`                  |
 | transform | Sanitize, exclude, redact, privacy-scan, reveal, expose links, capture canvases, handle images, expand scroll areas, strip inline styles, annotate, run custom transforms | `job:transform`              |
-| mount     | A hidden iframe, a popup, or the inspector overlay                                                                                                                        | `job:mount`                  |
+| mount     | A hidden iframe, a popup, or the proof sheet                                                                                                                              | `job:mount`                  |
 | assemble  | Base href, source CSS, generated page CSS, header/footer, target slots, watermark, marks                                                                                  | —                            |
 | assets    | Images, webfonts and imported stylesheets are awaited, bounded by `assetTimeout`                                                                                          | `job:assets`                 |
 | print     | Cancellable, then the dialog opens                                                                                                                                        | `job:beforeprint`            |
@@ -88,11 +88,11 @@ them, and `index.ts` is the only file that assembles a public API.
 pixels. Anything that needs a computed style or a bounding box (placeholder
 sizing for `removeImages`, scrollable-area detection, hidden-element detection)
 has to be read before cloning. Each measured element is tagged with a temporary
-`data-pc-id` so the matching clone node can be found again, and the tag is swept
+`data-prjs-id` so the matching clone node can be found again, and the tag is swept
 off the live tree immediately afterwards.
 
 **Why three mount strategies behind one interface?** A hidden iframe, a popup and
-the inspector overlay all need the same thing: settle exactly once, hand back a
+the proof sheet all need the same thing: settle exactly once, hand back a
 window and a document, and guarantee teardown. Written separately, all three grew
 the same settle-once/append/onload dance with slightly different bugs. One never
 timed out, one handed back a document the browser could still replace. One

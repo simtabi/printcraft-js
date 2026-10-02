@@ -3,7 +3,14 @@
 export { modal, promptFor, type ModalSpec, type ModalAction, type ModalResult } from './modal';
 export { confirm, notify, type ConfirmSpec } from './confirm';
 export { openMenu, type MenuSpec, type MenuItem, type MenuEntry, type MenuHandle } from './menu';
-export { openToolbar, type ToolbarSpec, type ToolbarAction, type ToolbarHandle } from './toolbar';
+export {
+  openToolbar,
+  overflowButton,
+  type ToolbarSpec,
+  type ToolbarAction,
+  type ToolbarChip,
+  type ToolbarHandle
+} from './toolbar';
 export { toast, type ToastSpec, type ToastHandle } from './toast';
 export { buildForm, type Field, type FieldValue, type FormHandle } from './form';
 export {
@@ -16,7 +23,7 @@ export {
   type Tone,
   type ToneInput
 } from './theme';
-export { Surface, openSurfaceCount, type SurfaceOptions } from './surface';
+export { Surface, openSurfaceCount, modalOpenOn, type SurfaceOptions } from './surface';
 export { place, applyPlacement, type Anchor, type Placement } from './position';
 export {
   tooltip,

@@ -9,9 +9,10 @@
 // So: a panel that lists them, scrolls to each one, and lets you edit or remove
 // it before anything is printed.
 
+import { unmountOverlay as unmountDrawing } from '../annotate/render';
 import { annotations, clearAnnotations, removeNote, toggleRedact, type Mark } from './annotations';
 import { h, confirm, iconNode, modal, toast, tooltip } from './kit';
-import { defaultEnv, type UiDeps } from './shared';
+import { defaultEnv, viaProof, type UiDeps } from './shared';
 import type { Env, PrintcraftOptions } from '../types';
 
 export interface NotesPanelOptions {
@@ -24,33 +25,39 @@ export interface NotesPanelResult {
   action: 'close' | 'print' | 'cleared';
   notes: number;
   redactions: number;
+  drawings: number;
 }
 
 /** Draws one row, with the buttons that act on it. */
 function card(mark: Mark, doc: Document, env: Env, refresh: () => void): HTMLElement {
-  const row = h(doc, 'div', { class: 'pc-k-card', attrs: { 'data-pc-mark-kind': mark.kind } });
+  const row = h(doc, 'div', { class: 'prjs-card', attrs: { 'data-prjs-mark-kind': mark.kind } });
 
+  const GLYPH: Record<Mark['kind'], string> = {
+    note: 'note',
+    redaction: 'redact',
+    drawing: 'draw'
+  };
   row.appendChild(
-    h(doc, 'span', {
-      class: 'pc-k-item-icon',
-      children: [iconNode(doc, mark.kind === 'note' ? 'note' : 'redact')]
-    })
+    h(doc, 'span', { class: 'prjs-item-icon', children: [iconNode(doc, GLYPH[mark.kind])] })
   );
 
-  const text = h(doc, 'div', { class: 'pc-k-card-text' });
-  text.appendChild(
-    h(doc, 'div', {
-      text: mark.kind === 'note' ? mark.text || '(empty note)' : 'Redacted on paper'
-    })
-  );
-  text.appendChild(h(doc, 'div', { class: 'pc-k-card-where', text: mark.where }));
+  const said =
+    mark.kind === 'note'
+      ? mark.text || '(empty note)'
+      : mark.kind === 'drawing'
+        ? mark.text
+        : 'Redacted on paper';
+
+  const text = h(doc, 'div', { class: 'prjs-card-text' });
+  text.appendChild(h(doc, 'div', { text: said }));
+  text.appendChild(h(doc, 'div', { class: 'prjs-card-where', text: mark.where }));
   row.appendChild(text);
 
-  const actions = h(doc, 'div', { class: 'pc-k-card-actions' });
+  const actions = h(doc, 'div', { class: 'prjs-card-actions' });
 
   const show = h(doc, 'button', {
-    class: 'pc-k-btn',
-    attrs: { type: 'button', 'data-size': 'sm', 'data-icon-only': '', 'data-pc-act': 'show' },
+    class: 'prjs-btn',
+    attrs: { type: 'button', 'data-size': 'sm', 'data-icon-only': '', 'data-prjs-act': 'show' },
     children: [iconNode(doc, 'inspect')]
   });
   tooltip(show, { text: 'Scroll to it and flash it' }, env);
@@ -58,7 +65,7 @@ function card(mark: Mark, doc: Document, env: Env, refresh: () => void): HTMLEle
     mark.element.scrollIntoView({ block: 'center', behavior: 'smooth' });
     const el = mark.element as HTMLElement;
     const before = el.style.outline;
-    el.style.outline = '3px solid var(--pc-primary, #0f766e)';
+    el.style.outline = '3px solid var(--prjs-primary, #0f766e)';
     setTimeout(() => {
       el.style.outline = before;
     }, 1400);
@@ -67,8 +74,8 @@ function card(mark: Mark, doc: Document, env: Env, refresh: () => void): HTMLEle
 
   if (mark.kind === 'note') {
     const edit = h(doc, 'button', {
-      class: 'pc-k-btn',
-      attrs: { type: 'button', 'data-size': 'sm', 'data-icon-only': '', 'data-pc-act': 'edit' },
+      class: 'prjs-btn',
+      attrs: { type: 'button', 'data-size': 'sm', 'data-icon-only': '', 'data-prjs-act': 'edit' },
       children: [iconNode(doc, 'note')]
     });
     tooltip(edit, { text: 'Change the wording' }, env);
@@ -82,20 +89,28 @@ function card(mark: Mark, doc: Document, env: Env, refresh: () => void): HTMLEle
   }
 
   const remove = h(doc, 'button', {
-    class: 'pc-k-btn',
+    class: 'prjs-btn',
     attrs: {
       type: 'button',
       'data-size': 'sm',
       'data-icon-only': '',
       'data-tone': 'ghost',
-      'data-pc-act': 'remove'
+      'data-prjs-act': 'remove'
     },
     children: [iconNode(doc, 'trash')]
   });
-  tooltip(remove, { text: mark.kind === 'note' ? 'Delete this note' : 'Stop redacting this' }, env);
+  const REMOVE_SAYS: Record<Mark['kind'], string> = {
+    note: 'Delete this note',
+    redaction: 'Stop redacting this',
+    drawing: 'Rub this drawing out'
+  };
+  tooltip(remove, { text: REMOVE_SAYS[mark.kind] }, env);
   remove.addEventListener('click', () => {
     if (mark.kind === 'note') removeNote(mark.element);
-    else toggleRedact(mark.element);
+    else if (mark.kind === 'drawing') {
+      mark.element.removeAttribute('data-printcraft-drawing');
+      unmountDrawing(mark.element as HTMLElement);
+    } else toggleRedact(mark.element);
     refresh();
   });
   actions.appendChild(remove);
@@ -120,47 +135,46 @@ export async function notesPanel(
   const doc = scope.document;
 
   const body = h(doc, 'div');
-  let counts = { notes: 0, redactions: 0 };
+  let counts = { notes: 0, redactions: 0, drawings: 0 };
 
   const paint = (): void => {
     const marks = annotations(doc);
     counts = {
       notes: marks.filter((m) => m.kind === 'note').length,
-      redactions: marks.filter((m) => m.kind === 'redaction').length
+      redactions: marks.filter((m) => m.kind === 'redaction').length,
+      drawings: marks.filter((m) => m.kind === 'drawing').length
     };
 
     body.textContent = '';
     if (!marks.length) {
       body.appendChild(
         h(doc, 'div', {
-          class: 'pc-k-empty',
-          text: 'Nothing marked yet. Right-click anything to add a note or redact it.'
+          class: 'prjs-empty',
+          text: 'Nothing marked yet. Right-click anything to note it, redact it or draw on it.'
         })
       );
       return;
     }
 
     const summary = h(doc, 'div', { style: 'display:flex;gap:6px;margin-bottom:12px;' });
-    if (counts.notes) {
+    const tally: Array<[number, string, string, string | null]> = [
+      [counts.notes, 'note', 'notes', null],
+      [counts.redactions, 'redaction', 'redactions', 'danger'],
+      [counts.drawings, 'drawing', 'drawings', 'info']
+    ];
+    for (const [n, one, many, tone] of tally) {
+      if (!n) continue;
       summary.appendChild(
         h(doc, 'span', {
-          class: 'pc-k-badge',
-          text: counts.notes + (counts.notes === 1 ? ' note' : ' notes')
-        })
-      );
-    }
-    if (counts.redactions) {
-      summary.appendChild(
-        h(doc, 'span', {
-          class: 'pc-k-badge',
-          attrs: { 'data-tone': 'danger' },
-          text: counts.redactions + (counts.redactions === 1 ? ' redaction' : ' redactions')
+          class: 'prjs-badge',
+          ...(tone ? { attrs: { 'data-tone': tone } } : {}),
+          text: n + ' ' + (n === 1 ? one : many)
         })
       );
     }
     body.appendChild(summary);
 
-    const list = h(doc, 'div', { class: 'pc-k-list', attrs: { 'data-pc-notes': '' } });
+    const list = h(doc, 'div', { class: 'prjs-list', attrs: { 'data-prjs-notes': '' } });
     for (const mark of marks) list.appendChild(card(mark, doc, scope, paint));
     body.appendChild(list);
   };
@@ -174,9 +188,10 @@ export async function notesPanel(
       icon: 'note',
       size: 'md',
       body,
+      // no "Close" here: the header's × is the way out, and a footer that
+      // repeats it makes three controls out of two decisions
       actions: [
         { id: 'clear', label: 'Remove all', tone: 'ghost' },
-        { id: 'close', label: 'Close', tone: 'quiet' },
         { id: 'print', label: 'Print with these', tone: 'primary', icon: 'printer' }
       ]
     },
@@ -187,7 +202,11 @@ export async function notesPanel(
     const sure = await confirm(
       {
         title: 'Remove every mark?',
-        message: counts.notes + counts.redactions + ' marks would be removed from the page.',
+        message:
+          counts.notes +
+          counts.redactions +
+          counts.drawings +
+          ' marks would be removed from the page.',
         detail: 'The page itself is otherwise untouched, and nothing has printed.',
         confirmLabel: 'Remove all',
         tone: 'danger'
@@ -204,7 +223,7 @@ export async function notesPanel(
   }
 
   if (result.action === 'print') {
-    void deps.print({ ...options.base, target: options.target || 'body' }, scope);
+    void deps.print(viaProof({ ...options.base, target: options.target || 'body' }), scope);
     return { action: 'print', ...counts };
   }
 

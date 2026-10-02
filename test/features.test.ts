@@ -1,7 +1,7 @@
 // the data-driven layer: emitter, data attributes, json config, hooks, per-job
 // listeners, devtools records, and the inspector.
 
-import { test } from 'vitest';
+import { test, expect } from 'vitest';
 import { Printcraft, I, dom, stubPrint } from './harness';
 import {
   expect_eq,
@@ -256,7 +256,7 @@ test('hooks: transformClone can swap the clone, beforePrint false cancels', asyn
             return repl;
           },
           beforePrint: (ctx) => {
-            expect_eq(ctx.document.querySelector('.pc-target article').textContent, 'swapped');
+            expect_eq(ctx.document.querySelector('.prjs-target article').textContent, 'swapped');
             return false; // and cancel so no dialog is needed
           }
         }
@@ -375,22 +375,202 @@ test('debug flag: option beats global, logger stays silent when off', () => {
 
 /* inspector */
 
-test('inspect mounts a visible overlay and resolves a controller', async () => {
+test('inspect opens the proof sheet, read-only, and resolves a controller', async () => {
+  // `inspect` used to mount an overlay of its own — a hand-inline-styled panel
+  // with Print, Log HTML and Close. The proof sheet answers the same question
+  // with a page rail, zoom and the kit's own styling, so there is one panel now
+  // and `inspect` is it opened to look rather than to decide.
   const d = dom('<div id="r"><p>preview me</p></div>');
   Printcraft.devtools.clear();
   const ctl = await Printcraft.inspect(
     { target: '#r', assetTimeout: 100, footerText: 'inspected' },
     { document: d.window.document, window: d.window }
   );
-  const overlay = d.window.document.querySelector('[data-pc-inspector]');
-  expect_ok(overlay, 'overlay is in the dom');
+  const overlay = d.window.document.querySelector('[data-prjs-proof]');
+  expect_ok(overlay, 'the proof sheet is in the dom');
   expect_ok(overlay.querySelector('iframe'));
   expect_eq(ctl.job.status, 'inspected');
-  expect_ok(ctl.document.querySelector('.pc-target #r'));
+  expect_ok(ctl.document.querySelector('.prjs-target #r'));
   expect_eq(ctl.document.querySelector('tfoot td').textContent, 'inspected');
   expect_ok(ctl.job.documentHTML.indexOf('preview me') !== -1);
   ctl.close();
-  expect_eq(d.window.document.querySelector('[data-pc-inspector]'), null);
+  expect_eq(d.window.document.querySelector('[data-prjs-proof]'), null);
+  Printcraft.devtools.clear();
+});
+
+test('two open proofs keep their own source links, and closing one leaves the other', async () => {
+  // The link is `data-prjs-id`. Each measurement used to count from 1, so two
+  // proofs on one page handed out the same ids for different elements, and
+  // closing either one swept every id in the document, the other's included.
+  const d = dom('<div id="a"><p>alpha one</p><p>alpha two</p></div><div id="b"><p>beta</p></div>');
+  const doc = d.window.document;
+  const env = { document: doc, window: d.window };
+  const one = await Printcraft.inspect({ target: '#a', assetTimeout: 50 }, env);
+  const two = await Printcraft.inspect({ target: '#b', assetTimeout: 50 }, env);
+
+  // every link inside one target, the target itself included
+  const linked = (sel: string): string[] =>
+    [...doc.querySelectorAll(sel + '[data-prjs-id], ' + sel + ' [data-prjs-id]')].map((el) =>
+      el.getAttribute('data-prjs-id')!
+    );
+  const inA = linked('#a');
+  const inB = linked('#b');
+  expect_ok(inA.length && inB.length, 'both proofs tagged their source');
+  expect_eq(
+    inA.filter((id) => inB.includes(id)).length,
+    0,
+    'an id is never handed to two elements'
+  );
+
+  // the second proof's copy still finds its own paragraph on the page
+  const copy = two.document.querySelector('p[data-prjs-id]')!;
+  const id = copy.getAttribute('data-prjs-id');
+  expect_eq(doc.querySelector('[data-prjs-id="' + id + '"]')!.textContent, 'beta');
+
+  one.close();
+  expect_eq(linked('#a').length, 0, 'the closed proof swept its own links');
+  expect_deep(linked('#b'), inB, 'and left the ones the open proof is still using');
+
+  two.close();
+  expect_eq(doc.querySelectorAll('[data-prjs-id]').length, 0, 'and the page ends clean');
+  Printcraft.devtools.clear();
+});
+
+test('a proof of a drawn region links its copy back to the page', async () => {
+  // The clip path cloned the body without measuring it, so nothing in a region
+  // proof carried `data-prjs-id`: a mark made on it had no page element to be
+  // written to, and the Settings rebuild threw it away.
+  const d = dom('<section id="s"><p id="para">inside the region</p></section>');
+  const doc = d.window.document;
+  const ctl = await Printcraft.inspect(
+    { clipRect: { x: 0, y: 0, width: 300, height: 200 }, clipMode: 'reflow', assetTimeout: 50 },
+    { document: doc, window: d.window }
+  );
+
+  const copy = ctl.document.querySelector('.prjs-clip-inner p')!;
+  const id = copy.getAttribute('data-prjs-id');
+  expect_ok(id, 'the copy carries the link');
+  expect_eq(doc.querySelector('[data-prjs-id="' + id + '"]'), doc.getElementById('para'));
+
+  ctl.close();
+  expect_eq(doc.querySelectorAll('[data-prjs-id]').length, 0, 'and closing takes it down');
+  Printcraft.devtools.clear();
+});
+
+test('a drawing never overrides where a stylesheet positioned its host', async () => {
+  // The overlay needs its host to be a containing block, and the transform
+  // decided that from the inline style alone, on a clone with no layout. A host
+  // positioned by a stylesheet read as static and was given an inline
+  // `position: relative`, which moved it on paper.
+  const drawing = JSON.stringify({
+    v: 1,
+    shapes: [
+      {
+        id: 's1',
+        kind: 'ellipse',
+        points: [
+          { x: 0.1, y: 0.1 },
+          { x: 0.6, y: 0.7 }
+        ],
+        color: '#dc2626',
+        width: 3,
+        opacity: 1
+      }
+    ]
+  });
+  const d = dom(
+    '<style>.badge { position: absolute; top: 4px; }</style>' +
+      '<div id="r"><span class="badge">new</span><p>plain</p></div>'
+  );
+  const doc = d.window.document;
+  doc.querySelector('.badge')!.setAttribute('data-printcraft-drawing', drawing);
+  doc.querySelector('#r p')!.setAttribute('data-printcraft-drawing', drawing);
+
+  const ctl = await Printcraft.inspect(
+    { target: '#r', keepSourceCSS: true, assetTimeout: 50 },
+    { document: doc, window: d.window }
+  );
+  const view = ctl.document.defaultView!;
+  const badge = ctl.document.querySelector('.badge') as HTMLElement;
+  const para = ctl.document.querySelector('#r p') as HTMLElement;
+  expect_ok(badge.querySelector('.prjs-drawing'), 'the drawing is on the copy');
+
+  expect_eq(badge.style.position, '', 'no inline override on a positioned host');
+  expect_eq(view.getComputedStyle(badge).position, 'absolute');
+  expect_eq(view.getComputedStyle(para).position, 'relative', 'a static host still gets one');
+  ctl.close();
+  Printcraft.devtools.clear();
+});
+
+/** waits for something the proof builds asynchronously */
+async function until<T>(read: () => T | null | undefined | false, ms = 1500): Promise<T> {
+  const end = Date.now() + ms;
+  for (;;) {
+    const v = read();
+    if (v) return v;
+    if (Date.now() > end) throw new Error('timed out waiting');
+    await new Promise((r) => setTimeout(r, 10));
+  }
+}
+
+test('a rebuild that fails is reported, not left as an unhandled rejection', async () => {
+  // Settings rebuilds through `void runJob(...)`; a failure there rethrew into a
+  // promise nobody held. Here the target is gone by the time Apply is pressed.
+  const d = dom('<div id="r"><p>proof me</p></div>');
+  const doc = d.window.document;
+  const errors: unknown[] = [];
+  const onError = (p: { error: unknown }) => errors.push(p.error);
+  Printcraft.on('job:error', onError);
+  try {
+    const job = Printcraft.proof(
+      { target: '#r', assetTimeout: 50 },
+      { document: doc, window: d.window }
+    );
+    const settings = await until(() =>
+      doc.querySelector<HTMLElement>('[data-prjs-proof] [data-prjs-act="settings"]:not([hidden])')
+    );
+    settings.click();
+    const apply = await until(() => doc.querySelector<HTMLElement>('[data-prjs-action="apply"]'));
+    (doc.querySelector('#prjs-f-landscape') as HTMLInputElement).click();
+    doc.getElementById('r')!.remove();
+    apply.click();
+    expect((await job).status, 'the original job resolves cancelled').toBe('cancelled');
+    await until(() => errors.length);
+    expect((errors[0] as { code?: string }).code).toBe('PC_TARGET_NOT_FOUND');
+  } finally {
+    Printcraft.off('job:error', onError);
+    Printcraft.devtools.clear();
+  }
+});
+
+test('closing an inspected proof with Escape takes its links down', async () => {
+  // Read-only, Cancel/Escape/x only closed the sheet; the links came down only
+  // through controller.close(), so a dismissed inspect left every data-prjs-id
+  // on the page and held for good.
+  const d = dom('<div id="r"><p>look</p></div>');
+  const doc = d.window.document;
+  await Printcraft.inspect({ target: '#r', assetTimeout: 50 }, { document: doc, window: d.window });
+  expect(doc.querySelectorAll('#r [data-prjs-id]').length).toBeGreaterThan(0);
+  doc.dispatchEvent(
+    new d.window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true })
+  );
+  expect(doc.querySelector('[data-prjs-proof]'), 'closed').toBeNull();
+  expect(doc.querySelectorAll('[data-prjs-id]').length, 'and the page is clean').toBe(0);
+  Printcraft.devtools.clear();
+});
+
+test('an unpaginated proof shows no empty page rail', async () => {
+  const d = dom('<div id="r"><p>flowed</p></div>');
+  const doc = d.window.document;
+  const ctl = await Printcraft.inspect(
+    { target: '#r', assetTimeout: 50 },
+    { document: doc, window: d.window }
+  );
+  const rail = doc.querySelector('[data-prjs-proof-rail]') as HTMLElement;
+  expect(rail.hidden, 'nothing to list when the browser flows it').toBe(true);
+  expect(rail.getAttribute('role')).toBe('navigation');
+  expect(doc.querySelector('.prjs-proof-zoom-value')!.getAttribute('aria-live')).toBe('polite');
+  ctl.close();
   Printcraft.devtools.clear();
 });
 

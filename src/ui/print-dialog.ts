@@ -12,7 +12,7 @@
 // "Headers and footers", and `hideBrowserHeaderFooter` takes that away too.
 
 import { modal, toast, type Field, type FieldValue } from './kit';
-import { defaultEnv, type UiDeps } from './shared';
+import { defaultEnv, viaProof, type UiDeps } from './shared';
 import type { Env, InspectController, JobRecord, PrintcraftOptions } from '../types';
 
 export interface PrintDialogOptions extends PrintcraftOptions {
@@ -307,8 +307,10 @@ export async function printDialog(
     return { action: 'preview', options, job };
   }
 
-  const job = await deps.print(options, scope);
-  if ((job as JobRecord)?.pages) {
+  const job = await deps.print(viaProof(options), scope);
+  // the proof sits between this and the printer, so a sheet that was looked at
+  // and cancelled did not go anywhere
+  if ((job as JobRecord)?.pages && (job as JobRecord).status === 'done') {
     toast({ message: (job as JobRecord).pages + ' pages sent to the printer' }, scope);
   }
   return { action: 'print', options, job };

@@ -204,7 +204,7 @@ test('a backend that throws fails the job instead of printing anyway', async () 
   ).rejects.toThrow(/not running/);
 
   // and nothing is left mounted on the page
-  expect(d.window.document.querySelector('iframe[data-pc-frame]')).toBe(null);
+  expect(d.window.document.querySelector('iframe[data-prjs-frame]')).toBe(null);
 });
 
 /* the default path still works ------------------------------------------- */

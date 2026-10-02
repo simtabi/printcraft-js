@@ -22,6 +22,29 @@ export interface SurfaceOptions {
 let openSurfaces = 0;
 
 /**
+ * Open surfaces that hold focus, in the order they opened.
+ *
+ * Every surface listens for keys on its document in capture, and listeners run
+ * in the order they were added, so without this the one *underneath* heard a
+ * key first: Escape in a dialog over the proof cancelled the proof as well, and
+ * Tab in it was pulled back to the proof on every press. Only the topmost one
+ * on a document answers now.
+ */
+const modals: Surface[] = [];
+let opened = 0;
+
+/**
+ * Whether a focus-holding surface is open on this document.
+ *
+ * For tools that are not surfaces but listen on the document — the region
+ * tool, the drawing studio — so a key meant for a dialog over them is left to
+ * the dialog.
+ */
+export function modalOpenOn(doc: Document): boolean {
+  return modals.some((m) => m.ownerDocument === doc);
+}
+
+/**
  * A mounted piece of interface. Subclasses build `node`; this handles getting it
  * into and out of the document without leaving listeners behind.
  */
@@ -60,6 +83,23 @@ export abstract class Surface {
     return this.node;
   }
 
+  /** The document this surface is mounted in. */
+  get ownerDocument(): Document {
+    return this.doc;
+  }
+
+  private get holdsFocus(): boolean {
+    return this.options.trapFocus !== false;
+  }
+
+  /** when it opened, relative to every other surface */
+  private seq = 0;
+
+  /** Whether a focus-holding surface opened over this one, on the same document. */
+  private get covered(): boolean {
+    return modals.some((m) => m !== this && m.doc === this.doc && m.seq > this.seq);
+  }
+
   open(): this {
     if (this.node) return this;
 
@@ -67,8 +107,18 @@ export abstract class Surface {
     this.node = this.build();
     (this.doc.body || this.doc.documentElement).appendChild(this.node);
     openSurfaces++;
+    this.seq = ++opened;
+    if (this.holdsFocus) modals.push(this);
 
-    this.on(this.doc, 'keydown', (ev) => this.onKeydown(ev as KeyboardEvent), true);
+    this.on(
+      this.doc,
+      'keydown',
+      (ev) => {
+        // a key is for whatever is on top
+        if (!this.covered) this.onKeydown(ev as KeyboardEvent);
+      },
+      true
+    );
     if (this.options.trapFocus !== false) this.focusFirst();
     this.mounted();
     return this;
@@ -89,6 +139,8 @@ export abstract class Surface {
     this.node.remove();
     this.node = null;
     openSurfaces = Math.max(0, openSurfaces - 1);
+    const at = modals.indexOf(this);
+    if (at !== -1) modals.splice(at, 1);
 
     // put focus back where it was, if that element is still around
     const back = this.returnFocusTo as HTMLElement | null;

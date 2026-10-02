@@ -45,7 +45,10 @@ export const DEFAULTS: ResolvedOptions = {
   watermarkAngle: -30,
   documentDescription: null,
   printHeading: true,
+  proof: false,
   printHeadingMeta: false,
+  coverPage: null,
+  notesPage: null,
   watermark: null,
 
   backend: null,

@@ -4,7 +4,8 @@ Three ways to load Printcraft, and what each build in `dist/` is for.
 
 ## Requirements
 
-Printcraft runs entirely in the browser and has no runtime dependencies. It needs
+Printcraft runs entirely in the browser. It has two runtime dependencies,
+`perfect-freehand` and `@melloware/coloris`, both MIT and both leaf. It needs
 a browser with `afterprint`, `document.fonts`, and `break-before`: Chrome, Edge,
 Firefox and Safari, current and two versions back.
 

@@ -1,5 +1,5 @@
 // reading the live tree. detached clones have no layout and no canvas pixels, so
-// anything measurable is captured here first, keyed by a temporary data-pc-id,
+// anything measurable is captured here first, keyed by a temporary data-prjs-id,
 // and applied to the clone later.
 
 import { DATA_ID, FORBIDDEN_TAGS, isElement, selfAndMatches, toArray } from '../support';
@@ -59,6 +59,28 @@ export function resolveTargets(target: PrintTarget, doc: Document): Element[] {
 }
 
 /**
+ * One owner per measurement, so two jobs on one page never hand out the same id.
+ *
+ * A bare counter starting at 1 for every job meant two open proofs tagged
+ * different elements `1`, `2`, `3`…, and a mark made on either was carried to
+ * whichever element `querySelector` found first. The owner prefix is what lets a
+ * proof release its own links and nobody else's.
+ */
+let measureSeq = 0;
+
+/**
+ * Owners whose links a proof is holding open, with how many proofs hold each.
+ *
+ * Two proofs over the same subtree share the id the first one wrote, so an
+ * owner's links come down only when the last proof using them closes, and a
+ * print job's sweep leaves them alone.
+ */
+const heldLinks = new Map<string, number>();
+
+/** who handed an id out: everything before the dash */
+const ownerOf = (id: string): string => id.split('-')[0]!;
+
+/**
  * captures what only the live tree knows (canvas pixels, laid-out image sizes,
  * the resolved `currentSrc`, hidden elements, scrollable regions), tagging each
  * measured element so the matching clone node can be found again.
@@ -66,16 +88,28 @@ export function resolveTargets(target: PrintTarget, doc: Document): Element[] {
 export function measureLiveTree(
   targets: Element[],
   options: ResolvedOptions,
-  win: Window
+  win: Window,
+  /** tag every element, not only the ones being measured. see below. */
+  tagAll = false
 ): Measurement {
   const meta: MetaMap = {};
+  const owner = 'j' + ++measureSeq;
+  /** the owners this measurement holds open, its own and any it reused */
+  const holds = new Set<string>();
   let counter = 0;
 
   function tag(el: Element): ElementMeta {
     let id = el.getAttribute(DATA_ID);
-    if (!id) {
-      id = String(++counter);
+    // a proof reuses a link another open proof holds, and replaces a stale one:
+    // nothing would keep a leftover on the page for as long as this proof needs it
+    if (!id || (tagAll && !holds.has(ownerOf(id)) && !heldLinks.has(ownerOf(id)))) {
+      id = owner + '-' + ++counter;
       el.setAttribute(DATA_ID, id);
+    }
+    const from = ownerOf(id);
+    if (tagAll && !holds.has(from)) {
+      holds.add(from);
+      heldLinks.set(from, (heldLinks.get(from) || 0) + 1);
     }
     return (meta[id] ||= {});
   }
@@ -84,6 +118,16 @@ export function measureLiveTree(
     const all = [rootEl].concat(toArray(rootEl.querySelectorAll('*')));
     all.forEach((el) => {
       const tn = el.tagName;
+
+      // The proof sheet needs every element identifiable, not only the ones with
+      // something to measure.
+      //
+      // A mark made on the proof is written back to the page element behind it,
+      // and `data-prjs-id` is the only thing the two documents share. Tagging
+      // the whole subtree is a few thousand setAttribute calls on a large page,
+      // which is why it happens for the one mode that needs it rather than for
+      // every job.
+      if (tagAll) tag(el);
 
       if (tn === 'CANVAS' && options.printCanvas) {
         const canvas = el as HTMLCanvasElement;
@@ -136,12 +180,26 @@ export function measureLiveTree(
     /**
      * sweeps the whole target subtree rather than only the ids this pass wrote,
      * so a tag left behind by an earlier job that threw mid-measure is cleaned up
-     * too instead of polluting the live dom forever.
+     * too instead of polluting the live dom forever. links an open proof is
+     * holding are the one exception: they are in use, not left behind.
      */
     cleanup() {
       targets.forEach((rootEl) => {
-        selfAndMatches(rootEl, '[' + DATA_ID + ']').forEach((el) => el.removeAttribute(DATA_ID));
+        selfAndMatches(rootEl, '[' + DATA_ID + ']').forEach((el) => {
+          if (!heldLinks.has(ownerOf(el.getAttribute(DATA_ID)!))) el.removeAttribute(DATA_ID);
+        });
       });
+    },
+    release() {
+      holds.forEach((held) => {
+        const left = heldLinks.get(held)! - 1;
+        if (left) return void heldLinks.set(held, left);
+        heldLinks.delete(held);
+        targets[0]?.ownerDocument
+          .querySelectorAll('[' + DATA_ID + '^="' + held + '-"]')
+          .forEach((el) => el.removeAttribute(DATA_ID));
+      });
+      holds.clear();
     }
   };
 }
@@ -218,7 +276,7 @@ export function buildClipClone(
   const bodyClone = body.cloneNode(true) as Element;
   if (options.preserveFormState) snapshotFormState(body, bodyClone);
 
-  ['script', 'noscript', '[data-pc-frame]', '[data-pc-inspector]', '[data-pc-ui]'].forEach(
+  ['script', 'noscript', '[data-prjs-frame]', '[data-prjs-inspector]', '[data-prjs-ui]'].forEach(
     (sel) => {
       const list = bodyClone.querySelectorAll(sel);
       for (let i = list.length - 1; i >= 0; i--) {
@@ -244,7 +302,7 @@ export function buildClipClone(
   const scale = options.clipMode === 'capture' ? 1 : Math.min(1, sheet.width / rect.width);
 
   const viewport = srcDoc.createElement('div');
-  viewport.className = 'pc-clip-viewport';
+  viewport.className = 'prjs-clip-viewport';
   viewport.setAttribute(
     'style',
     'position:relative;overflow:hidden;' +
@@ -258,7 +316,7 @@ export function buildClipClone(
 
   // the stage carries the scale so the viewport keeps a truthful printed size
   const stage = srcDoc.createElement('div');
-  stage.className = 'pc-clip-stage';
+  stage.className = 'prjs-clip-stage';
   stage.setAttribute(
     'style',
     'position:absolute;left:0;top:0;transform-origin:top left;' +
@@ -271,16 +329,103 @@ export function buildClipClone(
   );
 
   const inner = srcDoc.createElement('div');
-  inner.className = 'pc-clip-inner';
+  inner.className = 'prjs-clip-inner';
   inner.setAttribute(
     'style',
-    'position:absolute;left:' + -rect.x + 'px;top:' + -rect.y + 'px;width:' + sourceWidth + 'px;'
+    'position:absolute;left:' +
+      -rect.x +
+      'px;top:' +
+      -rect.y +
+      'px;width:' +
+      sourceWidth +
+      'px;' +
+      inheritedText(srcDoc)
   );
 
   while (bodyClone.firstChild) inner.appendChild(bodyClone.firstChild);
   stage.appendChild(inner);
   viewport.appendChild(stage);
   return viewport;
+}
+
+/**
+ * The text properties `<body>` hands down, as an inline declaration.
+ *
+ * The clip moves the body's children into a plain div, and a capture then
+ * renders that div inside an svg foreignObject, where no `html`, `body` or
+ * `:root` rule and no class on `<body>` can reach it. Everything that inherited
+ * its font from the body fell back to the user agent's serif, every line wrapped
+ * differently, and on a long page the content drifted hundreds of pixels: the
+ * region framed whatever slid into the rectangle rather than what was selected,
+ * so a redacted block could be pushed out of its own capture entirely.
+ * Measured on the demo: the memo sits at 3789px live and the capture showed the
+ * sections below it.
+ */
+const INHERITED_TEXT = [
+  'font-family',
+  'font-size',
+  'font-weight',
+  'font-style',
+  'font-stretch',
+  'font-variant',
+  'font-feature-settings',
+  'font-variation-settings',
+  'font-kerning',
+  'line-height',
+  'letter-spacing',
+  'word-spacing',
+  'text-transform',
+  'text-rendering',
+  'text-align',
+  'white-space',
+  'direction',
+  'writing-mode',
+  'tab-size',
+  'color'
+];
+
+function inheritedText(srcDoc: Document): string {
+  const body = srcDoc.body;
+  const view = srcDoc.defaultView;
+  if (!body || !view || typeof view.getComputedStyle !== 'function') return '';
+  const cs = view.getComputedStyle(body);
+  let out = '';
+  for (const prop of INHERITED_TEXT) {
+    const value =
+      prop === 'line-height' ? inheritedLineHeight(body, cs) : cs.getPropertyValue(prop);
+    // a value carrying a quote or semicolon is written as-is by the engine, so
+    // it is safe inside an attribute; an empty one is left to the cascade
+    if (value && value.indexOf(';') === -1) out += prop + ':' + value + ';';
+  }
+  return out;
+}
+
+/**
+ * `line-height` is the one inherited property whose computed value lies.
+ *
+ * A unitless `1.5` inherits as a ratio, so a 36px heading gets 54px lines; the
+ * computed value on the body reads `24px`, and copying that gives the heading
+ * 24px lines instead. So ask a probe: a child at a different font size shows
+ * whether the body passes down a ratio or a length.
+ */
+function inheritedLineHeight(body: Element, cs: CSSStyleDeclaration): string {
+  const value = cs.getPropertyValue('line-height');
+  const own = parseFloat(value);
+  const size = parseFloat(cs.getPropertyValue('font-size'));
+  if (!value.endsWith('px') || !own || !size) return value;
+
+  const doc = body.ownerDocument;
+  const view = doc.defaultView;
+  if (!view) return value;
+  const probe = doc.createElement('span');
+  probe.setAttribute('style', 'position:absolute;visibility:hidden;font-size:' + size * 2 + 'px;');
+  body.appendChild(probe);
+  const child = parseFloat(view.getComputedStyle(probe).getPropertyValue('line-height'));
+  probe.remove();
+
+  // the child doubled with its font: a ratio. unchanged: a length, copied as-is
+  if (child && Math.abs(child - own * 2) < 0.5) return String(Math.round((own / size) * 1e4) / 1e4);
+  return value;
 }
 
 /** the layout width the rectangle's coordinates were measured against */

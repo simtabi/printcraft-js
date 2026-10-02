@@ -38,7 +38,7 @@ import {
 import { assemblePrintDocument } from './document';
 import { captureRegion } from './capture';
 import { paginate as paginateInto } from './paginate';
-import { mountIframe, mountOverlay, mountWindow, waitForAssets } from './mounts';
+import { mountIframe, mountWindow, waitForAssets } from './mounts';
 import { browserBackend } from '../backend/browser';
 import { resolveSheet } from '../production/sheets';
 import { devtools } from './devtools';
@@ -59,7 +59,13 @@ import type {
 
 let jobCounter = 0;
 
-export type JobMode = 'print' | 'inspect';
+/**
+ * `proof` assembles exactly as `print` does and then stops, showing the result
+ * and waiting. Pressing Print in the proof continues *this* job rather than
+ * starting another, which is what makes "what you looked at is what prints"
+ * true by construction instead of by promise.
+ */
+export type JobMode = 'print' | 'inspect' | 'proof';
 
 /** describes a job in devtools and the debug log before any target is resolved. */
 function describe(options: ResolvedOptions): string {
@@ -85,6 +91,17 @@ export class Job {
 
   private measured: Measurement | null = null;
   private mounted: Mount | null = null;
+
+  /**
+   * Whether the source-to-clone link outlives the transform chain.
+   *
+   * Only the proof needs it, and only while it is open: it is what lets a note
+   * added on sheet two find the paragraph it belongs to on the live page, so
+   * changing the paper size and re-rendering does not throw the note away.
+   */
+  private get keepsSourceLink(): boolean {
+    return this.mode === 'proof' || this.mode === 'inspect';
+  }
   /** every string redaction destroyed, for the verifier to look for afterwards */
   private readonly secrets: string[] = [];
 
@@ -180,6 +197,18 @@ export class Job {
         options.clipSourceWidth = clipSourceWidth(env.document, options.clipRect);
       }
       this.record.targetCount = 1;
+      // a reflowed region is live markup in the proof, so it can carry links
+      // back to the page. a captured one is a raster with nothing to link.
+      if (this.keepsSourceLink && options.clipMode !== 'capture') {
+        // tags only: with no measuring options set, nothing changes what the
+        // clip prints
+        this.measured = measureLiveTree(
+          [env.document.body],
+          {} as ResolvedOptions,
+          env.window,
+          true
+        );
+      }
       return [buildClipClone(env.document, options.clipRect, options)];
     }
 
@@ -195,11 +224,31 @@ export class Job {
     this.hook('beforeClone', targets, options);
     this.fire('job:measure', { targets });
 
-    this.measured = measureLiveTree(targets, options, env.window);
+    this.measured = measureLiveTree(targets, options, env.window, this.keepsSourceLink);
     const clones = cloneTargets(targets, options);
     if (options.flattenShadowDom) applyShadowFlatten(targets, clones);
-    this.measured.cleanup();
+    // the proof keeps the link (see `keepsSourceLink`), and sweeps it on close
+    if (!this.keepsSourceLink) this.measured.cleanup();
     return clones;
+  }
+
+  /**
+   * Runs the whole job again with some options changed.
+   *
+   * Used by the proof sheet's settings. The current job is already cancelled by
+   * the time this fires — the panel answers `cancel` before calling — so this is
+   * a fresh job rather than a resumed one, and the record the original caller is
+   * awaiting resolves as cancelled. That is the honest description of what
+   * happened: the sheet they asked for is not the sheet they printed.
+   */
+  private restart(patch: Record<string, unknown>): void {
+    // `this.options` is already resolved, so the patch merges onto a complete
+    // set and needs no normalising pass of its own
+    const next = { ...this.options, ...patch } as ResolvedOptions;
+    this.fire('job:restart', { patch });
+    // nobody holds this promise, so a rebuild that fails must not reject into
+    // the void: `fail()` has already fired `job:error` and logged it
+    runJob(next, this.env, null, this.bus, 'proof').catch(() => {});
   }
 
   /** the ordered transform chain. some stages can swap the clone root outright. */
@@ -234,7 +283,14 @@ export class Job {
     if (!options.keepInlineStyles) applyInlineStyleStrip(root);
     applyAnnotations(root, options, env.document);
     root = applyCustomTransforms(root, options);
-    stripDataIds(root);
+    // The proof sheet keeps it.
+    //
+    // `data-prjs-id` is written on the source element and inherited by the
+    // clone, which is how the transform chain correlates a measurement with the
+    // node it measured. Stripped, the two documents share nothing an annotation
+    // could be carried across — and a mark made on the proof would belong to a
+    // copy that is thrown away the moment anything re-renders.
+    if (!this.keepsSourceLink) stripDataIds(root);
 
     const replaced = this.hook('transformClone', root, options);
     return isElement(replaced) ? replaced : root;
@@ -244,7 +300,27 @@ export class Job {
     // every mount gets the options so it can size itself to the sheet. a frame
     // laid out at the wrong width reflows the clone and the job prints something
     // the user never saw
-    if (this.mode === 'inspect') return mountOverlay(this.env.document, this.options);
+    // `inspect` is the proof sheet, opened to look rather than to decide.
+    //
+    // It used to be a separate hand-inline-styled overlay with Print / Log HTML
+    // / Close, answering the same question — "what is about to print?" — worse,
+    // and it is the thing `mode: 'proof'` was built to be. One panel, not two.
+    if (this.mode === 'inspect' || this.mode === 'proof') {
+      // loaded on demand: a job that prints straight through never needs the
+      // panel, and it is the largest thing the pipeline can reach
+      return import('../proof').then(({ mountProof }) =>
+        mountProof(this.options, this.env, {
+          readOnly: this.mode === 'inspect',
+          // this proof's links, not every link on the page: a second proof may
+          // be open over another part of it
+          releaseLink: () => void this.measured?.release?.(),
+          // changing the paper means running the pipeline again, which the panel
+          // cannot do and this can. marks live on the source page rather than on
+          // the copy, so the sheet that comes back still has them.
+          ...(this.mode === 'proof' ? { restart: (patch) => this.restart(patch) } : {})
+        })
+      );
+    }
     if (this.options.printInIframe) return mountIframe(this.env.document, this.options);
     return mountWindow(this.env.window, this.options);
   }
@@ -350,8 +426,8 @@ export class Job {
     const sourceWidth = this.sourceWidth();
     const clones = this.buildClones().map((c) => this.transformClone(c));
     const holder = this.env.document.createElement('div');
-    holder.className = 'pc-render';
-    holder.setAttribute('data-pc-ui', '');
+    holder.className = 'prjs-render';
+    holder.setAttribute('data-prjs-ui', '');
     for (const clone of clones) holder.appendChild(clone);
 
     if (this.options.redactionPolicy !== 'off' && this.secrets.length) {
@@ -444,17 +520,22 @@ export class Job {
   private paginateDocument(doc: Document): void {
     if (!this.options.paginate) return;
 
-    const host = doc.querySelector('.pc-pages') || doc.body;
+    const host = doc.querySelector('.prjs-pages') || doc.body;
     this.fire('paginate:start');
     const result = paginateInto(doc, host, this.options, this.log);
     this.mark('paginate');
     this.record.pages = result.pages;
+    // the proof draws a page rail from this; nothing else knows the count until
+    // the paginator has run
+    const proofSheet = (this.mounted as { sheet?: { setPages(n: number | null): void } } | null)
+      ?.sheet;
+    proofSheet?.setPages(result.pages);
     this.fire('paginate:done', { pages: result.pages, oversized: result.oversized });
 
     // the sheets are live elements now, which is what makes this the only place
     // to stamp one of them in particular
     this.hook('afterPaginate', {
-      sheets: [...doc.querySelectorAll('.pc-page-sheet')],
+      sheets: [...doc.querySelectorAll('.prjs-page-sheet')],
       document: doc,
       options: this.options
     });
@@ -525,52 +606,73 @@ export class Job {
           return controller;
         }
 
-        const hookSaysNo =
-          this.hook('beforePrint', {
+        /**
+         * Everything from the last hooks to the backend handoff.
+         *
+         * A function because the proof sheet sits in front of it: the document
+         * is assembled and shown, and only if somebody presses Print does any of
+         * this run. Same job, same mount, same bytes.
+         */
+        const handOff = (): JobRecord | Promise<JobRecord> => {
+          const hookSaysNo =
+            this.hook('beforePrint', {
+              window: mount.window,
+              document: mount.document,
+              options
+            }) === false;
+          const eventSaysNo = this.fire('job:beforeprint', {
             window: mount.window,
-            document: mount.document,
-            options
-          }) === false;
-        const eventSaysNo = this.fire('job:beforeprint', {
-          window: mount.window,
-          document: mount.document
-        }).some((r) => r === false);
-        if (hookSaysNo || eventSaysNo) return this.cancelled();
+            document: mount.document
+          }).some((r) => r === false);
+          if (hookSaysNo || eventSaysNo) return this.cancelled();
 
-        // the handoff goes through a backend so a companion service can take it
-        // over without a caller changing anything. the browser's dialog is the
-        // default, and the only one that needs nothing installed.
-        const backend = options.backend || browserBackend;
-        let rendered = this.renderedJob(mount);
+          // the handoff goes through a backend so a companion service can take it
+          // over without a caller changing anything. the browser's dialog is the
+          // default, and the only one that needs nothing installed.
+          const backend = options.backend || browserBackend;
+          let rendered = this.renderedJob(mount);
 
-        // the last look before it leaves the browser. beforePrint fires against
-        // the mounted document; this fires against the payload itself, which is
-        // the only place to inspect or amend it.
-        if (backend !== browserBackend) {
-          const amended = this.hook('beforeBackend', {
-            job: rendered,
-            backend: backend.name,
-            options
+          // the last look before it leaves the browser. beforePrint fires against
+          // the mounted document; this fires against the payload itself, which is
+          // the only place to inspect or amend it.
+          if (backend !== browserBackend) {
+            const amended = this.hook('beforeBackend', {
+              job: rendered,
+              backend: backend.name,
+              options
+            });
+            if (amended === false) return this.cancelled();
+            if (amended && typeof amended === 'object') rendered = amended as RenderedJob;
+          }
+
+          this.fire('backend:start', { backend: backend.name });
+
+          return backend.print(rendered, options.backendOptions).then((result) => {
+            this.mark('dialog');
+            this.teardownMount();
+            this.record.backend = result;
+            this.fire('backend:done', { ...result });
+            this.hook('afterPrint', { options });
+            if (typeof options.afterPrintCb === 'function') options.afterPrintCb(options);
+            this.finalize(result.status === 'cancelled' ? 'cancelled' : 'done');
+            this.fire('job:afterprint');
+            this.fire('job:done');
+            this.detachTempListeners();
+            return this.record;
           });
-          if (amended === false) return this.cancelled();
-          if (amended && typeof amended === 'object') rendered = amended as RenderedJob;
+        };
+
+        // asked of the mount rather than imported from `../proof`, which would
+        // be a static edge into the component kit and put a modal library in
+        // front of everyone who only calls print(). The packaging test caught
+        // exactly that.
+        const proof = mount as Mount & { decision?: Promise<'print' | 'cancel'> };
+        if (this.mode === 'proof' && typeof proof.decision?.then === 'function') {
+          return proof.decision.then((verdict) =>
+            verdict === 'cancel' ? this.cancelled() : handOff()
+          );
         }
-
-        this.fire('backend:start', { backend: backend.name });
-
-        return backend.print(rendered, options.backendOptions).then((result) => {
-          this.mark('dialog');
-          this.teardownMount();
-          this.record.backend = result;
-          this.fire('backend:done', { ...result });
-          this.hook('afterPrint', { options });
-          if (typeof options.afterPrintCb === 'function') options.afterPrintCb(options);
-          this.finalize(result.status === 'cancelled' ? 'cancelled' : 'done');
-          this.fire('job:afterprint');
-          this.fire('job:done');
-          this.detachTempListeners();
-          return this.record;
-        });
+        return handOff();
       });
   }
 
@@ -581,6 +683,9 @@ export class Job {
   private fail(err: unknown): JobRecord {
     if (this.measured) {
       try {
+        // a proof that failed before it opened still holds its links, and the
+        // sweep below leaves held links alone
+        this.measured.release?.();
         this.measured.cleanup();
       } catch {
         /* noop */

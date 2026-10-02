@@ -76,18 +76,18 @@ class Menu<Ctx> extends Surface {
   protected build(): HTMLElement {
     const doc = this.doc;
     const menu = root(doc, 'div', {
-      class: 'pc-k-menu',
-      attrs: { role: 'menu', 'data-pc-menu': '', 'aria-label': this.spec.label || 'Actions' }
+      class: 'prjs-menu',
+      attrs: { role: 'menu', 'data-prjs-menu': '', 'aria-label': this.spec.label || 'Actions' }
     });
 
     if (this.spec.title) {
-      const head = h(doc, 'div', { class: 'pc-k-menu-head' });
-      const title = h(doc, 'div', { class: 'pc-k-menu-title' });
+      const head = h(doc, 'div', { class: 'prjs-menu-head' });
+      const title = h(doc, 'div', { class: 'prjs-menu-title' });
       if (this.spec.icon) title.appendChild(iconNode(doc, this.spec.icon));
       title.appendChild(doc.createTextNode(this.spec.title));
       head.appendChild(title);
       if (this.spec.description) {
-        head.appendChild(h(doc, 'div', { class: 'pc-k-menu-desc', text: this.spec.description }));
+        head.appendChild(h(doc, 'div', { class: 'prjs-menu-desc', text: this.spec.description }));
       }
       menu.appendChild(head);
     }
@@ -100,11 +100,11 @@ class Menu<Ctx> extends Surface {
         // never open or close on a rule, and never two in a row
         const prev = visible[i - 1];
         if (i === 0 || i === visible.length - 1 || (prev && isSeparator(prev))) return;
-        menu.appendChild(h(doc, 'div', { class: 'pc-k-sep', attrs: { role: 'separator' } }));
+        menu.appendChild(h(doc, 'div', { class: 'prjs-sep', attrs: { role: 'separator' } }));
         return;
       }
       if (!isItem(entry)) {
-        menu.appendChild(h(doc, 'div', { class: 'pc-k-group', text: entry.group }));
+        menu.appendChild(h(doc, 'div', { class: 'prjs-group', text: entry.group }));
         return;
       }
       menu.appendChild(this.buildItem(entry));
@@ -119,11 +119,11 @@ class Menu<Ctx> extends Surface {
 
     const off = !!item.disabled;
     const row = h(doc, 'button', {
-      class: 'pc-k-item',
+      class: 'prjs-item',
       attrs: {
         type: 'button',
         role: item.checked === undefined ? 'menuitem' : 'menuitemcheckbox',
-        'data-pc-item': item.id,
+        'data-prjs-item': item.id,
         ...(item.tone ? { 'data-tone': item.tone } : {}),
         ...(item.checked === undefined ? {} : { 'aria-checked': item.checked ? 'true' : 'false' }),
         'aria-haspopup': hasSub ? 'menu' : undefined,
@@ -139,23 +139,23 @@ class Menu<Ctx> extends Surface {
     const glyph = item.checked ? 'check' : item.icon;
     if (glyph) {
       row.appendChild(
-        h(doc, 'span', { class: 'pc-k-item-icon', children: [iconNode(doc, glyph)] })
+        h(doc, 'span', { class: 'prjs-item-icon', children: [iconNode(doc, glyph)] })
       );
     }
 
-    const text = h(doc, 'span', { class: 'pc-k-item-text' });
-    text.appendChild(h(doc, 'span', { class: 'pc-k-item-label', text: item.label }));
-    if (item.hint) text.appendChild(h(doc, 'span', { class: 'pc-k-item-hint', text: item.hint }));
+    const text = h(doc, 'span', { class: 'prjs-item-text' });
+    text.appendChild(h(doc, 'span', { class: 'prjs-item-label', text: item.label }));
+    if (item.hint) text.appendChild(h(doc, 'span', { class: 'prjs-item-hint', text: item.hint }));
     row.appendChild(text);
 
     if (item.kbd) {
-      const caps = h(doc, 'span', { class: 'pc-k-item-kbd' });
+      const caps = h(doc, 'span', { class: 'prjs-item-kbd' });
       for (const cap of Array.isArray(item.kbd) ? item.kbd : [item.kbd]) {
-        caps.appendChild(h(doc, 'kbd', { class: 'pc-k-kbd', text: cap }));
+        caps.appendChild(h(doc, 'kbd', { class: 'prjs-kbd', text: cap }));
       }
       row.appendChild(caps);
     }
-    if (hasSub) row.appendChild(h(doc, 'span', { class: 'pc-k-item-more', text: '›' }));
+    if (hasSub) row.appendChild(h(doc, 'span', { class: 'prjs-item-more', text: '›' }));
 
     if (!off) {
       row.addEventListener('click', (ev) => {
@@ -221,26 +221,59 @@ class Menu<Ctx> extends Surface {
   /** submenus flank their parent row; top-level menus hang off the pointer */
   private placeMode: 'point' | 'beside' = 'point';
 
+  /**
+   * Whether an event came from inside this menu or one of its submenus.
+   *
+   * A submenu is a separate surface mounted on the body rather than a child
+   * node, so `contains` on this menu alone would miss it and dismiss both.
+   */
+  private ownEvent(ev: Event): boolean {
+    const target = ev.target as Element | null;
+    return !!target?.closest?.('[data-prjs-menu]');
+  }
+
+  /** Places the menu, and clamps it back into the viewport. */
+  private reposition(): void {
+    const node = this.node;
+    if (!node) return;
+    applyPlacement(node, place(node, this.spec.anchor, this.win, { mode: this.placeMode }));
+  }
+
   protected override mounted(): void {
     const node = this.node;
     if (!node) return;
 
-    applyPlacement(node, place(node, this.spec.anchor, this.win, { mode: this.placeMode }));
+    this.reposition();
 
-    // a click anywhere else, or any scroll, dismisses. capture, so it still
-    // fires when the click lands on something that stops propagation.
+    // a click anywhere else, or a scroll of the page underneath, dismisses.
+    // capture, so it still fires when the event lands on something that stops
+    // propagation.
     this.on(
       this.doc,
       'mousedown',
       (ev) => {
-        const target = ev.target as Element | null;
-        if (target?.closest?.('[data-pc-menu]')) return;
+        if (this.ownEvent(ev)) return;
         this.close();
       },
       true
     );
-    this.on(this.doc, 'scroll', () => this.close(), true);
-    this.on(this.win, 'resize', () => this.close());
+
+    // scrolling the page moves what the menu points at, so it closes. scrolling
+    // the menu's own overflow box does not: it is how you reach the rows below
+    // the fold, and closing there made a long menu impossible to use.
+    this.on(
+      this.doc,
+      'scroll',
+      (ev) => {
+        if (this.ownEvent(ev)) return;
+        this.close();
+      },
+      true
+    );
+
+    // a resize changes where the menu fits, not what it is for. put it back in
+    // the viewport rather than throwing away a menu mid-use.
+    this.on(this.win, 'resize', () => this.reposition());
 
     // a menu opened from a right-click should already be keyboard-ready
     if (this.placeMode === 'point') this.setCursor(0);

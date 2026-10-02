@@ -3,39 +3,22 @@
 @use 'tokens' as *;
 @use 'mixins' as *;
 
-.pc-run {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
+/// The demo's buttons are daisyUI's `btn`. This adds only what the print-shop
+/// look needs on top: the mono face the rest of the page is set in, and the
+/// magenta process ink for a toggle that is on.
+.prjs-run {
   font-family: $font-mono;
-  font-size: 13px;
-  font-weight: 600;
   letter-spacing: 0.02em;
-  color: $paper;
-  background: $ink;
-  border: 0;
-  border-radius: $radius;
-  padding: 0.5rem 0.875rem;
-  cursor: pointer;
-  transition: background-color 120ms ease;
-
-  &:hover {
-    background: #000;
-  }
-
-  &:active {
-    transform: translateY(1px);
-  }
-
-  @include focus-ring;
 
   &[aria-pressed='true'] {
     background: process('m');
+    border-color: process('m');
+    color: $paper;
   }
 }
 
 /// A row of controls that wraps rather than overflowing on a narrow screen.
-.pc-controls {
+.prjs-controls {
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem;
@@ -43,7 +26,7 @@
 
 /// The four-ink rule at the top and bottom of the page: cyan, magenta, yellow,
 /// key, in press order.
-.pc-rule {
+.prjs-rule {
   display: flex;
   height: 0.5rem;
 
@@ -69,7 +52,7 @@
 ///
 /// Two columns, the caps drawn as caps. A shortcut nobody can see is a shortcut
 /// nobody uses, so it is a table on the page rather than a line in the docs.
-.pc-keys {
+.prjs-keys {
   border-collapse: collapse;
   margin-bottom: 1rem;
 
@@ -90,8 +73,8 @@
 
 /// Tailwind's preflight sets `border-width: 0` on everything, and it is loaded
 /// after this layer, so a bare `kbd` rule loses. Two selectors deep wins it back.
-.pc-keys kbd,
-.pc-prose kbd {
+.prjs-keys kbd,
+.prjs-prose kbd {
   display: inline-block;
   min-width: 1.5rem;
   margin-right: 0.25rem;
@@ -109,7 +92,7 @@
 }
 
 /// Two panes side by side, each with its own scoped interface.
-.pc-split {
+.prjs-split {
   display: grid;
   gap: 1rem;
   margin-bottom: 1rem;
@@ -119,7 +102,7 @@
   }
 }
 
-.pc-pane {
+.prjs-pane {
   padding: 1rem;
   border: 1px dashed $rule;
   border-radius: 0.375rem;

@@ -23,7 +23,7 @@ For every matched element and its whole subtree:
 - These attributes are removed: `title`, `alt`, `aria-label`, `href`, `src`,
   `srcset`, `value`, `placeholder`, `download`, `poster`, **`id`**, **`name`**,
   and every `data-*` attribute
-- The element gains a `pc-redacted` class, and the generated stylesheet paints it
+- The element gains a `prjs-redacted` class, and the generated stylesheet paints it
   and everything inside it solid black
 
 `id` and `name` are scrubbed because they routinely encode the very value being

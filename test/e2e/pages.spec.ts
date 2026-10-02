@@ -36,23 +36,23 @@ async function paginate(page: Page, options: Record<string, unknown>): Promise<P
       hooks: {
         beforePrint(ctx: { document: Document }) {
           const d = ctx.document;
-          const sheets = [...d.querySelectorAll<HTMLElement>('.pc-page-sheet')];
+          const sheets = [...d.querySelectorAll<HTMLElement>('.prjs-page-sheet')];
           const first = sheets[0];
-          const inner = first?.querySelector('.pc-page-inner');
+          const inner = first?.querySelector('.prjs-page-inner');
 
           seen = {
             pages: sheets.length,
-            numbers: [...d.querySelectorAll('[data-pc-page-number]')].map(
+            numbers: [...d.querySelectorAll('[data-prjs-page-number]')].map(
               (n) => n.textContent || ''
             ),
-            headers: [...d.querySelectorAll('[data-pc-band="header"]')].map(
+            headers: [...d.querySelectorAll('[data-prjs-band="header"]')].map(
               (n) => n.textContent || ''
             ),
             overflowing: sheets.filter((s) => {
-              const c = s.querySelector('.pc-page-content')!;
+              const c = s.querySelector('.prjs-page-content')!;
               return c.scrollHeight > c.clientHeight + 4;
             }).length,
-            text: (d.querySelector('.pc-pages') as HTMLElement)?.innerText.length ?? 0,
+            text: (d.querySelector('.prjs-pages') as HTMLElement)?.innerText.length ?? 0,
             sheetWidth: first ? Math.round(first.getBoundingClientRect().width) : 0,
             sheetHeight: first ? Math.round(first.getBoundingClientRect().height) : 0,
             borderWidth: inner ? getComputedStyle(inner).borderTopWidth : '',
@@ -69,7 +69,7 @@ async function paginate(page: Page, options: Record<string, unknown>): Promise<P
 
 test.beforeEach(async ({ page }) => {
   await page.goto(DEMO);
-  await expect(page.locator('#tickets .pc-ticket').first()).toBeVisible();
+  await expect(page.locator('#tickets .prjs-ticket').first()).toBeVisible();
 });
 
 /* pagination ------------------------------------------------------------ */
@@ -172,9 +172,9 @@ test('an explicit break starts a new sheet', async ({ page }) => {
       assetTimeout: 5000,
       hooks: {
         beforePrint(ctx: { document: Document }) {
-          const sheets = [...ctx.document.querySelectorAll('.pc-page-sheet')];
+          const sheets = [...ctx.document.querySelectorAll('.prjs-page-sheet')];
           at = sheets.findIndex((s) => s.querySelector('#memo'));
-          const content = sheets[at]?.querySelector('.pc-page-content');
+          const content = sheets[at]?.querySelector('.prjs-page-content');
           // the memo has to be the first thing on its sheet
           at = content?.firstElementChild?.querySelector('#memo') ? at : -1;
           return false;
@@ -199,68 +199,68 @@ async function openDialog(page: Page): Promise<void> {
     ).Printcraft;
     (window as unknown as { __dlg?: unknown }).__dlg = pc.ui.printDialog({ target: '#report' });
   });
-  await expect(page.locator('[data-pc-modal]')).toBeVisible();
+  await expect(page.locator('[data-prjs-modal]')).toBeVisible();
 }
 
 test('the dialog offers paper, margins, pages, content and privacy', async ({ page }) => {
   await openDialog(page);
-  const modal = page.locator('[data-pc-modal]');
+  const modal = page.locator('[data-prjs-modal]');
 
-  await expect(modal.locator('.pc-k-title')).toHaveText('Print settings');
-  await expect(modal.locator('#pc-f-paper')).toBeVisible();
-  await expect(modal.locator('#pc-f-margin')).toBeVisible();
-  await expect(modal.locator('#pc-f-paginate')).toBeVisible();
-  await expect(modal.locator('#pc-f-privacy')).toBeVisible();
-  await expect(modal.locator('#pc-f-hideBrowserChrome')).toBeChecked();
+  await expect(modal.locator('.prjs-title')).toHaveText('Print settings');
+  await expect(modal.locator('#prjs-f-paper')).toBeVisible();
+  await expect(modal.locator('#prjs-f-margin')).toBeVisible();
+  await expect(modal.locator('#prjs-f-paginate')).toBeVisible();
+  await expect(modal.locator('#prjs-f-privacy')).toBeVisible();
+  await expect(modal.locator('#prjs-f-hideBrowserChrome')).toBeChecked();
 
   // page furniture stays out of the way until pagination is switched on
-  await expect(modal.locator('#pc-f-numberTemplate')).toBeHidden();
-  await modal.locator('#pc-f-paginate').check();
-  await modal.locator('#pc-f-pageNumbers').check();
-  await expect(modal.locator('#pc-f-numberTemplate')).toBeVisible();
-  await expect(modal.locator('#pc-f-numberPosition')).toBeVisible();
+  await expect(modal.locator('#prjs-f-numberTemplate')).toBeHidden();
+  await modal.locator('#prjs-f-paginate').check();
+  await modal.locator('#prjs-f-pageNumbers').check();
+  await expect(modal.locator('#prjs-f-numberTemplate')).toBeVisible();
+  await expect(modal.locator('#prjs-f-numberPosition')).toBeVisible();
 });
 
 test('preview renders the settings without touching the printer', async ({ page }) => {
   await openDialog(page);
-  const modal = page.locator('[data-pc-modal]');
+  const modal = page.locator('[data-prjs-modal]');
 
-  await modal.locator('#pc-f-title').fill('Quarterly report');
-  await modal.locator('#pc-f-paginate').check();
-  await modal.locator('#pc-f-pageNumbers').check();
-  await modal.locator('#pc-f-numberTemplate').fill('Sheet {page}/{pages} — {title}');
-  await modal.locator('#pc-f-border').check();
-  await modal.locator('[data-pc-action="preview"]').click();
+  await modal.locator('#prjs-f-title').fill('Quarterly report');
+  await modal.locator('#prjs-f-paginate').check();
+  await modal.locator('#prjs-f-pageNumbers').check();
+  await modal.locator('#prjs-f-numberTemplate').fill('Sheet {page}/{pages} — {title}');
+  await modal.locator('#prjs-f-border').check();
+  await modal.locator('[data-prjs-action="preview"]').click();
 
-  await expect(page.locator('[data-pc-inspector]')).toBeVisible();
+  await expect(page.locator('[data-prjs-proof]')).toBeVisible();
   const frame = page.frames().find((f) => f.parentFrame() === page.mainFrame())!;
 
-  await expect(frame.locator('.pc-page-sheet').first()).toBeAttached();
-  const label = await frame.locator('[data-pc-page-number]').first().textContent();
+  await expect(frame.locator('.prjs-page-sheet').first()).toBeAttached();
+  const label = await frame.locator('[data-prjs-page-number]').first().textContent();
   expect(label).toMatch(/^Sheet 1\/\d+ — Quarterly report$/);
-  await expect(frame.locator('.pc-page-inner').first()).toHaveCSS('border-top-style', 'solid');
+  await expect(frame.locator('.prjs-page-inner').first()).toHaveCSS('border-top-style', 'solid');
 });
 
 test('an invalid length is rejected before anything prints', async ({ page }) => {
   await openDialog(page);
-  const modal = page.locator('[data-pc-modal]');
+  const modal = page.locator('[data-prjs-modal]');
 
-  await modal.locator('#pc-f-margin').fill('quite a lot');
-  await modal.locator('[data-pc-action="print"]').click();
+  await modal.locator('#prjs-f-margin').fill('quite a lot');
+  await modal.locator('[data-prjs-action="print"]').click();
 
   await expect(modal, 'still open').toBeVisible();
   // the error belongs to the field that has it, not to whichever slot is first
-  await expect(modal.locator('.pc-k-field:has(#pc-f-margin) .pc-k-error')).toContainText(
+  await expect(modal.locator('.prjs-field:has(#prjs-f-margin) .prjs-error')).toContainText(
     'css length'
   );
-  await expect(modal.locator('#pc-f-margin')).toHaveAttribute('aria-invalid', 'true');
+  await expect(modal.locator('#prjs-f-margin')).toHaveAttribute('aria-invalid', 'true');
 });
 
 test('cancel changes nothing', async ({ page }) => {
   await openDialog(page);
-  await page.locator('[data-pc-action="cancel"]').click();
+  await page.locator('[data-prjs-action="cancel"]').click();
 
-  await expect(page.locator('[data-pc-modal]')).toHaveCount(0);
+  await expect(page.locator('[data-prjs-modal]')).toHaveCount(0);
   const result = await page.evaluate(
     () => (window as unknown as { __dlg: Promise<{ action: string }> }).__dlg
   );
@@ -304,16 +304,16 @@ async function watermarked(page: Page, options: Record<string, unknown>): Promis
       hooks: {
         beforePrint(ctx: { document: Document }) {
           const d = ctx.document;
-          const sheets = [...d.querySelectorAll('.pc-page-sheet')];
-          const layers = [...d.querySelectorAll<HTMLElement>('.pc-watermark')];
-          const mark = d.querySelector<HTMLElement>('.pc-watermark svg, .pc-watermark img');
+          const sheets = [...d.querySelectorAll('.prjs-page-sheet')];
+          const layers = [...d.querySelectorAll<HTMLElement>('.prjs-watermark')];
+          const mark = d.querySelector<HTMLElement>('.prjs-watermark svg, .prjs-watermark img');
 
           seen = {
             sheets: sheets.length,
             layers: layers.length,
-            marks: d.querySelectorAll('.pc-watermark svg, .pc-watermark img').length,
+            marks: d.querySelectorAll('.prjs-watermark svg, .prjs-watermark img').length,
             perSheet: sheets.map(
-              (s) => s.querySelectorAll('.pc-watermark svg, .pc-watermark img').length
+              (s) => s.querySelectorAll('.prjs-watermark svg, .prjs-watermark img').length
             ),
             tagName: mark?.tagName.toLowerCase() ?? '',
             position: layers[0] ? getComputedStyle(layers[0]).position : '',

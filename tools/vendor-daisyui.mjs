@@ -1,0 +1,478 @@
+// daisyUI's component CSS, prefixed so it cannot touch the host page.
+//
+// The library renders into somebody else's document. daisyUI's class names are
+// global and unprefixed — `.btn`, `.modal`, `.input`, `.card` — so shipping its
+// stylesheet as-is would restyle that page's own buttons, and collide outright
+// with a host already running daisyUI at another version.
+//
+// So the stylesheet is taken apart and put back together with every class
+// renamed: `.btn` becomes `.prjs-btn`, `.modal-box` becomes `.prjs-modal-box`.
+// The kit's markup already uses those names — the anatomy was matched to
+// daisyUI's in the last release — so the real component css drops straight onto
+// it, and nothing unprefixed survives to reach the host.
+//
+// The variables it reads (`--color-base-100`, `--size-field`, `--border`,
+// `--depth`) are left alone and declared on `.prjs` instead. Custom properties
+// inherit downward only, so they reach every daisyUI rule inside our surfaces
+// and nothing outside them.
+//
+//   node tools/vendor-daisyui.mjs           write src/ui/kit/daisyui-css.ts
+//   node tools/vendor-daisyui.mjs --check   fail if it is out of date
+//   node tools/vendor-daisyui.mjs --report  what each component costs
+//
+// Add `--floor` to any of them to work from the lowest daisyUI the devDependency
+// range admits — fetched with `npm pack` — instead of whatever is installed.
+//
+// The generated file is a build input and is committed; the build does not
+// regenerate it. daisyUI is a devDependency with a range and this library keeps
+// no lock file, so regenerating on every build meant CI bundled whichever 5.x
+// patch was newest that day: 5.7.4 to 5.7.47 added 2 kB brotlied to the UMD
+// bundle with no change in this repository. CI instead runs `--check --floor`,
+// so the committed sheet always matches the range's floor and moving it is a
+// reviewed change — raise the floor, then `npm run vendor:daisyui -- --floor`.
+
+import { readFileSync, writeFileSync, existsSync, mkdtempSync, rmSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
+import { tmpdir } from 'node:os';
+import { fileURLToPath } from 'node:url';
+import { dirname, join } from 'node:path';
+import { brotliCompressSync } from 'node:zlib';
+
+const root = join(dirname(fileURLToPath(import.meta.url)), '..');
+const OUT = join(root, 'src/ui/kit/daisyui-css.ts');
+
+const check = process.argv.includes('--check');
+const report = process.argv.includes('--report');
+const floor = process.argv.includes('--floor');
+
+/**
+ * The lowest daisyUI the devDependency range admits, unpacked into a temp dir.
+ *
+ * `^5.7.4`, `~5.7.4` and `>=5.7.4 <6` all name their floor as the first full
+ * version in the string; anything without one is refused rather than guessed.
+ */
+function floorPackage() {
+  const range = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')).devDependencies
+    ?.daisyui;
+  const at = /(\d+\.\d+\.\d+)/.exec(range || '');
+  if (!at) {
+    console.error('cannot read a floor from the daisyui range "' + range + '"');
+    process.exit(1);
+  }
+  const dir = mkdtempSync(join(tmpdir(), 'prjs-daisyui-'));
+  process.on('exit', () => rmSync(dir, { recursive: true, force: true }));
+  const npm = process.platform === 'win32' ? 'npm.cmd' : 'npm';
+  const tgz = execFileSync(
+    npm,
+    ['pack', 'daisyui@' + at[1], '--pack-destination', dir, '--silent'],
+    {
+      encoding: 'utf8'
+    }
+  )
+    .trim()
+    .split('\n')
+    .pop();
+  execFileSync('tar', ['-xzf', join(dir, tgz), '-C', dir]);
+  return join(dir, 'package');
+}
+
+const PKG = floor ? floorPackage() : join(root, 'node_modules/daisyui');
+
+/**
+ * The components whose markup the kit actually draws.
+ *
+ * Not the whole library — daisyUI ships sixty and a carousel is not a thing a
+ * print dialog needs — and not even everything with a matching name. A component
+ * only earns its bytes if our anatomy is its anatomy:
+ *
+ *   in     the kit renders exactly what the css expects
+ *   out    same idea, different structure, so the rules would never match
+ *
+ *   menu     out — daisyUI's is `ul.menu > li > a`; ours is buttons in a div,
+ *            because a menu item has an icon, a hint, a key cap and a submenu
+ *            arrow, and an `<a>` is the wrong element for all four
+ *   tooltip  out — daisyUI's is a `::before` driven by `data-tip`; ours is a
+ *            real node in the top layer with anchor positioning and a caret
+ *   toast    out — daisyUI's is a positioning container; ours stacks and
+ *            animates its own
+ *   list     out — daisyUI's is `ul.list > li.list-row`; ours is a div
+ *   divider  out — the menu uses a 1px rule, not a labelled divider
+ *
+ * Shipping any of those would be five kilobytes of rules that match nothing.
+ */
+const COMPONENTS = [
+  'button',
+  'input',
+  'select',
+  'textarea',
+  'range',
+  'checkbox',
+  'radio',
+  'fieldset',
+  'label',
+  'modal',
+  'card',
+  'badge',
+  'kbd'
+];
+
+//   alert    out — planned for `notify` and never wired. The class is not
+//            emitted anywhere, so its rules matched nothing and cost 900 bytes.
+
+/** The prefix every class is rewritten to carry. */
+const PREFIX = 'prjs-';
+
+/* the transform ----------------------------------------------------------- */
+
+/**
+ * Unwraps `@layer` blocks, keeping their contents.
+ *
+ * daisyUI wraps everything in `@layer utilities{}` and each rule's body in
+ * `@layer daisyui.l1.l2.l3{}`, both for Tailwind v4's cascade ordering. We inject
+ * one plain stylesheet into a host document and have no layer stack to fit into,
+ * so the wrappers are noise — and `@layer` nested inside a style rule is new
+ * enough that dropping it is also the safer read.
+ */
+function unwrapLayers(css) {
+  let out = '';
+  let i = 0;
+
+  while (i < css.length) {
+    const at = css.indexOf('@layer', i);
+    if (at === -1) {
+      out += css.slice(i);
+      break;
+    }
+    out += css.slice(i, at);
+
+    // skip the layer name up to its opening brace
+    const open = css.indexOf('{', at);
+    if (open === -1) {
+      out += css.slice(at);
+      break;
+    }
+
+    // a layer statement with no block (`@layer a, b;`) keeps its meaning nowhere
+    const semi = css.indexOf(';', at);
+    if (semi !== -1 && semi < open) {
+      i = semi + 1;
+      continue;
+    }
+
+    let depth = 1;
+    let j = open + 1;
+    while (j < css.length && depth > 0) {
+      const ch = css[j];
+      if (ch === '{') depth++;
+      else if (ch === '}') depth--;
+      j++;
+    }
+    // recurse: layers nest inside layers
+    out += unwrapLayers(css.slice(open + 1, j - 1));
+    i = j;
+  }
+  return out;
+}
+
+/**
+ * Renames every class in the sheet.
+ *
+ * A scan rather than a parser, but a careful one: it tracks strings, comments
+ * and `url()` so a `.` inside `content: "."` or an unquoted data URI is left
+ * alone. Skipping `url()` is not optional — daisyUI inlines svg with
+ * `xmlns='http://www.w3.org/2000/svg'`, and a naive pass renames `.w3` and
+ * `.org` inside it and breaks every icon.
+ *
+ * Everything else is renamed, including classes we never emit: a rule for
+ * `.prose` becomes a rule for `.prjs-prose` and matches nothing, which is the
+ * right outcome for a selector that was about somebody else's markup.
+ *
+ * A dot is a class when an identifier follows it. `1.5rem` is not one because a
+ * digit is not an identifier start, so decimals need no special case; what does
+ * need care is a dot *preceded* by something — `a.btn`, `:is(.x).y`,
+ * `.a.b` are all chained selectors and all have to be renamed, which an earlier
+ * version of this guard got wrong in three separate ways.
+ */
+function prefixClasses(css) {
+  let out = '';
+  let i = 0;
+  let quote = null;
+  let inComment = false;
+  let urlDepth = 0;
+
+  while (i < css.length) {
+    const ch = css[i];
+    const next = css[i + 1];
+
+    if (inComment) {
+      out += ch;
+      if (ch === '*' && next === '/') {
+        out += next;
+        i += 2;
+        inComment = false;
+        continue;
+      }
+      i++;
+      continue;
+    }
+    if (quote) {
+      out += ch;
+      if (ch === '\\') {
+        out += next ?? '';
+        i += 2;
+        continue;
+      }
+      if (ch === quote) quote = null;
+      i++;
+      continue;
+    }
+    if (ch === '/' && next === '*') {
+      out += '/*';
+      i += 2;
+      inComment = true;
+      continue;
+    }
+    if (ch === '"' || ch === "'") {
+      quote = ch;
+      out += ch;
+      i++;
+      continue;
+    }
+
+    // inside url(), every dot belongs to a hostname or a path
+    if (urlDepth === 0 && /^url\(/i.test(css.slice(i, i + 4))) {
+      out += css.slice(i, i + 4);
+      i += 4;
+      urlDepth = 1;
+      continue;
+    }
+    if (urlDepth > 0) {
+      out += ch;
+      if (ch === '(') urlDepth++;
+      else if (ch === ')') urlDepth--;
+      i++;
+      continue;
+    }
+
+    // a class selector: a dot followed by an identifier. a leading digit is not
+    // an identifier start, so `1.5rem` never matches and decimals need no guard.
+    if (ch === '.') {
+      const identMatch = /^[a-zA-Z_-][\w-]*/.exec(css.slice(i + 1));
+      if (identMatch) {
+        const name = identMatch[0];
+        out += name.startsWith(PREFIX) ? '.' + name : '.' + PREFIX + name;
+        i += 1 + name.length;
+        continue;
+      }
+    }
+
+    out += ch;
+    i++;
+  }
+  return out;
+}
+
+/**
+ * A selector that only matches at a breakpoint: `.sm\:btn-lg`, `.\32 xl\:modal`.
+ *
+ * daisyUI repeats each component under `sm:` `md:` `lg:` `xl:` `2xl:` for
+ * Tailwind's responsive utilities. They are no use here and they are most of the
+ * sheet. The kit sizes and tones through `data-size` and `data-tone`, never a
+ * breakpoint class; a page using the kit could not reach them either, because
+ * the rename produces `prjs-sm:btn` — prefixed on the breakpoint, not the
+ * component — which is a spelling nobody would write; and `2xl` arrives escaped
+ * as `\32 xl`, which the rename does not recognise as a class, so those rules
+ * were reaching the host page unprefixed.
+ */
+const RESPONSIVE = /\.(?:sm|md|lg|xl|\\32 ?xl)\\:/;
+
+/** Splits a selector list on its top-level commas. */
+function selectorList(prelude) {
+  const out = [];
+  let depth = 0;
+  let start = 0;
+  for (let i = 0; i < prelude.length; i++) {
+    const ch = prelude[i];
+    if (ch === '\\') i++;
+    else if (ch === '(' || ch === '[') depth++;
+    else if (ch === ')' || ch === ']') depth--;
+    else if (ch === ',' && depth === 0) {
+      out.push(prelude.slice(start, i));
+      start = i + 1;
+    }
+  }
+  out.push(prelude.slice(start));
+  return out;
+}
+
+/** Index just past the block that opens at `open`, skipping strings and comments. */
+function blockEnd(css, open) {
+  let depth = 1;
+  let i = open + 1;
+  let quote = null;
+  while (i < css.length && depth > 0) {
+    const ch = css[i];
+    if (quote) {
+      if (ch === '\\') i++;
+      else if (ch === quote) quote = null;
+    } else if (ch === '/' && css[i + 1] === '*') {
+      const end = css.indexOf('*/', i + 2);
+      i = end === -1 ? css.length : end + 1;
+    } else if (ch === '"' || ch === "'") quote = ch;
+    else if (ch === '{') depth++;
+    else if (ch === '}') depth--;
+    i++;
+  }
+  return i;
+}
+
+/**
+ * Removes every rule whose selectors are all responsive variants.
+ *
+ * A rule listing both a variant and a plain selector keeps the plain one. Group
+ * at-rules (`@media`, `@supports`, `@starting-style`, `@container`) are walked
+ * into and dropped once nothing is left inside them; a style rule's nested
+ * blocks stay with it, kept or dropped as one.
+ */
+function dropResponsiveVariants(css) {
+  let out = '';
+  let i = 0;
+  while (i < css.length) {
+    // the prelude runs to the next `{` or `;` outside a string or comment
+    let j = i;
+    let quote = null;
+    while (j < css.length) {
+      const ch = css[j];
+      if (quote) {
+        if (ch === '\\') j++;
+        else if (ch === quote) quote = null;
+      } else if (ch === '/' && css[j + 1] === '*') {
+        const end = css.indexOf('*/', j + 2);
+        j = end === -1 ? css.length : end + 1;
+      } else if (ch === '"' || ch === "'") quote = ch;
+      else if (ch === '{' || ch === ';') break;
+      j++;
+    }
+    if (j >= css.length) {
+      out += css.slice(i);
+      break;
+    }
+    if (css[j] === ';') {
+      out += css.slice(i, j + 1);
+      i = j + 1;
+      continue;
+    }
+
+    const end = blockEnd(css, j);
+    const prelude = css.slice(i, j);
+    const body = css.slice(j + 1, end - 1);
+    const head = prelude.trim();
+
+    if (/^@(?:media|supports|starting-style|container)\b/.test(head)) {
+      const inner = dropResponsiveVariants(body);
+      if (inner.trim()) out += prelude + '{' + inner + '}';
+    } else if (head.startsWith('@')) {
+      out += css.slice(i, end);
+    } else {
+      const kept = selectorList(prelude).filter((sel) => !RESPONSIVE.test(sel));
+      if (kept.length) out += kept.join(',') + '{' + body + '}';
+    }
+    i = end;
+  }
+  return out;
+}
+
+/** Collapses the whitespace the unwrapping leaves behind. */
+function tidy(css) {
+  return css
+    .replace(/\/\*![\s\S]*?\*\//g, '')
+    .replace(/\s*\n\s*/g, '')
+    .replace(/;\s*}/g, '}')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+}
+
+/* building ---------------------------------------------------------------- */
+
+const version = JSON.parse(readFileSync(join(PKG, 'package.json'), 'utf8')).version;
+
+const parts = [];
+const sizes = [];
+
+for (const name of COMPONENTS) {
+  const file = join(PKG, 'components', name + '.css');
+  if (!existsSync(file)) {
+    console.error('daisyui has no component called "' + name + '"');
+    process.exit(1);
+  }
+  const raw = readFileSync(file, 'utf8');
+  const built = tidy(prefixClasses(dropResponsiveVariants(unwrapLayers(raw))));
+  parts.push(built);
+  sizes.push({ name, raw: raw.length, out: built.length });
+}
+
+const css = parts.join('');
+
+if (report) {
+  console.log('\ndaisyUI ' + version + ' — the components the kit draws\n');
+  for (const s of sizes) {
+    console.log(
+      '  ' + s.name.padEnd(12) + String(s.raw).padStart(8) + ' → ' + String(s.out).padStart(8)
+    );
+  }
+  console.log(
+    '\n  total ' +
+      css.length +
+      ' bytes, ' +
+      brotliCompressSync(Buffer.from(css)).length +
+      ' brotlied\n'
+  );
+  process.exit(0);
+}
+
+const module =
+  '// GENERATED by tools/vendor-daisyui.mjs — do not edit.\n' +
+  '//\n' +
+  '// daisyUI ' +
+  version +
+  ', MIT, https://daisyui.com — the ' +
+  COMPONENTS.length +
+  ' components the\n' +
+  '// kit draws, with every class renamed to carry the `prjs-` prefix so none of\n' +
+  '// it can reach the host page. The variables it reads are declared on `.prjs`\n' +
+  '// by `tokens()` in theme.ts.\n' +
+  '//\n' +
+  '// Regenerate with `npm run vendor:daisyui`.\n\n' +
+  'export const DAISYUI_VERSION = ' +
+  JSON.stringify(version) +
+  ';\n\n' +
+  'export const DAISYUI_CSS = ' +
+  JSON.stringify(css) +
+  ';\n';
+
+if (check) {
+  const current = existsSync(OUT) ? readFileSync(OUT, 'utf8') : '';
+  if (current !== module) {
+    console.error(
+      'src/ui/kit/daisyui-css.ts is out of date with daisyui ' +
+        version +
+        '. Run `npm run vendor:daisyui`.'
+    );
+    process.exit(1);
+  }
+  console.log('daisyui css is current (' + version + ')');
+  process.exit(0);
+}
+
+writeFileSync(OUT, module);
+console.log(
+  'wrote src/ui/kit/daisyui-css.ts — daisyui ' +
+    version +
+    ', ' +
+    COMPONENTS.length +
+    ' components, ' +
+    css.length +
+    ' bytes (' +
+    brotliCompressSync(Buffer.from(css)).length +
+    ' brotlied)'
+);

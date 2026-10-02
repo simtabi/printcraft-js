@@ -14,8 +14,28 @@ import { ensureStyles, KIT_CLASS, UI_ATTR } from './theme';
  * an outline with muted text. Everything else names a colour from the theme, so
  * a button, a menu row and a toast that mean the same thing look related.
  */
+/**
+ * A semantic tone.
+ *
+ * The eight colour names are daisyUI's, so a page already themed for daisyUI
+ * describes its colours the same way here. `danger` and `warn` are kept as
+ * aliases for `error` and `warning`, which is what they were called before.
+ * `ghost` and `quiet` are shapes rather than colours.
+ */
 export type ToneName =
-  'default' | 'primary' | 'danger' | 'warn' | 'success' | 'info' | 'ghost' | 'quiet';
+  | 'default'
+  | 'primary'
+  | 'secondary'
+  | 'accent'
+  | 'neutral'
+  | 'info'
+  | 'success'
+  | 'warning'
+  | 'error'
+  | 'danger'
+  | 'warn'
+  | 'ghost'
+  | 'quiet';
 
 export interface NodeSpec {
   class?: string;
@@ -60,7 +80,7 @@ export function root<K extends keyof HTMLElementTagNameMap>(
 }
 
 /** An inline icon. The only `innerHTML` in the kit, and only over our own svg. */
-export function iconNode(doc: Document, name: string, className = 'pc-k-item-icon'): HTMLElement {
+export function iconNode(doc: Document, name: string, className = 'prjs-item-icon'): HTMLElement {
   const span = h(doc, 'span', { class: className, attrs: { 'aria-hidden': 'true' } });
   span.innerHTML = icon(name);
   return span;
@@ -77,7 +97,7 @@ export interface ButtonSpec {
 
 export function button(doc: Document, spec: ButtonSpec): HTMLButtonElement {
   const el = h(doc, 'button', {
-    class: 'pc-k-btn',
+    class: 'prjs-btn',
     attrs: {
       type: 'button',
       'data-tone': spec.tone || 'default',
@@ -85,15 +105,10 @@ export function button(doc: Document, spec: ButtonSpec): HTMLButtonElement {
       ...spec.attrs
     }
   });
-  if (spec.icon) el.appendChild(iconNode(doc, spec.icon, 'pc-k-item-icon'));
+  if (spec.icon) el.appendChild(iconNode(doc, spec.icon, 'prjs-item-icon'));
   el.appendChild(doc.createTextNode(spec.label));
   if (spec.onClick) el.addEventListener('click', spec.onClick);
   return el;
-}
-
-/** Text for screen readers only, used to announce state changes. */
-export function srOnly(doc: Document, text: string): HTMLElement {
-  return h(doc, 'span', { class: 'pc-k-sr', text, attrs: { 'aria-live': 'polite' } });
 }
 
 /** Everything inside `el` that can take focus, in tab order. */

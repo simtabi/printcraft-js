@@ -9,6 +9,7 @@ import {
   type Action,
   type ActionContext,
   type ActionRegistry,
+  type ActionScope,
   type ResolvedAction
 } from './actions';
 import { openMenu, openPalette, type MenuEntry, type MenuHandle } from './kit';
@@ -28,6 +29,11 @@ export type ContextMenuEntry = MenuEntry<MenuContext>;
 export interface ContextMenuOptions {
   /** merged into every job the menu starts */
   base?: PrintcraftOptions;
+  /**
+   * Read each time the menu opens, over `base`. How an interface hands over
+   * options that change after the menu is installed.
+   */
+  context?: () => Partial<ActionContext>;
   /** action ids to keep, in the order you want them */
   items?: string[];
   /** extra actions, appended */
@@ -45,6 +51,35 @@ export interface ContextMenuOptions {
 /** The default heading, so the menu says whose it is rather than floating there. */
 const TITLE = 'Print & mark up';
 const DESCRIPTION = 'Choose what prints, redact it, or note it first';
+
+/** A right-click on the page offers both what is about the page and about what was clicked. */
+const PAGE_SCOPES: readonly ActionScope[] = ['page', 'element'];
+
+/** What a menu over a drawn rectangle offers. */
+const REGION_SCOPES: readonly ActionScope[] = ['region'];
+
+/**
+ * The menu for a drawn region.
+ *
+ * Separate from `contextMenu` because it is not installed on the document and
+ * torn down again: the region tool owns a modal overlay for as long as the
+ * selection exists, and calls this from its own handler. Everything else — how
+ * actions become entries, how groups are drawn — is shared.
+ */
+export function openRegionMenu(
+  registry: ActionRegistry,
+  ctx: Omit<ActionContext, 'via' | 'scopes'>,
+  at: { x: number; y: number },
+  options: { onClose?: () => void } = {}
+): MenuHandle {
+  return openActionMenu(registry, { ...ctx, via: 'menu', scopes: REGION_SCOPES }, at, {
+    title: 'This area',
+    description: ctx.region
+      ? Math.round(ctx.region.width) + ' × ' + Math.round(ctx.region.height) + ' px'
+      : 'The rectangle you drew',
+    ...(options.onClose ? { onClose: options.onClose } : {})
+  });
+}
 
 /**
  * Turns resolved actions into menu entries, with a rule between groups.
@@ -146,9 +181,19 @@ export function openActionMenu(
 
 /** Opens the palette over the same registry. */
 export function openActionPalette(registry: ActionRegistry, ctx: ActionContext): void {
+  let items = actionsToPaletteItems(registry, ctx);
+  // what this person actually does rises to the top, under its own heading,
+  // instead of sitting wherever the catalogue happened to put it
+  const lifted = (ctx.recent || []).filter((id) => items.some((i) => i.id === id && !i.disabled));
+  if (lifted.length) {
+    items = [
+      ...lifted.map((id) => ({ ...items.find((i) => i.id === id)!, group: 'Recently used' })),
+      ...items.filter((i) => !lifted.includes(i.id))
+    ];
+  }
   openPalette(
     {
-      items: actionsToPaletteItems(registry, ctx),
+      items,
       placeholder: 'Print, redact, note, preview…',
       onPick: (id) => void registry.run(id, { ...ctx, via: 'palette' })
     },
@@ -177,14 +222,22 @@ export function contextMenu(
   function onContext(ev: Event): void {
     const target = ev.target as Element | null;
     // never take over the menu on the kit's own surfaces
-    if (!target || (typeof target.closest === 'function' && target.closest('[data-pc-ui]'))) return;
+    if (!target || (typeof target.closest === 'function' && target.closest('[data-prjs-ui]')))
+      return;
     if (cfg.shouldOpen && !cfg.shouldOpen(target)) return;
 
     ev.preventDefault();
     open?.close();
 
     const me = ev as MouseEvent;
-    const ctx: ActionContext = { target, env: scope, base, via: 'menu' };
+    const ctx: ActionContext = {
+      target,
+      env: scope,
+      base,
+      ...cfg.context?.(),
+      via: 'menu',
+      scopes: PAGE_SCOPES
+    };
 
     open = openActionMenu(
       registry,

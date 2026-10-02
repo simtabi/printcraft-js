@@ -3,6 +3,11 @@
 // the pipeline can adopt it: `Printcraft.print(someCanvas)` replaces that canvas
 // with an <img>, and a detached node has no parent to be replaced in.
 
+// the two leaf modules, not the barrel: the barrel pulls in the studio, which
+// pulls in the whole component kit, and core must not carry a modal library to
+// draw an arrow that was already drawn
+import { parse as parseDrawing } from '../annotate/model';
+import { overlayNode as drawingOverlay } from '../annotate/render';
 import {
   DATA_ID,
   eachInclusive,
@@ -27,7 +32,7 @@ export function applyReveal(clone: Element, meta: MetaMap): void {
     const m = id ? meta[id] : undefined;
     if (m?.wasHidden) {
       (el as HTMLElement).style.setProperty('display', 'revert', 'important');
-      el.classList.add('pc-revealed');
+      el.classList.add('prjs-revealed');
     }
   });
 }
@@ -87,7 +92,7 @@ export function applyImageHandling(
 
     if (options.removeImages) {
       const box = doc.createElement('div');
-      box.className = 'pc-img-placeholder';
+      box.className = 'prjs-img-placeholder';
       const w = m?.imgW || 80;
       const h = m?.imgH || 60;
       box.setAttribute(
@@ -148,7 +153,7 @@ export function applyInlineStyleStrip(clone: Element): void {
 export function applyAnnotations(clone: Element, options: ResolvedOptions, doc: Document): void {
   function noteAfter(el: Element, text: string): void {
     const chip = doc.createElement('span');
-    chip.className = 'pc-note';
+    chip.className = 'prjs-note';
     chip.textContent = text;
     if (el.parentNode) el.parentNode.insertBefore(chip, el.nextSibling);
   }
@@ -160,6 +165,48 @@ export function applyAnnotations(clone: Element, options: ResolvedOptions, doc: 
   eachInclusive(clone, '[data-' + NS + '-note]', (el) => {
     const text = el.getAttribute('data-' + NS + '-note');
     if (text) noteAfter(el, text);
+  });
+
+  applyDrawings(clone, doc);
+}
+
+/**
+ * Rebuilds each drawing inside the print copy.
+ *
+ * The live overlay is not cloned with the element: it carries `data-prjs-ui`,
+ * which the interface strips from anything it hands on, and a screenshot of the
+ * page would otherwise contain the drawing twice. So the shapes are read back
+ * out of the attribute and drawn again here, into a copy with no `data-prjs-ui`
+ * on it, which is the one that prints.
+ */
+export function applyDrawings(clone: Element, doc: Document): void {
+  eachInclusive(clone, '[data-' + NS + '-drawing]', (el) => {
+    const raw = el.getAttribute('data-' + NS + '-drawing');
+    if (!raw) return;
+
+    el.querySelector(':scope > .prjs-drawing')?.remove();
+
+    const drawing = parseDrawing(raw);
+    if (!drawing.shapes.length) return;
+
+    // the overlay is absolutely positioned, so its host has to be a containing
+    // block. whether it already is depends on stylesheets this detached copy
+    // cannot see, so it is left to css: see `buildPageCss`, and `rasterize`
+    // for a copy that is photographed instead.
+    const host = el as HTMLElement;
+
+    // the box the print copy will lay out in, not the one on screen: a pen
+    // stroke's outline is computed against its host's proportions, and the
+    // sheet's are not the viewport's
+    const box = host.getBoundingClientRect();
+    host.appendChild(
+      drawingOverlay(
+        doc,
+        drawing,
+        true,
+        box.width && box.height ? { width: box.width, height: box.height } : undefined
+      )
+    );
   });
 }
 

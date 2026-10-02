@@ -56,22 +56,28 @@ options).
 | `ui:redact`     | Redaction was toggled from the UI       | `element`/`elements`, `redacted` |
 | `ui:annotate`   | A note was added from the UI            | `element`, `text`                |
 
-| Event              | When                                 | Payload                               |
-| ------------------ | ------------------------------------ | ------------------------------------- |
-| `paginate:start`   | The content is about to be split     | —                                     |
-| `paginate:done`    | Sheets exist                         | `pages`, `oversized`                  |
-| `capture:start`    | A region is about to be rasterised   | `rect`                                |
-| `capture:done`     | It has been                          | `rect`, `width`, `height`, `skipped`  |
-| `redact:mark`      | A rectangle was marked for redaction | `rect`, `runs`, `marks`               |
-| `redact:review`    | The review step closed               | `marks`, `action`                     |
-| `redact:verify`    | The document was re-read for leaks   | `checked`, `leaked`, `where`          |
-| `redact:leak`      | Something got through                | `checked`, `leaked`, `where`          |
-| `share:screenshot` | An image was rendered                | `width`, `height`, `skipped`          |
-| `share:copy`       | Something reached the clipboard      | `format`, `via`                       |
-| `share:email`      | A message was handed to a transport  | `status`, `via`, `to`                 |
-| `backend:start`    | The job is going to a backend        | `backend`                             |
-| `backend:done`     | The backend answered                 | `status`, `backend`, `jobId`, `pages` |
-| `config:skipped`   | A config could not be fetched        | `source`, `reason`                    |
+| Event              | When                                  | Payload                                       |
+| ------------------ | ------------------------------------- | --------------------------------------------- |
+| `paginate:start`   | The content is about to be split      | —                                             |
+| `paginate:done`    | Sheets exist                          | `pages`, `oversized`                          |
+| `capture:start`    | A region is about to be rasterised    | `rect`                                        |
+| `capture:done`     | It has been                           | `rect`, `width`, `height`, `skipped`          |
+| `redact:mark`      | A rectangle was marked for redaction  | `rect`, `runs`, `marks`                       |
+| `redact:review`    | The review step closed                | `marks`, `action`                             |
+| `redact:verify`    | The document was re-read for leaks    | `checked`, `leaked`, `where`                  |
+| `redact:leak`      | Something got through                 | `checked`, `leaked`, `where`                  |
+| `share:screenshot` | An image was rendered                 | `width`, `height`, `skipped`                  |
+| `share:copy`       | Something reached the clipboard       | `format`, `via`                               |
+| `share:email`      | A message was handed to a transport   | `status`, `via`, `to`                         |
+| `backend:start`    | The job is going to a backend         | `backend`                                     |
+| `backend:done`     | The backend answered                  | `status`, `backend`, `jobId`, `pages`         |
+| `job:restart`      | The proof sheet's settings rebuilt it | `patch`                                       |
+| `state:save`       | Something was written to the store    | `what`, `count`, `store`                      |
+| `state:load`       | Something was read back               | `what`, `store`; marks add `restored`, `lost` |
+| `state:lost`       | Saved marks had nowhere to go         | `marks`                                       |
+| `state:clear`      | Remembered state was removed          | `what`; `forget()` adds `scope`               |
+| `state:error`      | A store read or write failed          | `what`, `error`                               |
+| `config:skipped`   | A config could not be fetched         | `source`, `reason`                            |
 
 ## Hooks
 

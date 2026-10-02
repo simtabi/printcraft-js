@@ -39,7 +39,7 @@
     }
 
     var note = document.createElement('div');
-    note.className = 'pc-load-note';
+    note.className = 'prjs-load-note';
     note.setAttribute('role', 'status');
     note.textContent = applied
       ? 'Opened from disk. A file:// page cannot fetch its own files, so the page ' +
@@ -52,7 +52,7 @@
 
     var close = document.createElement('button');
     close.type = 'button';
-    close.className = 'pc-load-note__close';
+    close.className = 'prjs-load-note__close';
     close.setAttribute('aria-label', 'Dismiss');
     close.textContent = '\u00d7';
     close.addEventListener('click', function () {
@@ -68,7 +68,7 @@
   if (typeof Printcraft === 'undefined') {
     document.addEventListener('DOMContentLoaded', function () {
       var warn = document.createElement('div');
-      warn.className = 'pc-load-error';
+      warn.className = 'prjs-load-error';
       warn.setAttribute('role', 'alert');
       warn.textContent =
         'This is the repo demo: it loads ../dist/ next to it, so it needs `npm run build` ' +
@@ -277,6 +277,7 @@
           .marks(true)
           .watermark('DECLASSIFIED', 0.12)
           .footer('released under demo act §4')
+          .set({ proof: true })
           .print();
       }
     ],
@@ -369,6 +370,7 @@
       'A transform puts the secret back after redaction. Nothing prints.',
       function () {
         Printcraft.print({
+          proof: true,
           target: '#memo',
           redactSelectorList: ['.codename'],
           transforms: [
@@ -462,27 +464,27 @@
 
     JOBS.forEach(function (job, i) {
       var card = document.createElement('article');
-      card.className = 'pc-ticket';
+      card.className = 'prjs-ticket';
 
       var crop = document.createElement('span');
-      crop.className = 'pc-crop';
+      crop.className = 'prjs-crop';
       crop.setAttribute('aria-hidden', 'true');
 
       var number = document.createElement('div');
-      number.className = 'pc-ticket__number';
+      number.className = 'prjs-ticket__number';
       number.textContent = 'Job ' + String(i + 1).padStart(2, '0');
 
       var title = document.createElement('h3');
-      title.className = 'pc-ticket__title';
+      title.className = 'prjs-ticket__title';
       title.textContent = job[0];
 
       var blurb = document.createElement('p');
-      blurb.className = 'pc-ticket__blurb';
+      blurb.className = 'prjs-ticket__blurb';
       blurb.textContent = job[1];
 
       var button = document.createElement('button');
       button.type = 'button';
-      button.className = 'pc-run';
+      button.className = 'btn btn-sm btn-primary prjs-run';
       button.textContent = 'Run job';
       button.addEventListener('click', function () {
         run(i + 1, job[2]);
@@ -497,7 +499,10 @@
 
   function run(number, spec) {
     console.log('job', number, 'started');
-    var started = typeof spec === 'function' ? spec() : Printcraft.print(spec);
+    // a person pressed this, so it goes through the proof sheet like every
+    // other interactive path; the job's own options still win
+    var started =
+      typeof spec === 'function' ? spec() : Printcraft.print(Object.assign({ proof: true }, spec));
 
     started
       .then(function (job) {
@@ -646,6 +651,62 @@
       Printcraft.ui.drawArea().then(function (r) {
         console.log('draw:', r);
       });
+    });
+
+    /* the proof sheet ----------------------------------------------------- */
+
+    on('btn-proof', function () {
+      Printcraft.proof({ target: '#report' }).then(function (r) {
+        console.log('proof:', r.status);
+      });
+    });
+
+    on('btn-proof-paginated', function () {
+      Printcraft.proof({
+        target: 'main',
+        paginate: true,
+        pageNumbers: { template: 'Page {page} of {pages}' },
+        pageMargin: '14mm',
+        documentTitle: 'Printcraft demo',
+        documentDescription: 'Everything on the page, as it would print.',
+        coverPage: true,
+        notesPage: true,
+        printHeading: false
+      }).then(function (r) {
+        console.log('proof:', r.status, r.pages + ' sheets');
+      });
+    });
+
+    on('btn-annotate', function () {
+      Printcraft.ui.run('annotate');
+    });
+
+    on('btn-pen', function () {
+      // the same form the annotation toolbar's Pen button opens
+      Printcraft.ui
+        .modal({
+          title: 'Pen',
+          description: 'Colour is Coloris; opacity is part of it',
+          icon: 'draw',
+          size: 'sm',
+          fields: [
+            {
+              type: 'color',
+              name: 'ink',
+              label: 'Colour',
+              value: 'rgba(220,38,38,1)',
+              hint: 'A highlighter is one of these at about 40%'
+            },
+            { type: 'range', name: 'width', label: 'Stroke', min: 1, max: 24, value: 3, unit: 'px' }
+          ],
+          actions: [
+            { id: 'cancel', label: 'Cancel', tone: 'ghost' },
+            { id: 'save', label: 'Use it', tone: 'primary', validates: true }
+          ]
+        })
+        .then(function (r) {
+          console.log('pen:', r.action, r.values);
+        });
     });
   }
 

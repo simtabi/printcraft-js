@@ -7,7 +7,7 @@
 
 > Client-side printing you can aim: real paginated sheets with numbers and borders, a region tool that prints what you drew, redaction that is verified rather than hoped for, and a right-click menu, command palette and keyboard commands that are there the moment the script loads.
 
-Runs in any browser with `afterprint` and `document.fonts`: Chrome, Edge, Firefox and Safari, current and two back. TypeScript source, zero runtime dependencies, ESM + UMD builds, and a command line for CI.
+Runs in any browser with `afterprint` and `document.fonts`: Chrome, Edge, Firefox and Safari, current and two back. TypeScript source, two runtime dependencies (both leaf), ESM + UMD builds, and a command line for CI.
 
 **[Try the demo](https://simtabi.github.io/printcraft-js/)**: every job, the interaction layer and the inspector, with nothing to install.
 
@@ -43,6 +43,8 @@ Full documentation: **<https://opensource.simtabi.com/documentation/simtabi/prin
 - [Configuration](docs/configuration.md) — page defaults, config files, content annotations
 - [Architecture](docs/architecture.md) — the pipeline, the module layout, and why it is shaped this way
 - [Pagination](docs/pagination.md) — real sheets, page numbers, borders and running bands
+- [The proof sheet](docs/proof.md) — see the assembled document before it prints
+- [Cover and notes pages](docs/pages.md) — the title at the front, every mark listed at the back
 - [Security](docs/security.md) — the threat model, and what redaction guarantees
 - [Print backends](docs/backends.md) — sending a job to a server or a companion service
 - [Comparison](docs/comparison.md) — lineage from ezPrintJS, and what changed
@@ -56,11 +58,13 @@ Full documentation: **<https://opensource.simtabi.com/documentation/simtabi/prin
 - [Privacy](docs/tools/privacy.md) — the PII scanner
 - [Printer marks](docs/tools/printer-marks.md) — crop marks and bleed
 - [Annotations](docs/tools/annotations.md) — note chips in the print copy
+- [Drawn annotations](docs/tools/annotate.md) — pen, highlighter, arrows, boxes and text
 - [Clip printing](docs/tools/clip-printing.md) — printing an exact rectangle
 - [Watermarks](docs/tools/watermarks.md) — text and image watermarks
 - [The interaction layer](docs/tools/interaction-ui.md) — actions, menu, command palette, keyboard, theming
 - [The component kit](docs/tools/component-kit.md) — modals, menus, forms, toasts, tooltips, popovers
 - [Sharing](docs/tools/sharing.md) — screenshots, clipboard and email
+- [Memory](docs/tools/memory.md) — remembering marks, options and activity between visits
 - [Errors and logging](docs/tools/logging.md) — codes, levels, sinks and events
 - [The command line](docs/tools/cli.md) — print, doctor and init, for CI
 - [Devtools](docs/tools/devtools.md) — the inspector, the debug log, job records
