@@ -18,13 +18,12 @@ redaction's neighbouring text is exactly the content someone is trying to contro
 
 ## What is remembered
 
-|                   |                                                            |
-| ----------------- | ---------------------------------------------------------- |
-| **Marks**         | notes, redactions and drawings, anchored to their elements |
-| **Options**       | paper, orientation, margins, watermark, the switches       |
-| **Configuration** | the resolved set, and which layer set each value           |
-| **Activity**      | recent action ids, most recent first                       |
-| **Progress**      | a region selection that was drawn and never printed        |
+|              |                                                            |
+| ------------ | ---------------------------------------------------------- |
+| **Marks**    | notes, redactions and drawings, anchored to their elements |
+| **Options**  | paper, orientation, margins, watermark, the switches       |
+| **Activity** | recent action ids, most recent first                       |
+| **Progress** | a region selection that was drawn and never printed        |
 
 Everything is namespaced by page, so two documents in one app do not inherit each other's
 redactions. `scopeKey` overrides the default, which is origin plus path.
@@ -43,6 +42,17 @@ redactions. `scopeKey` overrides the default, which is origin plus path.
   moment the pointer lifts.
 
 With `persist` off, none of this happens and nothing is written anywhere.
+
+Progress belongs to the interface: the region tool keeps its box when it is opened from a
+persisting interface's menu, palette, keys or `run('draw')`. `Printcraft.ui.drawArea()`
+called on its own has no memory to keep it in.
+
+Configuration is not remembered. It is resolved when asked for (see below), and a store
+can be one of its layers.
+
+Two interfaces on one page share the page's records unless each is given its own
+`scopeKey`, so give a second persisting interface one if its paper and recent actions
+should be its own.
 
 ## Where it goes
 
@@ -104,6 +114,10 @@ const report = await ui.restored();
 | `exact`    | the selector matched and the text is unchanged          |
 | `likely`   | the selector moved but the text is unchanged and unique |
 | `lost`     | neither, so **nothing is applied**                      |
+
+A lost mark is not deleted. It stays in the store and is written back with every later
+save, so a later build of the page that has the element again gets it back. `clearMarks()`
+and `forget()` are how to let go of them.
 
 Guessing would eventually mean redacting the wrong paragraph. A privacy tool that does that
 once is worse than one that says it does not know.
@@ -196,12 +210,12 @@ skipped rather than fatal: a config server being down should not stop a page pri
 
 ## Errors
 
-| Code              | When                                                       |
-| ----------------- | ---------------------------------------------------------- |
-| `PC_NO_STORAGE`   | private browsing, a sandboxed frame, storage switched off  |
-| `PC_STORE_FULL`   | the origin is out of room and eviction did not free enough |
-| `PC_STORE_FAILED` | the state service answered with an error                   |
-| `PC_MARK_LOST`    | a saved mark has no element to sit on                      |
+| Code              | When                                                        |
+| ----------------- | ----------------------------------------------------------- |
+| `PC_NO_STORAGE`   | private browsing, a sandboxed frame, storage switched off   |
+| `PC_STORE_FULL`   | the origin is out of room and eviction did not free enough  |
+| `PC_STORE_FAILED` | the state service answered with an error                    |
+| `PC_MARK_LOST`    | reserved; a lost mark is reported, never thrown (see above) |
 
 `persist: true` falls back to `memoryStore()` rather than throwing when storage is
 unavailable, because remembering nothing is the right answer in a sandboxed frame.

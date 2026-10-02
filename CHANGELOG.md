@@ -348,6 +348,13 @@ call`, with `explain()` naming which layer set each value. A source can be an
   interface's, which never persists, and reading it installed a second menu and
   keymap. It is now the live interface created with `persist`.
 
+- **Docs that promised more than the code did.** `docs/tools/memory.md`
+  listed configuration as remembered, imported the stores from
+  `@simtabi/printcraft/ui` (now exported there), and listed `PC_MARK_LOST` as
+  thrown; the events table had payload fields that were not sent, and the
+  options save now sends `count` and `store` like the others. The annotate page
+  described a toolbar that cycled colours, which became the Pen form.
+
 ### Not fixed
 
 - The ⊗ floating in the Description box in two of the screenshots is not ours.

@@ -318,7 +318,11 @@ export class Session {
   private async writeOptions(options: Record<string, unknown>): Promise<void> {
     const next = { ...(await this.options()), ...rememberedOptions(options) };
     await this.store.set(this.key(KEYS.options), next);
-    this.announce('state:save', { what: 'options', keys: Object.keys(next).length });
+    this.announce('state:save', {
+      what: 'options',
+      count: Object.keys(next).length,
+      store: this.store.name
+    });
   }
 
   /* activity ------------------------------------------------------------- */

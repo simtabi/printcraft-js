@@ -57,3 +57,7 @@ export {
   type PrintDialogResult
 } from './print-dialog';
 export type { UiDeps } from './shared';
+
+// the stores, so `import { localStore } from '@simtabi/printcraft/ui'` works as
+// docs/tools/memory.md shows. they are already in this chunk, behind `persist`.
+export { memoryStore, localStore, sessionStore, httpStore, customStore } from '../state';

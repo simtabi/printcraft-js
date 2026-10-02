@@ -176,7 +176,7 @@ const pop = Printcraft.ui.popover(anchor, {
 pop.close();
 ```
 
-Both use the platform's `popover` attribute and CSS anchor positioning where they exist: the top layer rather than z-index arithmetic, Escape and light-dismiss for free, and `position-try` handling the flip when one would leave the viewport. That is baseline as of 2026 (Chrome 125, Firefox 132, Safari 18.2), and where it is missing the old positioner stands in.
+Both use the platform's `popover` attribute and CSS anchor positioning where they exist: the top layer rather than z-index arithmetic, Escape from the platform and light-dismiss from a small listener (the popover is `manual`, so it can stay open while you move to it), and `position-try` handling the flip when one would leave the viewport. That is baseline as of 2026 (Chrome 125, Firefox 132, Safari 18.2), and where it is missing the old positioner stands in.
 
 A tooltip also supplies `aria-label` when its target has no accessible name. On an icon-only button the tooltip is the only label there is.
 

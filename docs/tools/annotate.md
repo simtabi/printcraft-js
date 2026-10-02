@@ -13,8 +13,8 @@ studio.undo();
 studio.close();
 ```
 
-Pick a tool, drag on the thing you want to mark. The toolbar cycles colour and stroke
-width; `Ctrl`/`⌘` `Z` undoes, `Escape` puts the tools away.
+Pick a tool, drag on the thing you want to mark. **Pen** opens a small form for colour
+and stroke width; `Ctrl`/`⌘` `Z` undoes, `Escape` puts the tools away.
 
 ## Why vectors
 
