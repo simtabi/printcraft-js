@@ -4,7 +4,9 @@ All notable changes to this project are documented here. This project adheres to
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased] — 3.0
+## [Unreleased]
+
+## [3.0.0] - 2026-10-02 — a proof sheet before every print, daisyUI underneath, and one prefix
 
 The class names and data attributes the kit renders are part of the public
 surface, and this renames all of them; the component css underneath is

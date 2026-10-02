@@ -1,6 +1,6 @@
 {
   "name": "@simtabi/printcraft",
-  "version": "2.0.0",
+  "version": "3.0.0",
   "description": "Client-side printing you can aim: paginated sheets, a region tool, verified redaction, and a right-click menu, command palette and keyboard commands out of the box.",
   "keywords": [
     "print",
