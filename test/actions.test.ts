@@ -913,7 +913,7 @@ test('configure() reaches the right-click menu, not only the palette and keys', 
         {
           id: 'peek',
           label: 'Peek',
-          run: (ctx: { base: Record<string, unknown> }) => (seen = ctx.base)
+          run: (c: { base: Record<string, unknown> }) => (seen = c.base)
         }
       ]
     },
