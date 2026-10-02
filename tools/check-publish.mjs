@@ -14,19 +14,27 @@ const run = spawnSync('npm', ['publish', '--dry-run', '--ignore-scripts', '--acc
 });
 const output = `${run.stdout ?? ''}\n${run.stderr ?? ''}`;
 
-if (run.status !== 0) {
+// A non-zero exit is expected once the version is on npm ("cannot publish over the
+// previously published versions") and when no one is logged in; normalisation has already run
+// by then. Only fail outright when npm could not even build the tarball.
+if (run.status !== 0 && !/Tarball Details/.test(output)) {
   process.stderr.write(output);
-  console.error('check-publish: `npm publish --dry-run` failed.');
+  console.error('check-publish: npm could not pack the package.');
   process.exit(1);
 }
 
-// npm prints one header line, then one line per correction, all prefixed `npm warn publish`.
-const corrections = output
-  .split('\n')
-  .filter(
-    (line) => line.startsWith('npm warn publish') && !/errors corrected:|npm pkg fix/.test(line)
-  )
-  .map((line) => line.replace(/^npm warn publish\s*/, ''));
+// npm reports manifest corrections as a block: an `errors corrected:` header, then one
+// `npm warn publish <correction>` line each. Only that block counts — other publish warnings
+// (a dry run without a login prints "requires you to be logged in") are not manifest changes.
+const lines = output.split('\n');
+const header = lines.findIndex((line) => /^npm warn publish errors corrected:/.test(line));
+const corrections = [];
+if (header !== -1) {
+  for (const line of lines.slice(header + 1)) {
+    if (!line.startsWith('npm warn publish')) break;
+    corrections.push(line.replace(/^npm warn publish\s*/, ''));
+  }
+}
 
 if (corrections.length > 0) {
   console.error('check-publish: npm would change package.json while publishing:');
