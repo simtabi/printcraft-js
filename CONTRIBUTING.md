@@ -1,5 +1,7 @@
 # Contributing
 
+Where this file is silent, the [Simtabi contributing guide](https://github.com/simtabi/.github/blob/HEAD/CONTRIBUTING.md) applies.
+
 Thanks for helping improve Printcraft. This page covers the local setup, the
 conventions the codebase follows, and what a reviewable pull request looks like.
 
