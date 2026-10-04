@@ -709,3 +709,5 @@ IIFE/UMD.
 
 Lineage: a clean-room reimplementation and extension of the public API of
 ezPrintJS v1.1.0 (2017). No code from that commercial library was used.
+
+[Unreleased]: https://github.com/simtabi/printcraft-js/compare/v3.0.0...HEAD
