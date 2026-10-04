@@ -30,6 +30,40 @@ declarative layer automatically:
 <button data-printcraft="#invoice">Print</button>
 ```
 
+## Quick start guide and usage
+
+### Getting started
+
+Nothing to configure: once the module is imported (or the UMD script is loaded),
+`Printcraft` is ready to print. Two optional script-tag attributes control the
+UMD auto-boot:
+
+1. `data-auto-init="false"` skips the auto-boot entirely.
+2. `data-config="/printcraft.config.json"` fetches page-wide defaults from a file.
+
+### Usage
+
+```js
+const job = await Printcraft.print('#invoice');
+console.log(job.status, job.duration + 'ms');
+```
+
+```js
+await Printcraft.print({
+  target: '#invoice',
+  excludeSelectorList: ['.ads', 'nav'],
+  headerText: 'ACME CO',
+  setPrintSize: 'A4 portrait',
+  pageMargin: '18mm'
+});
+```
+
+```js
+await Printcraft.job('#invoice').exclude('.ads').redact('.ssn').watermark('DRAFT', 0.15).print();
+```
+
+The full walkthrough is in [Getting started](docs/getting-started.md); everything else is in the [documentation index](#documentation).
+
 ## <a name="documentation"></a>Documentation
 
 Full documentation: **<https://opensource.simtabi.com/documentation/simtabi/printcraft-js/>**
