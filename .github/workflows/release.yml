@@ -1,22 +1,52 @@
 name: Release
 
+# A tag push publishes to the registry the repository variable PUBLISH_REGISTRY names (npm when unset) and
+# creates the GitHub release. A maintainer can publish an existing tag by hand to either registry, which is what
+# .dev/tools/npm-release does:  gh workflow run release.yml -f tag=vX.Y.Z -f registry=github
+#
+# GitHub Packages (npm.pkg.github.com) needs no npm account: the run's own GITHUB_TOKEN publishes. It is the way
+# out while npm cannot take a publish from this repository: it was created after 2026-07-15, so GitHub issues it
+# immutable OIDC subjects, which npm's trusted publishing does not accept yet (npm/cli#9969).
 on:
   push:
     tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'An existing release tag to publish, e.g. v3.0.0'
+        required: true
+      registry:
+        description: 'npm (registry.npmjs.org) or github (GitHub Packages)'
+        type: choice
+        options: [npm, github]
+        default: npm
 
 permissions:
   contents: read
 
 jobs:
   release:
-    name: Publish ${{ github.ref_name }}
+    name: Publish ${{ inputs.tag || github.ref_name }} to ${{ inputs.registry || vars.PUBLISH_REGISTRY || 'npm' }}
     runs-on: ubuntu-latest
     environment: npm
     permissions:
       contents: write # create the GitHub release
       id-token: write # npm trusted publishing (OIDC) and provenance
+      packages: write # GitHub Packages, with the run's GITHUB_TOKEN
+    env:
+      TAG: ${{ inputs.tag || github.ref_name }}
+      TARGET: ${{ inputs.registry || vars.PUBLISH_REGISTRY || 'npm' }}
     steps:
+      - name: Check the tag
+        run: |
+          if ! printf '%s' "$TAG" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$'; then
+            echo "::error::'$TAG' is not a release tag (vX.Y.Z)." >&2
+            exit 1
+          fi
+
       - uses: actions/checkout@v7
+        with:
+          ref: refs/tags/${{ inputs.tag || github.ref_name }}
 
       - uses: actions/setup-node@v7
         with:
@@ -61,7 +91,7 @@ jobs:
 
       - name: Check the tag matches package.json
         run: |
-          tag="${GITHUB_REF_NAME#v}"
+          tag="${TAG#v}"
           pkg="$(node -p "require('./package.json').version")"
           if [ "$tag" != "$pkg" ]; then
             echo "tag v$tag does not match package.json version $pkg" >&2
@@ -73,7 +103,7 @@ jobs:
       - name: Extract the changelog section
         id: notes
         run: |
-          version="${GITHUB_REF_NAME#v}"
+          version="${TAG#v}"
           awk -v v="$version" '
             $0 ~ "^## \\[?" v "\\]?" { found = 1; next }
             found && /^## / { exit }
@@ -85,6 +115,15 @@ jobs:
           fi
           cat release-notes.md
 
+      # GitHub Packages is reached through its own userconfig, so the .npmrc
+      # setup-node wrote for npm (and every dependency install) is untouched.
+      - name: Point GitHub Packages at the run's token
+        if: env.TARGET == 'github'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          printf '@simtabi:registry=https://npm.pkg.github.com\n//npm.pkg.github.com/:_authToken=%s\n' "$GITHUB_TOKEN" > "$RUNNER_TEMP/github-packages.npmrc"
+
       # A version already on the registry is skipped rather than failed, so a
       # release whose first publish was done by hand (trusted publishing can
       # only be configured once the package exists) still gets its GitHub
@@ -94,7 +133,14 @@ jobs:
         run: |
           name="$(node -p "require('./package.json').name")"
           version="$(node -p "require('./package.json').version")"
-          if npm view "$name@$version" version >/dev/null 2>&1; then
+          if [ "$TARGET" = github ]; then
+            if npm view "$name@$version" version --userconfig "$RUNNER_TEMP/github-packages.npmrc" 2>/dev/null | grep -qxF "$version"; then
+              echo "already on GitHub Packages: $name@$version"
+              echo "exists=true" >> "$GITHUB_OUTPUT"
+            else
+              echo "exists=false" >> "$GITHUB_OUTPUT"
+            fi
+          elif npm view "$name@$version" version >/dev/null 2>&1; then
             echo "$name@$version is already on npm; skipping publish"
             echo "exists=true" >> "$GITHUB_OUTPUT"
           else
@@ -102,15 +148,28 @@ jobs:
           fi
 
       # prepublishOnly runs the full build, so a stale dist can never ship.
-      # Authentication is npm trusted publishing (OIDC, id-token: write above);
-      # no NODE_AUTH_TOKEN is set on purpose.
-      - name: Publish to npm
+      # npm: trusted publishing (OIDC, id-token: write above) with provenance,
+      # or an NPM_TOKEN secret when one is set. npm tries OIDC before a token
+      # whenever the job can mint one, so the token path hides the OIDC
+      # variables, and loses provenance, which is signed with that identity.
+      # GitHub Packages: the run's own token; it signs no provenance.
+      - name: Publish
         if: steps.published.outputs.exists != 'true'
-        run: npm publish --access public
         env:
-          NPM_CONFIG_PROVENANCE: true
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          if [ "$TARGET" = github ]; then
+            npm publish --userconfig "$RUNNER_TEMP/github-packages.npmrc" --registry https://npm.pkg.github.com --provenance=false
+          elif [ -n "$NPM_TOKEN" ]; then
+            env -u ACTIONS_ID_TOKEN_REQUEST_URL -u ACTIONS_ID_TOKEN_REQUEST_TOKEN \
+              NODE_AUTH_TOKEN="$NPM_TOKEN" npm publish --access public --provenance=false
+          else
+            NPM_CONFIG_PROVENANCE=true npm publish --access public
+          fi
 
+      # Only for a tag push: publishing an existing tag by hand leaves its release alone.
       - name: Create the GitHub release
+        if: github.event_name == 'push'
         uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
         with:
           body_path: release-notes.md

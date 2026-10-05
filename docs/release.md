@@ -46,6 +46,36 @@ package.
 
 `prepublishOnly` runs a full build, so a publish can never ship a stale `dist/`.
 
+### npm or GitHub Packages
+
+This repository was created after 2026-07-15, so GitHub issues it immutable OIDC subjects, which npm's trusted
+publishing does not accept yet ([npm/cli#9969](https://github.com/npm/cli/issues/9969)): the token exchange
+succeeds and the upload is refused with `403 OIDC permission denied`. `release.yml` therefore publishes three
+ways. A tag push goes to the registry the repository variable `PUBLISH_REGISTRY` names (`npm` when unset):
+
+| Route                                  | Credential                                                                           | Provenance |
+| -------------------------------------- | ------------------------------------------------------------------------------------ | ---------- |
+| npm, trusted publishing                | the job's OIDC token                                                                 | yes        |
+| npm, `NPM_TOKEN` secret set            | a granular npm token; the OIDC variables are hidden from npm, which tries them first | no         |
+| GitHub Packages (`npm.pkg.github.com`) | the run's own `GITHUB_TOKEN`                                                         | no         |
+
+One command publishes every release tag that is not out yet, oldest first, to either registry:
+
+```bash
+.dev/tools/npm-release github        # GitHub Packages; needs no npm token
+.dev/tools/npm-release npm           # npm, with a granular token (npm_…) on the clipboard
+.dev/tools/npm-release               # npm if the clipboard holds a token npm accepts, GitHub Packages otherwise
+```
+
+`--dry-run` changes nothing, `--keep-token` uses the `NPM_TOKEN` secret already set, and naming tags
+(`v3.0.0`) publishes only those; `--help` lists the rest. It needs `gh` signed in as a maintainer. A version a
+registry already has is reported, not failed, so running it again is safe; a hand-started run never touches
+the tag's GitHub release.
+
+GitHub Packages asks for authentication even to install a public package. A project installing from it adds
+`@simtabi:registry=https://npm.pkg.github.com` and `//npm.pkg.github.com/:_authToken=${GITHUB_TOKEN}` to its
+`.npmrc`, with a token that has `read:packages`.
+
 ## What gets published
 
 `files` in `package.json` restricts the tarball to:
