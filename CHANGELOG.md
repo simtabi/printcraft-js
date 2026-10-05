@@ -9,6 +9,7 @@ All notable changes to this project are documented here. This project adheres to
 ### Added
 
 - `release.yml` can publish to GitHub Packages as well as npm: a `workflow_dispatch` with `tag` and `registry` inputs publishes an existing tag to either, and a tag push follows the `PUBLISH_REGISTRY` repository variable. With an `NPM_TOKEN` secret it publishes with the token, because npm's trusted publishing does not accept this repository's OIDC subject yet (npm/cli#9969). `.dev/tools/npm-release github|npm` publishes every missing release in one command; see `docs/release.md`.
+- The README's Install section says that releases after 3.0.0 come from GitHub Packages, and shows the scoped `.npmrc` they need.
 - `npm run check:publish` (part of `lint:pkg`, so it runs in CI and before every release) fails when npm would rewrite `package.json` at publish time. npm only warns about those corrections; on 2026-10-02 one silently dropped the `printcraft` CLI from the 3.0.0 tarball before it shipped.
 
 ## [3.0.0] - 2026-10-02 — a proof sheet before every print, daisyUI underneath, and one prefix
