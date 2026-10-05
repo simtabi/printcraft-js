@@ -1,0 +1,268 @@
+#!/usr/bin/env bash
+# Publishes this repository's JavaScript package for every release tag that is not out yet, in version order, to
+# npm or to GitHub Packages. One command, the same file in every repository that publishes to npm:
+#
+#   npm-release                     auto: npm with the token on the clipboard, else GitHub Packages
+#   npm-release npm                 npm only; reads the token from the clipboard (or stdin) and never falls back
+#   npm-release github              GitHub Packages only; needs no npm token
+#   npm-release npm --keep-token    npm with the NPM_TOKEN secret already set
+#   npm-release github v0.8.0       only the tags named
+#   npm-release --dry-run           check everything, change nothing
+#   pbpaste | npm-release --validate-only    check a token's shape and that npm accepts it
+#
+# --registry=npm|github|auto is the long form of the first argument; --npm and --github are kept as aliases.
+#
+# It reads everything else from the repository it sits in: the package name from package.json (in a workspace
+# root marked private, the first workspace's; NPM_RELEASE_DIR names another directory), the GitHub repository
+# from the origin remote, and the publish workflow: the first of npm-publish.yml, release.yml and publish.yml
+# that takes a `registry` input (NPM_RELEASE_WORKFLOW names another). That workflow must take workflow_dispatch
+# inputs `tag` and `registry` (npm|github), publish to GitHub Packages with its own GITHUB_TOKEN, and print
+# npm's "+ name@version" line, or "already on GitHub Packages: name@version" for a version already there.
+#
+# Why GitHub Packages at all: repositories created after 2026-07-15 issue GitHub's immutable OIDC subject, which
+# npm's trusted publishing does not accept yet (npm/cli#9969), so npm needs a token; when there is none that npm
+# accepts, GitHub Packages publishes with no npm account involved.
+#
+# The token is never printed, never put on a command line (curl reads the header from stdin, gh reads the secret
+# from stdin) and never written to disk. Only its length, line count and stray characters are reported.
+
+set -euo pipefail
+
+say() { printf '==> %s\n' "$*"; }
+die() { printf 'npm-release: %s\n' "$1" >&2; exit "${2:-1}"; }
+
+ROOT=$(git -C "$(dirname "$0")" rev-parse --show-toplevel)
+PACKAGE_DIR="$ROOT/${NPM_RELEASE_DIR:-.}"
+WORKFLOW=${NPM_RELEASE_WORKFLOW:-}
+GH_LOGIN=${NPM_RELEASE_GH_LOGIN:-imanimanyara}
+REGISTRY=${NPM_RELEASE_REGISTRY:-https://registry.npmjs.org} # overridable for the tests only
+
+mode=auto keep_token=false dry_run=false validate_only=false
+tags=()
+for arg in "$@"; do
+  case "$arg" in
+    npm|github|auto) mode=$arg ;;
+    --registry=npm|--registry=github|--registry=auto) mode=${arg#--registry=} ;;
+    --npm) mode=npm ;;
+    --github) mode=github ;;
+    --keep-token) keep_token=true ;;
+    --dry-run) dry_run=true ;;
+    --validate-only) validate_only=true ;;
+    -h|--help) sed -n '2,27p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    v[0-9]*.[0-9]*.[0-9]*) tags+=("$arg") ;;
+    *) die "unknown argument '$arg' (see --help)" 64 ;;
+  esac
+done
+
+# Reads the candidate token from stdin when something is piped in, otherwise from the clipboard.
+read_token() {
+  if [ ! -t 0 ]; then cat; elif command -v pbpaste >/dev/null; then pbpaste; fi
+}
+
+# Copying from a web page can carry characters nobody can see: zero-width spaces, a byte-order mark, a soft
+# hyphen, non-breaking spaces at either end. None of them is ever part of a token, so they are removed here and
+# named (as U+XXXX, never the token's own characters) so the paste that carried them is not a mystery.
+clean_token() {
+  perl -CSD -0777 -ne '
+    my %removed;
+    s/([\x{200B}-\x{200D}\x{2060}\x{FEFF}\x{00AD}])/$removed{sprintf("U+%04X", ord $1)}++; ""/ge;
+    s/\r//g;
+    s/^[\s\p{Zs}]+|[\s\p{Zs}]+$//g;
+    print STDERR "==> removed invisible characters from the paste: ", join(" ", sort keys %removed), "\n" if %removed;
+    print;
+  '
+}
+
+# A granular token is one line: npm_ and letters and digits. Anything else (a token ID, a copied page, a partial
+# paste) is refused before it reaches GitHub, with its length, its line count and any character a token never
+# contains, as U+XXXX. The token's own letters and digits are never shown.
+check_shape() {
+  local token=$1 lines prefix stray length
+  lines=$(printf '%s\n' "$token" | wc -l | tr -d ' ')
+  # grep matches line by line, so the line count is checked too: two tokens pasted together are not one.
+  if [ "$lines" -ne 1 ] || ! grep -Eq '^npm_[A-Za-z0-9_]{30,}$' <<<"$token"; then
+    case "$token" in npm_*) prefix='starts with npm_' ;; *) prefix='does not start with npm_' ;; esac
+    # Characters, not bytes, whatever the locale: bash's ${#token} counts bytes outside a UTF-8 locale.
+    length=$(printf '%s' "$token" | perl -CSD -0777 -ne 'print length')
+    stray=$(printf '%s' "$token" | perl -CSD -0777 -ne 'my %u; $u{sprintf("U+%04X", ord $1)}++ while /([^A-Za-z0-9_\n])/g; print join(" ", sort keys %u)')
+    die "that is not an npm token: $length characters on $lines line(s), $prefix${stray:+, contains $stray}. Copy the token npm shows once after 'Generate token' (npm_ and letters and digits), not the token's ID or the page." 2
+  fi
+}
+
+# Asks the registry who the token belongs to; the header goes through stdin so the token never appears in ps.
+# npm's answer is reported as it came, status and message, which never contain the token. Only a 401 is a
+# refusal: some granular tokens may be denied this lookup and still publish, so the publish decides the rest.
+verify_token() {
+  local response code body user message
+  response=$(printf 'Authorization: Bearer %s\n' "$1" | curl -sS -H @- -w '\n%{http_code}' "$REGISTRY/-/whoami") \
+    || die "could not reach $REGISTRY" 3
+  code=${response##*$'\n'}
+  body=${response%$'\n'*}
+  user=$(jq -r '.username // empty' <<<"$body" 2>/dev/null || true)
+  message=$(jq -r '.error // .message // empty' <<<"$body" 2>/dev/null || true)
+  if [ "$code" = 200 ] && [ -n "$user" ]; then
+    say "token accepted by npm as: $user"
+  elif [ "$code" = 401 ]; then
+    die "npm answered HTTP 401${message:+ ($message)}: it does not accept this token. It is mistyped, revoked or expired; the secret was not changed" 2
+  else
+    say "npm answered HTTP $code to who-am-I${message:+ ($message)}; some granular tokens cannot ask that, so continuing and letting the publish decide"
+  fi
+}
+
+if $validate_only; then
+  token=$(read_token | clean_token)
+  check_shape "$token"
+  verify_token "$token"
+  exit 0
+fi
+
+for tool in gh jq curl git perl; do command -v "$tool" >/dev/null || die "$tool is required"; done
+[ -f "$PACKAGE_DIR/package.json" ] || die "no package.json in $PACKAGE_DIR (set NPM_RELEASE_DIR for a monorepo)"
+# A private workspace root publishes its workspaces, which share its version: read the first one's name.
+if [ -z "${NPM_RELEASE_DIR:-}" ] && [ "$(jq -r '.private // false' "$PACKAGE_DIR/package.json")" = true ]; then
+  first=$(jq -r '(.workspaces // []) | if type == "object" then .packages else . end | .[0] // empty' "$PACKAGE_DIR/package.json")
+  [ -n "$first" ] && [ -f "$ROOT/$first/package.json" ] || die "package.json is private and names no workspace to publish (set NPM_RELEASE_DIR)"
+  PACKAGE_DIR="$ROOT/$first"
+fi
+if [ -z "$WORKFLOW" ]; then
+  for candidate in npm-publish.yml release.yml publish.yml; do
+    if [ -f "$ROOT/.github/workflows/$candidate" ] && grep -Eq '^[[:space:]]+registry:' "$ROOT/.github/workflows/$candidate"; then
+      WORKFLOW=$candidate
+      break
+    fi
+  done
+  [ -n "$WORKFLOW" ] || die "no workflow here takes a 'registry' input (npm-publish.yml, release.yml, publish.yml); set NPM_RELEASE_WORKFLOW"
+fi
+[ -f "$ROOT/.github/workflows/$WORKFLOW" ] || die "no .github/workflows/$WORKFLOW"
+PACKAGE=$(jq -r '.name // empty' "$PACKAGE_DIR/package.json")
+[ -n "$PACKAGE" ] || die "package.json has no name"
+REPO=$(git -C "$ROOT" remote get-url origin | sed -E 's#^(git@github\.com:|https://github\.com/)##; s#\.git$##')
+OWNER=${REPO%%/*}
+PACKAGE_URL="$REGISTRY/$(printf '%s' "$PACKAGE" | sed 's#/#%2f#')"
+
+login=$(gh api user --jq .login) || die "gh is not signed in"
+# Dispatching a workflow and setting a secret need the personal login: the GitHub app answers 403 to both.
+[ "$login" = "$GH_LOGIN" ] || die "gh is signed in as '$login'; switch to $GH_LOGIN (gh auth switch -u $GH_LOGIN)"
+# A workflow gated on a repository variable (vars.NPM_PUBLISH == 'true', and the like) skips the publish without it.
+while IFS= read -r gate; do
+  [ -n "$gate" ] || continue
+  [ "$(gh variable get "$gate" -R "$REPO" 2>/dev/null || true)" = true ] || die "the repository variable $gate is not 'true', so $WORKFLOW would skip the publish"
+done < <(grep -oE "vars\.[A-Z_]+ == 'true'" "$ROOT/.github/workflows/$WORKFLOW" | cut -d' ' -f1 | cut -d. -f2 | sort -u)
+grep -Eq '^[[:space:]]+registry:' "$ROOT/.github/workflows/$WORKFLOW" || die "$WORKFLOW takes no 'registry' input, so it cannot publish to GitHub Packages"
+
+# Every version npm already has, then every release tag it does not, oldest first, so 'latest' ends on the newest.
+# Pre-release versions (npm's 0.0.0-stage placeholder among them) never count as the newest release.
+published=$(curl -sS "$PACKAGE_URL" | jq -r '.versions // {} | keys[]' 2>/dev/null || true)
+highest=$(grep -E '^[0-9]+\.[0-9]+\.[0-9]+$' <<<"$published" | sort -V | tail -1 || true)
+if [ ${#tags[@]} -eq 0 ]; then
+  while IFS= read -r t; do
+    v=${t#v}
+    grep -qxF "$v" <<<"$published" && continue
+    # Tags older than the newest version on npm predate the package or were superseded: name them to publish.
+    [ -n "$highest" ] && [ "$(printf '%s\n%s\n' "$highest" "$v" | sort -V | tail -1)" = "$highest" ] && continue
+    tags+=("$t")
+  done < <(git ls-remote --tags --refs "https://github.com/$REPO" 'v*' | sed 's#.*refs/tags/##' | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | sort -V)
+fi
+say "$PACKAGE ($WORKFLOW): npm has ${highest:-nothing}; to publish: ${tags[*]:-nothing}"
+[ ${#tags[@]} -gt 0 ] || exit 0
+
+# Starts one publish, waits for it, and leaves the run's log in $log. Fails when the run fails, after showing why.
+publish() {
+  local tag=$1 registry=$2 out run
+  if $dry_run; then say "dry run: would publish $tag to $registry"; return 0; fi
+  say "publishing $tag to $registry"
+  out=$(gh workflow run "$WORKFLOW" -R "$REPO" -f tag="$tag" -f registry="$registry" 2>&1) || { printf '%s\n' "$out" >&2; return 1; }
+  # gh prints the new run's URL; reading it avoids picking up someone else's run.
+  run=$(grep -oE '/actions/runs/[0-9]+' <<<"$out" | grep -oE '[0-9]+$' | head -1 || true)
+  [ -n "$run" ] || { printf 'gh did not report the run it started: %s\n' "$out" >&2; return 1; }
+  say "run https://github.com/$REPO/actions/runs/$run"
+  if ! gh run watch "$run" -R "$REPO" --exit-status >/dev/null; then
+    gh run view "$run" -R "$REPO" --log-failed 2>/dev/null | grep -E 'error|warning' | cut -c1-240 | tail -20 >&2 || true
+    return 1
+  fi
+  # Captured whole, then searched: grep -q on a pipe stops reading at the first match, gh then dies of SIGPIPE,
+  # and pipefail turns a found line into a failure.
+  log=$(gh run view "$run" -R "$REPO" --log 2>/dev/null || true)
+}
+
+on_npm() {
+  local version=$1
+  for _ in $(seq 1 12); do
+    [ "$(curl -sS "$PACKAGE_URL/$version" | jq -r '.version // empty' 2>/dev/null)" = "$version" ] && return 0
+    sleep 5
+  done
+  return 1
+}
+
+# Decide the registry. npm needs a token npm accepts; in auto mode, anything short of that (nothing on the
+# clipboard, other text, a 401) is reported and the release goes to GitHub Packages instead.
+use=$mode
+if [ "$mode" != github ] && ! $keep_token; then
+  token=$(read_token 2>/dev/null | clean_token || true)
+  if [ "$mode" = auto ] && [ "${token#npm_}" = "$token" ]; then
+    say "no npm token on the clipboard, so publishing to GitHub Packages"
+    use=github
+  elif ( check_shape "$token" && verify_token "$token" ); then
+    use=npm
+    if $dry_run; then
+      say "dry run: would set NPM_TOKEN on $REPO"
+    else
+      before=$(gh api "repos/$REPO/actions/secrets/NPM_TOKEN" --jq .updated_at 2>/dev/null || echo none)
+      printf '%s' "$token" | gh secret set NPM_TOKEN -R "$REPO" >/dev/null
+      after=$(gh api "repos/$REPO/actions/secrets/NPM_TOKEN" --jq .updated_at)
+      [ "$after" != "$before" ] || die "GitHub still reports NPM_TOKEN updated at $before: the secret did not change"
+      say "NPM_TOKEN updated at $after (was $before)"
+    fi
+  elif [ "$mode" = npm ]; then
+    die "npm needs a token it accepts (see above); 'npm-release github' publishes to GitHub Packages instead" 2
+  else
+    say "npm will not take that token, so publishing to GitHub Packages"
+    use=github
+  fi
+  unset token
+elif [ "$mode" = auto ]; then
+  use=npm # --keep-token: the secret already set decides
+fi
+
+# GitHub Packages serves a scoped package only under the scope of the repository's owner.
+if [ "$use" = github ] || [ "$mode" = auto ]; then
+  case "$PACKAGE" in
+    "@$OWNER/"*) ;;
+    *) [ "$use" = github ] && die "GitHub Packages only takes packages scoped to the owner (@$OWNER/...); $PACKAGE is not" 2 ;;
+  esac
+fi
+
+if [ "$use" = npm ]; then
+  for i in "${!tags[@]}"; do
+    tag=${tags[$i]}
+    if publish "$tag" npm; then
+      $dry_run && continue
+      on_npm "${tag#v}" || die "the run passed but $PACKAGE@${tag#v} is not on npm yet"
+      say "$PACKAGE@${tag#v} is on npm"
+    elif [ "$mode" = auto ]; then
+      # Keep the order: this tag and every later one go to GitHub Packages.
+      say "npm refused $tag, so it and the tags after it go to GitHub Packages"
+      tags=("${tags[@]:$i}")
+      use=github
+      break
+    else
+      die "$tag did not publish to npm; later tags were not started, so the versions stay in order"
+    fi
+  done
+  if [ "$use" = npm ]; then
+    $dry_run || say "npm latest is now $(curl -sS "$PACKAGE_URL" | jq -r '.["dist-tags"].latest')"
+    exit 0
+  fi
+fi
+
+for tag in "${tags[@]}"; do
+  publish "$tag" github || die "$tag did not publish to GitHub Packages; later tags were not started, so the versions stay in order"
+  $dry_run && continue
+  # npm's own line in the run's log confirms the upload without the read:packages scope listing would need.
+  if grep -qE "(\+ $PACKAGE@${tag#v}|already on GitHub Packages: $PACKAGE@${tag#v})\$" <<<"$log"; then
+    say "$PACKAGE@${tag#v} is on GitHub Packages"
+  else
+    die "the run passed but its log does not show $PACKAGE@${tag#v} published"
+  fi
+done
+$dry_run || say "installs from GitHub Packages need, in the consuming project's .npmrc: @$OWNER:registry=https://npm.pkg.github.com, and a token with read:packages"
