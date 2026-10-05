@@ -17,6 +17,15 @@ Runs in any browser with `afterprint` and `document.fonts`: Chrome, Edge, Firefo
 npm install @simtabi/printcraft
 ```
 
+3.0.0 is on npm. Releases after it are published to GitHub Packages while npm's trusted publishing cannot take a publish from this repository ([npm/cli#9969](https://github.com/npm/cli/issues/9969)). GitHub Packages asks for a token even for a public package, so to install one, add a GitHub token with `read:packages` to the project's `.npmrc` first:
+
+```ini
+@simtabi:registry=https://npm.pkg.github.com
+//npm.pkg.github.com/:_authToken=${GITHUB_TOKEN}
+```
+
+See [npm or GitHub Packages](docs/release.md#npm-or-github-packages).
+
 ```js
 import Printcraft from '@simtabi/printcraft'; // esm
 const Printcraft = require('@simtabi/printcraft'); // cjs (umd build)
